@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bubble Wrap Loader</title>
+<style>
+  :root {
+    --bg: #f4f7f6;
+    --text: #2d3748;
+    --bubble-color: rgba(255, 255, 255, 0.8);
+    --bubble-border: rgba(200, 210, 220, 0.9);
+    --bubble-popped: rgba(226, 232, 240, 0.4);
+    --bar-bg: #e2e8f0;
+    --primary: #4299e1;
+  }
+
+  body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--text);
+    overflow: hidden;
+  }
+
+  .container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    padding: 40px;
+    background: #ffffff;
+    border-radius: 24px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.02);
+  }
+
+  .header {
+    text-align: center;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 8px 0 0;
+    font-size: 0.875rem;
+    color: #718096;
+  }
+
+  .wrap-container {
+    position: relative;
+    padding: 12px;
+    background: var(--bar-bg);
+    border-radius: 16px;
+    display: grid;
+    grid-template-rows: repeat(3, 1fr);
+    grid-auto-flow: column;
+    gap: 8px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+  }
+
+  .bubble {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--bubble-color);
+    border: 1px solid var(--bubble-border);
+    cursor: pointer;
+    position: relative;
+    box-shadow:
+      inset -2px -2px 6px rgba(255,255,255,1),
+      inset 2px 2px 6px rgba(0,0,0,0.05),
+      0 2px 4px rgba(0,0,0,0.05);
+    transition: transform 0.1s;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .bubble::after {
+    content: '';
+    position: absolute;
+    top: 6px;
+    left: 8px;
+    width: 6px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 50%;
+    transform: rotate(-45deg);
+  }
+
+  .bubble:hover:not(.popped) {
+    transform: scale(1.05);
+  }
+
+  .bubble:active:not(.popped) {
+    transform: scale(0.95);
+  }
+
+  .bubble.popped {
+    background: var(--bubble-popped);
+    box-shadow:
+      inset 2px 2px 4px rgba(0,0,0,0.05),
+      inset -2px -2px 4px rgba(255,255,255,0.5);
+    cursor: default;
+    transform: scale(0.95);
+    border-color: transparent;
+  }
+
+  .bubble.popped::after {
+    opacity: 0.3;
+  }
+
+  .bubble.auto-popped {
+    animation: autoPop 0.3s ease-out forwards;
+  }
+
+  @keyframes autoPop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); background: var(--primary); }
+    100% { transform: scale(0.95); background: var(--bubble-popped); }
+  }
+
+  .confetti {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .finish-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    font-weight: bold;
+    color: var(--primary);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s;
+    font-size: 1.25rem;
+    backdrop-filter: blur(2px);
+  }
+
+  .finish-overlay.visible {
+    opacity: 1;
+  }
+
+  .skip-hint {
+    margin-top: 16px;
+    font-size: 0.75rem;
+    color: #a0aec0;
+    font-style: italic;
+  }
+
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1 id="statusText">Warming up systems...</h1>
+    <p id="progressText">0%</p>
+  </div>
+
+  <div class="wrap-container" id="wrap">
+    <div class="finish-overlay" id="finish">Ready!</div>
+  </div>
+
+  <div class="skip-hint">Hint: Pop bubbles to speed things up!</div>
+</div>
+
+<script>
+  const COLS = 15;
+  const ROWS = 3;
+  const TOTAL = COLS * ROWS;
+  const wrap = document.getElementById('wrap');
+  const statusText = document.getElementById('statusText');
+  const progressText = document.getElementById('progressText');
+  const finish = document.getElementById('finish');
+
+  let poppedCount = 0;
+  let currentIndex = 0;
+  const bubbles = [];
+
+  for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < ROWS; r++) {
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.dataset.index = bubbles.length;
+
+      const popAction = (e) => {
+        if (e) e.preventDefault();
+        manualPop(bubble);
+      };
+
+      bubble.addEventListener('mousedown', popAction);
+      bubble.addEventListener('touchstart', popAction, { passive: false });
+
+      wrap.appendChild(bubble);
+      bubbles.push(bubble);
+    }
+  }
+
+  function updateProgress() {
+    const percent = Math.floor((poppedCount / TOTAL) * 100);
+    progressText.innerText = `${percent}%`;
+    if (poppedCount === TOTAL) {
+      statusText.innerText = "System online";
+      finish.classList.add('visible');
+    }
+  }
+
+  function spawnParticles(x, y) {
+    const colors = ['#4299e1', '#63b3ed', '#90cdf4', '#ffffff'];
+    for(let i=0; i<5; i++) {
+      const p = document.createElement('div');
+      p.className = 'confetti';
+      p.style.background = colors[Math.floor(Math.random() * colors.length)];
+      p.style.left = (x - 4) + 'px';
+      p.style.top = (y - 4) + 'px';
+
+      const angle = Math.random() * Math.PI * 2;
+      const velocity = 30 + Math.random() * 40;
+      const tx = Math.cos(angle) * velocity;
+      const ty = Math.sin(angle) * velocity;
+
+      p.animate([
+        { transform: `translate(0, 0) scale(1)`, opacity: 1 },
+        { transform: `translate(${tx}px, ${ty}px) scale(0)`, opacity: 0 }
+      ], {
+        duration: 400 + Math.random() * 200,
+        easing: 'cubic-bezier(.17,.89,.32,1)'
+      });
+
+      document.body.appendChild(p);
+      setTimeout(() => p.remove(), 600);
+    }
+  }
+
+  function manualPop(bubble) {
+    if (bubble.classList.contains('popped')) return;
+
+    bubble.classList.add('popped');
+    poppedCount++;
+    updateProgress();
+
+    const rect = bubble.getBoundingClientRect();
+    spawnParticles(rect.left + rect.width/2, rect.top + rect.height/2);
+  }
+
+  function autoPopNext() {
+    if (poppedCount >= TOTAL) return;
+
+    while (currentIndex < TOTAL && bubbles[currentIndex].classList.contains('popped')) {
+      currentIndex++;
+    }
+
+    if (currentIndex < TOTAL) {
+      const bubble = bubbles[currentIndex];
+      bubble.classList.add('popped');
+      bubble.classList.add('auto-popped');
+      poppedCount++;
+      currentIndex++;
+      updateProgress();
+    }
+
+    if (poppedCount < TOTAL) {
+      setTimeout(autoPopNext, 250);
+    }
+  }
+
+  setTimeout(autoPopNext, 500);
+
+</script>
+</body>
+</html>
