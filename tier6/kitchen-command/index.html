@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kitchen Command</title>
+    <style>
+        :root {
+            --bg-color: #1e1e24;
+            --panel-bg: #2b2b36;
+            --text-main: #f0f0f5;
+            --text-muted: #9aa0a6;
+            --border-color: #444455;
+            --highlight: #007bff;
+            --highlight-dim: #0056b3;
+
+            --grill: #ff6b6b;
+            --cold: #4ecdc4;
+            --pastry: #ffe66d;
+            --pass: #c780e8;
+            --expo: #7bed9f;
+
+            --urgent: #ff4757;
+            --warning: #ffa502;
+            --ok: #2ed573;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            font-size: 14px;
+        }
+
+        header {
+            background-color: var(--panel-bg);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        header h1 {
+            font-size: 1.2rem;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--highlight);
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        select, button {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        button:hover {
+            background-color: var(--border-color);
+        }
+
+        button:focus, select:focus {
+            outline: 2px solid var(--highlight);
+            outline-offset: 1px;
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .left-panel {
+            width: 250px;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-color);
+            background-color: var(--panel-bg);
+        }
+
+        .center-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .right-panel {
+            width: 300px;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid var(--border-color);
+            background-color: var(--panel-bg);
+        }
+
+        .panel-section {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            border-bottom: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        .panel-section:last-child {
+            border-bottom: none;
+        }
+
+        .section-header {
+            padding: 8px 15px;
+            background-color: #22222a;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .scrollable {
+            overflow-y: auto;
+            flex: 1;
+            padding: 10px;
+        }
+
+        /* Order Board */
+        .order-board {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .ticket-mini {
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-left: 4px solid transparent;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            transition: all 0.2s;
+        }
+
+        .ticket-mini:hover {
+            border-color: var(--highlight-dim);
+        }
+
+        .ticket-mini.selected {
+            background-color: #333344;
+            border-color: var(--highlight);
+        }
+
+        .ticket-header {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+        }
+
+        .ticket-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .urgency-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .u-urgent { background-color: var(--urgent); box-shadow: 0 0 5px var(--urgent); }
+        .u-warning { background-color: var(--warning); }
+        .u-ok { background-color: var(--ok); }
+
+        /* Station Lanes */
+        .lanes-container {
+            display: flex;
+            flex: 1;
+            overflow-x: auto;
+            background-color: var(--bg-color);
+        }
+
+        .lane {
+            flex: 1;
+            min-width: 200px;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .lane:last-child {
+            border-right: none;
+        }
+
+        .lane-header {
+            padding: 8px;
+            text-align: center;
+            font-weight: bold;
+            border-bottom: 2px solid;
+            background-color: var(--panel-bg);
+        }
+
+        .lane[data-station="grill"] .lane-header { border-bottom-color: var(--grill); color: var(--grill); }
+        .lane[data-station="cold"] .lane-header { border-bottom-color: var(--cold); color: var(--cold); }
+        .lane[data-station="pastry"] .lane-header { border-bottom-color: var(--pastry); color: var(--pastry); }
+        .lane[data-station="pass"] .lane-header { border-bottom-color: var(--pass); color: var(--pass); }
+        .lane[data-station="expo"] .lane-header { border-bottom-color: var(--expo); color: var(--expo); }
+
+        .lane-items {
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .task-card {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 8px;
+            cursor: pointer;
+        }
+
+        .task-card.selected {
+            border-color: var(--highlight);
+            box-shadow: 0 0 0 1px var(--highlight);
+        }
+
+        .task-card.completed {
+            opacity: 0.5;
+            text-decoration: line-through;
+        }
+
+        .task-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .task-details {
+            font-size: 11px;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Timing View */
+        .timing-view {
+            height: 150px;
+            border-top: 1px solid var(--border-color);
+            background-color: var(--panel-bg);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .timeline {
+            flex: 1;
+            position: relative;
+            margin: 10px 20px;
+            border-top: 2px solid #555;
+            padding-top: 10px;
+        }
+
+        .time-marker {
+            position: absolute;
+            top: -6px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--text-muted);
+            transform: translateX(-50%);
+        }
+
+        .time-marker.selected {
+            background-color: var(--highlight);
+            box-shadow: 0 0 5px var(--highlight);
+            transform: translateX(-50%) scale(1.5);
+            z-index: 10;
+        }
+
+        .time-label {
+            position: absolute;
+            top: 10px;
+            transform: translateX(-50%);
+            font-size: 10px;
+            white-space: nowrap;
+        }
+
+        .time-now {
+            position: absolute;
+            top: -10px;
+            bottom: 0;
+            width: 2px;
+            background-color: var(--highlight);
+            left: 20%;
+            z-index: 5;
+        }
+
+        /* Inventory Pressure */
+        .inventory-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .inv-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .inv-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+        }
+
+        .inv-bar-bg {
+            height: 6px;
+            background-color: var(--bg-color);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .inv-bar-fill {
+            height: 100%;
+            background-color: var(--ok);
+            transition: width 0.3s, background-color 0.3s;
+        }
+
+        .inv-bar-fill.warning { background-color: var(--warning); }
+        .inv-bar-fill.critical { background-color: var(--urgent); }
+
+        /* Ticket Inspector */
+        .inspector {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .inspector-empty {
+            text-align: center;
+            color: var(--text-muted);
+            margin-top: 50px;
+            font-style: italic;
+        }
+
+        .insp-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .insp-id {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .insp-table {
+            font-weight: bold;
+            color: var(--text-muted);
+        }
+
+        .insp-items {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .insp-item {
+            background-color: var(--bg-color);
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+
+        .insp-item-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .insp-item-mods {
+            font-size: 12px;
+            color: var(--warning);
+            margin-bottom: 5px;
+        }
+
+        .insp-item-station {
+            font-size: 10px;
+            text-transform: uppercase;
+            display: inline-block;
+            padding: 2px 5px;
+            border-radius: 3px;
+            color: #000;
+        }
+
+        .bg-grill { background-color: var(--grill); }
+        .bg-cold { background-color: var(--cold); }
+        .bg-pastry { background-color: var(--pastry); }
+
+        .action-btn {
+            background-color: var(--highlight);
+            color: white;
+            border: none;
+            padding: 8px;
+            width: 100%;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .action-btn:hover {
+            background-color: var(--highlight-dim);
+        }
+
+        .action-btn:disabled {
+            background-color: var(--border-color);
+            color: var(--text-muted);
+            cursor: not-allowed;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-color); }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Kitchen Command</h1>
+        <div class="controls">
+            <div class="filter-group">
+                <label for="stationFilter">Station:</label>
+                <select id="stationFilter">
+                    <option value="all">All Stations</option>
+                    <option value="grill">Grill</option>
+                    <option value="cold">Cold</option>
+                    <option value="pastry">Pastry</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="urgencyFilter">Urgency:</label>
+                <select id="urgencyFilter">
+                    <option value="all">All</option>
+                    <option value="urgent">Urgent</option>
+                    <option value="warning">Warning</option>
+                </select>
+            </div>
+            <span id="activeCount">0 Active</span>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <!-- Left Panel: Order Board & Inventory -->
+        <div class="left-panel">
+            <div class="panel-section" style="flex: 2;">
+                <div class="section-header">
+                    <span>Order Board</span>
+                    <span id="boardCount">0</span>
+                </div>
+                <div class="scrollable">
+                    <div class="order-board" id="orderBoard">
+                        <!-- Tickets populated by JS -->
+                    </div>
+                </div>
+            </div>
+            <div class="panel-section" style="flex: 1;">
+                <div class="section-header">Prep Pressure</div>
+                <div class="scrollable">
+                    <div class="inventory-list" id="inventoryList">
+                        <!-- Inventory populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Panel: Lanes & Timing -->
+        <div class="center-panel">
+            <div class="lanes-container">
+                <div class="lane" data-station="grill">
+                    <div class="lane-header">GRILL</div>
+                    <div class="lane-items" id="lane-grill"></div>
+                </div>
+                <div class="lane" data-station="cold">
+                    <div class="lane-header">COLD</div>
+                    <div class="lane-items" id="lane-cold"></div>
+                </div>
+                <div class="lane" data-station="pastry">
+                    <div class="lane-header">PASTRY</div>
+                    <div class="lane-items" id="lane-pastry"></div>
+                </div>
+                <div class="lane" data-station="pass">
+                    <div class="lane-header">PASS</div>
+                    <div class="lane-items" id="lane-pass"></div>
+                </div>
+                <div class="lane" data-station="expo">
+                    <div class="lane-header">EXPO</div>
+                    <div class="lane-items" id="lane-expo"></div>
+                </div>
+            </div>
+
+            <div class="timing-view">
+                <div class="section-header">Service Wave</div>
+                <div class="timeline" id="timeline">
+                    <div class="time-now"></div>
+                    <!-- Markers populated by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Inspector -->
+        <div class="right-panel">
+            <div class="panel-section">
+                <div class="section-header">Ticket Inspector</div>
+                <div class="scrollable" id="inspectorContent">
+                    <div class="inspector-empty">Select a ticket to view details</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State Management
+        const state = {
+            tickets: [],
+            inventory: {
+                'steak': { name: 'Steak Portions', total: 40, used: 0 },
+                'salmon': { name: 'Salmon Filets', total: 30, used: 0 },
+                'greens': { name: 'Mixed Greens', total: 100, used: 0 },
+                'tart': { name: 'Lemon Tarts', total: 20, used: 0 },
+                'buns': { name: 'Brioche Buns', total: 60, used: 0 }
+            },
+            selectedTicketId: null,
+            filters: {
+                station: 'all',
+                urgency: 'all'
+            },
+            currentTime: Date.now()
+        };
+
+        // Data Generation
+        function generateInitialData() {
+            const menu = [
+                { name: 'Ribeye Steak', station: 'grill', inv: 'steak', time: 15 },
+                { name: 'Salmon', station: 'grill', inv: 'salmon', time: 12 },
+                { name: 'House Burger', station: 'grill', inv: 'buns', time: 10 },
+                { name: 'Caesar Salad', station: 'cold', inv: 'greens', time: 5 },
+                { name: 'Beet Carpaccio', station: 'cold', inv: 'greens', time: 6 },
+                { name: 'Lemon Tart', station: 'pastry', inv: 'tart', time: 3 },
+                { name: 'Chocolate Lava', station: 'pastry', inv: null, time: 8 }
+            ];
+
+            const modifiers = ['No Onions', 'Sauce on side', 'Allergy: Nuts', 'Medium Rare', 'Well Done'];
+
+            let ticketId = 100;
+
+            // Generate 12 tickets across different stages
+            for (let i = 0; i < 12; i++) {
+                ticketId++;
+                const numItems = Math.floor(Math.random() * 3) + 1;
+                const items = [];
+
+                let maxTime = 0;
+
+                for (let j = 0; j < numItems; j++) {
+                    const menuItem = menu[Math.floor(Math.random() * menu.length)];
+                    const hasMod = Math.random() > 0.7;
+                    const stageRoll = Math.random();
+
+                    let stage = 'prep'; // prep (station), pass, expo, done
+                    if (stageRoll > 0.8) stage = 'expo';
+                    else if (stageRoll > 0.6) stage = 'pass';
+
+                    items.push({
+                        id: `item-${ticketId}-${j}`,
+                        name: menuItem.name,
+                        station: menuItem.station,
+                        inv: menuItem.inv,
+                        mod: hasMod ? modifiers[Math.floor(Math.random() * modifiers.length)] : null,
+                        stage: stage,
+                        timeReq: menuItem.time
+                    });
+
+                    if (menuItem.time > maxTime) maxTime = menuItem.time;
+
+                    // Update inventory usage if not done
+                    if (menuItem.inv && stage !== 'done') {
+                        state.inventory[menuItem.inv].used++;
+                    }
+                }
+
+                // Calculate times
+                const elapsedMins = Math.floor(Math.random() * 25);
+                const createdAt = state.currentTime - (elapsedMins * 60000);
+                const dueAt = createdAt + (maxTime * 60000) + (10 * 60000); // Max prep time + 10 mins buffer
+
+                state.tickets.push({
+                    id: `T-${ticketId}`,
+                    table: `Table ${Math.floor(Math.random() * 20) + 1}`,
+                    items: items,
+                    createdAt: createdAt,
+                    dueAt: dueAt,
+                    status: 'active' // active, completed
+                });
+            }
+
+            // Ensure at least one urgent and one warning
+            state.tickets[0].createdAt = state.currentTime - (40 * 60000);
+            state.tickets[0].dueAt = state.currentTime - (5 * 60000); // Overdue
+
+            state.tickets[1].dueAt = state.currentTime + (3 * 60000); // Due very soon
+        }
+
+        // Logic & Helpers
+        function getTicketUrgency(ticket) {
+            const timeRemaining = (ticket.dueAt - state.currentTime) / 60000;
+            if (timeRemaining < 0) return 'urgent';
+            if (timeRemaining < 5) return 'warning';
+            return 'ok';
+        }
+
+        function getTicketStations(ticket) {
+            const stations = new Set();
+            ticket.items.forEach(item => stations.add(item.station));
+            return Array.from(stations);
+        }
+
+        function isTicketVisible(ticket) {
+            if (ticket.status !== 'active') return false;
+
+            const urgency = getTicketUrgency(ticket);
+            const stations = getTicketStations(ticket);
+
+            if (state.filters.urgency !== 'all' && urgency !== state.filters.urgency) return false;
+            if (state.filters.station !== 'all' && !stations.includes(state.filters.station)) return false;
+
+            return true;
+        }
+
+        function advanceItem(ticketId, itemId) {
+            const ticket = state.tickets.find(t => t.id === ticketId);
+            if (!ticket) return;
+
+            const item = ticket.items.find(i => i.id === itemId);
+            if (!item) return;
+
+            if (item.stage === 'prep') {
+                item.stage = 'pass';
+            } else if (item.stage === 'pass') {
+                item.stage = 'expo';
+            } else if (item.stage === 'expo') {
+                item.stage = 'done';
+                // Release inventory pressure slightly as it's out the door
+                if (item.inv && state.inventory[item.inv]) {
+                    // We don't reduce 'used' because it's still consumed,
+                    // but we could track 'delivered' vs 'in progress'
+                }
+            }
+
+            checkTicketCompletion(ticket);
+            renderAll();
+        }
+
+        function advanceWholeTicket(ticketId) {
+            const ticket = state.tickets.find(t => t.id === ticketId);
+            if (!ticket) return;
+
+            let allItemsDone = true;
+            ticket.items.forEach(item => {
+                if (item.stage === 'prep') item.stage = 'pass';
+                else if (item.stage === 'pass') item.stage = 'expo';
+                else if (item.stage === 'expo') item.stage = 'done';
+
+                if (item.stage !== 'done') allItemsDone = false;
+            });
+
+            checkTicketCompletion(ticket);
+            renderAll();
+        }
+
+        function checkTicketCompletion(ticket) {
+            const allDone = ticket.items.every(i => i.stage === 'done');
+            if (allDone) {
+                ticket.status = 'completed';
+                if (state.selectedTicketId === ticket.id) {
+                    state.selectedTicketId = null;
+                }
+            }
+        }
+
+        function recalculateInventory() {
+            // Reset used
+            for (const key in state.inventory) {
+                state.inventory[key].used = 0;
+            }
+
+            // Recalculate based on active prep/pass items
+            state.tickets.forEach(ticket => {
+                if (ticket.status === 'active') {
+                    ticket.items.forEach(item => {
+                        if (item.inv && item.stage !== 'done') {
+                            state.inventory[item.inv].used++;
+                        }
+                    });
+                }
+            });
+        }
+
+        // DOM Rendering
+        function renderOrderBoard() {
+            const board = document.getElementById('orderBoard');
+            board.innerHTML = '';
+
+            let visibleCount = 0;
+
+            // Sort by due date
+            const sortedTickets = [...state.tickets].sort((a, b) => a.dueAt - b.dueAt);
+
+            sortedTickets.forEach(ticket => {
+                if (!isTicketVisible(ticket)) return;
+
+                visibleCount++;
+                const urgency = getTicketUrgency(ticket);
+                const isSelected = state.selectedTicketId === ticket.id;
+
+                const timeDiff = Math.floor((ticket.dueAt - state.currentTime) / 60000);
+                const timeStr = timeDiff < 0 ? `${Math.abs(timeDiff)}m over` : `${timeDiff}m left`;
+
+                const el = document.createElement('div');
+                el.className = `ticket-mini ${isSelected ? 'selected' : ''}`;
+                if (isSelected) {
+                    el.style.borderLeftColor = `var(--${urgency})`;
+                }
+
+                el.innerHTML = `
+                    <div class="ticket-header">
+                        <span>${ticket.id}</span>
+                        <div class="urgency-indicator u-${urgency}"></div>
+                    </div>
+                    <div class="ticket-meta">
+                        <span>${ticket.table}</span>
+                        <span>${timeStr}</span>
+                    </div>
+                `;
+
+                el.onclick = () => {
+                    state.selectedTicketId = ticket.id;
+                    renderAll();
+                };
+
+                board.appendChild(el);
+            });
+
+            document.getElementById('boardCount').textContent = visibleCount;
+            document.getElementById('activeCount').textContent = `${visibleCount} Active`;
+        }
+
+        function renderLanes() {
+            const stations = ['grill', 'cold', 'pastry', 'pass', 'expo'];
+
+            // Clear lanes
+            stations.forEach(st => {
+                document.getElementById(`lane-${st}`).innerHTML = '';
+            });
+
+            state.tickets.forEach(ticket => {
+                if (!isTicketVisible(ticket)) return;
+
+                const isSelected = state.selectedTicketId === ticket.id;
+
+                ticket.items.forEach(item => {
+                    if (item.stage === 'done') return;
+
+                    let targetLane = item.stage === 'prep' ? item.station : item.stage;
+
+                    // If filtering by station, only show items for that station, EXCEPT pass/expo lanes show everything relevant
+                    if (state.filters.station !== 'all' &&
+                        item.station !== state.filters.station &&
+                        targetLane !== 'pass' &&
+                        targetLane !== 'expo') {
+                        return;
+                    }
+
+                    const laneEl = document.getElementById(`lane-${targetLane}`);
+                    if (!laneEl) return;
+
+                    const taskEl = document.createElement('div');
+                    taskEl.className = `task-card ${isSelected ? 'selected' : ''}`;
+
+                    taskEl.innerHTML = `
+                        <div class="task-title">${item.name}</div>
+                        <div class="task-details">
+                            <span>${ticket.id}</span>
+                            <span>${item.station.toUpperCase()}</span>
+                        </div>
+                        ${item.mod ? `<div style="font-size:10px; color:var(--warning); margin-top:4px;">* ${item.mod}</div>` : ''}
+                    `;
+
+                    taskEl.onclick = (e) => {
+                        e.stopPropagation();
+                        state.selectedTicketId = ticket.id;
+                        renderAll();
+                    };
+
+                    // Double click to advance individual item
+                    taskEl.ondblclick = (e) => {
+                        e.stopPropagation();
+                        advanceItem(ticket.id, item.id);
+                    };
+
+                    laneEl.appendChild(taskEl);
+                });
+            });
+        }
+
+        function renderInventory() {
+            recalculateInventory();
+
+            const invList = document.getElementById('inventoryList');
+            invList.innerHTML = '';
+
+            for (const [key, data] of Object.entries(state.inventory)) {
+                const percent = Math.min(100, (data.used / data.total) * 100);
+
+                let statusClass = '';
+                if (percent > 85) statusClass = 'critical';
+                else if (percent > 60) statusClass = 'warning';
+
+                const el = document.createElement('div');
+                el.className = 'inv-item';
+                el.innerHTML = `
+                    <div class="inv-header">
+                        <span>${data.name}</span>
+                        <span>${data.used}/${data.total}</span>
+                    </div>
+                    <div class="inv-bar-bg">
+                        <div class="inv-bar-fill ${statusClass}" style="width: ${percent}%"></div>
+                    </div>
+                `;
+                invList.appendChild(el);
+            }
+        }
+
+        function renderTimeline() {
+            const timeline = document.getElementById('timeline');
+            // Keep the 'now' line, remove markers
+            Array.from(timeline.children).forEach(child => {
+                if (!child.classList.contains('time-now')) {
+                    timeline.removeChild(child);
+                }
+            });
+
+            // Timeline window: -20 mins to +40 mins
+            const windowStart = state.currentTime - (20 * 60000);
+            const windowEnd = state.currentTime + (40 * 60000);
+            const windowDuration = windowEnd - windowStart;
+
+            state.tickets.forEach(ticket => {
+                if (!isTicketVisible(ticket)) return;
+
+                if (ticket.dueAt >= windowStart && ticket.dueAt <= windowEnd) {
+                    const percent = ((ticket.dueAt - windowStart) / windowDuration) * 100;
+                    const urgency = getTicketUrgency(ticket);
+                    const isSelected = state.selectedTicketId === ticket.id;
+
+                    const marker = document.createElement('div');
+                    marker.className = `time-marker u-${urgency} ${isSelected ? 'selected' : ''}`;
+                    marker.style.left = `${percent}%`;
+
+                    if (isSelected) {
+                        const label = document.createElement('div');
+                        label.className = 'time-label';
+                        label.textContent = ticket.id;
+                        label.style.left = `${percent}%`;
+                        timeline.appendChild(label);
+                    }
+
+                    marker.onclick = () => {
+                        state.selectedTicketId = ticket.id;
+                        renderAll();
+                    };
+
+                    timeline.appendChild(marker);
+                }
+            });
+        }
+
+        function renderInspector() {
+            const container = document.getElementById('inspectorContent');
+
+            if (!state.selectedTicketId) {
+                container.innerHTML = '<div class="inspector-empty">Select a ticket to view details</div>';
+                return;
+            }
+
+            const ticket = state.tickets.find(t => t.id === state.selectedTicketId);
+            if (!ticket) {
+                state.selectedTicketId = null;
+                renderInspector();
+                return;
+            }
+
+            const urgency = getTicketUrgency(ticket);
+
+            let html = `
+                <div class="inspector">
+                    <div class="insp-header">
+                        <div class="insp-id">${ticket.id}</div>
+                        <div class="insp-table">${ticket.table}</div>
+                    </div>
+
+                    <div style="font-size: 12px; display:flex; justify-content:space-between;">
+                        <span>Urgency: <strong class="u-${urgency}" style="padding:2px 6px; border-radius:3px; color:black;">${urgency.toUpperCase()}</strong></span>
+                        <span>Items: ${ticket.items.length}</span>
+                    </div>
+
+                    <div class="insp-items">
+            `;
+
+            let allReadyForExpo = true;
+
+            ticket.items.forEach(item => {
+                const isDone = item.stage === 'done';
+                if (!isDone && item.stage !== 'expo') allReadyForExpo = false;
+
+                let stageDisplay = item.stage.toUpperCase();
+                if (item.stage === 'prep') stageDisplay = 'IN PREP';
+
+                html += `
+                    <div class="insp-item" style="opacity: ${isDone ? 0.5 : 1}">
+                        <div class="insp-item-header">
+                            <span>${item.name}</span>
+                            <span style="font-size:11px;">${stageDisplay}</span>
+                        </div>
+                        ${item.mod ? `<div class="insp-item-mods">Note: ${item.mod}</div>` : ''}
+                        <div class="insp-item-station bg-${item.station}">${item.station}</div>
+                    </div>
+                `;
+            });
+
+            html += `
+                    </div>
+                    <button class="action-btn" onclick="advanceWholeTicket('${ticket.id}')">
+                        ADVANCE TICKET STAGE
+                    </button>
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        function renderAll() {
+            renderOrderBoard();
+            renderLanes();
+            renderInventory();
+            renderTimeline();
+            renderInspector();
+        }
+
+        // Event Listeners
+        document.getElementById('stationFilter').addEventListener('change', (e) => {
+            state.filters.station = e.target.value;
+            renderAll();
+        });
+
+        document.getElementById('urgencyFilter').addEventListener('change', (e) => {
+            state.filters.urgency = e.target.value;
+            renderAll();
+        });
+
+        // Initialize
+        generateInitialData();
+        renderAll();
+
+        // Simulate time passing (update every 30s)
+        setInterval(() => {
+            state.currentTime = Date.now();
+            renderAll();
+        }, 30000);
+
+        // Keyboard navigation (Esc to deselect)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                state.selectedTicketId = null;
+                renderAll();
+            }
+        });
+
+    </script>
+</body>
+</html>
