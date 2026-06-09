@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reef Current Lab</title>
+<style>
+    :root {
+        --bg-color: #0b132b;
+        --panel-bg: #1c2541;
+        --text-color: #e0e1dd;
+        --accent-color: #3a506b;
+        --highlight-color: #5bc0be;
+        --font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        font-family: var(--font-family);
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    header {
+        background-color: var(--panel-bg);
+        padding: 1rem 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid var(--accent-color);
+    }
+
+    h1 {
+        margin: 0;
+        font-size: 1.5rem;
+        color: var(--highlight-color);
+        text-transform: uppercase;
+        letter-spacing: 2px;
+    }
+
+    .main-container {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .canvas-container {
+        flex: 1;
+        position: relative;
+    }
+
+    canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+    }
+
+    .control-panel {
+        width: 320px;
+        background-color: var(--panel-bg);
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        border-left: 2px solid var(--accent-color);
+        overflow-y: auto;
+    }
+
+    .section-title {
+        font-size: 1.1rem;
+        margin: 0 0 1rem 0;
+        color: var(--highlight-color);
+        border-bottom: 1px solid var(--accent-color);
+        padding-bottom: 0.5rem;
+    }
+
+    .control-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .control-header {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.9rem;
+    }
+
+    input[type="range"] {
+        width: 100%;
+        cursor: pointer;
+        accent-color: var(--highlight-color);
+    }
+
+    input[type="range"]:focus {
+        outline: 2px solid var(--highlight-color);
+        outline-offset: 2px;
+    }
+
+    button {
+        background-color: var(--accent-color);
+        color: var(--text-color);
+        border: none;
+        padding: 0.75rem;
+        cursor: pointer;
+        font-size: 1rem;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+    }
+
+    button:hover, button:focus {
+        background-color: var(--highlight-color);
+        color: var(--bg-color);
+        outline: none;
+    }
+
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    .metric-card {
+        background-color: rgba(0, 0, 0, 0.2);
+        padding: 1rem;
+        border-radius: 4px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .metric-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: var(--highlight-color);
+        margin-top: 0.25rem;
+    }
+
+    .metric-label {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        color: #8d99ae;
+    }
+
+    @media (max-width: 768px) {
+        .main-container {
+            flex-direction: column;
+        }
+        .control-panel {
+            width: auto;
+            border-left: none;
+            border-top: 2px solid var(--accent-color);
+            max-height: 40vh;
+        }
+    }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>Reef Current Lab</h1>
+</header>
+
+<div class="main-container">
+    <div class="canvas-container" id="canvasContainer">
+        <canvas id="simCanvas"></canvas>
+    </div>
+
+    <div class="control-panel">
+        <div>
+            <h2 class="section-title">Environment Controls</h2>
+            <div class="control-group">
+                <div class="control-header">
+                    <label for="currentSlider">Current Strength</label>
+                    <span id="currentVal">2.0</span>
+                </div>
+                <input type="range" id="currentSlider" min="0.5" max="5.0" step="0.1" value="2.0">
+            </div>
+
+            <div class="control-group" style="margin-top: 1rem;">
+                <div class="control-header">
+                    <label for="turbSlider">Turbulence</label>
+                    <span id="turbVal">0.5</span>
+                </div>
+                <input type="range" id="turbSlider" min="0" max="2.0" step="0.1" value="0.5">
+            </div>
+
+            <div class="control-group" style="margin-top: 1rem;">
+                <div class="control-header">
+                    <label for="spawnSlider">Spawn Rate</label>
+                    <span id="spawnVal">3</span>
+                </div>
+                <input type="range" id="spawnSlider" min="1" max="20" step="1" value="3">
+            </div>
+
+            <div class="control-group" style="margin-top: 1rem;">
+                <div class="control-header">
+                    <label for="reefSlider">Reef Density</label>
+                    <span id="reefVal">15</span>
+                </div>
+                <input type="range" id="reefSlider" min="0" max="40" step="1" value="15">
+            </div>
+        </div>
+
+        <div>
+            <button id="resetBtn" style="width: 100%;">Reset Simulation / Regenerate Reef</button>
+        </div>
+
+        <div>
+            <h2 class="section-title">Metrics</h2>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Active</div>
+                    <div class="metric-value" id="metricActive">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Survived</div>
+                    <div class="metric-value" id="metricSurvived">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Perished</div>
+                    <div class="metric-value" id="metricPerished">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Survival Rate</div>
+                    <div class="metric-value" id="metricRate">0%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const container = document.getElementById('canvasContainer');
+
+    // Controls
+    const controls = {
+        current: document.getElementById('currentSlider'),
+        turbulence: document.getElementById('turbSlider'),
+        spawnRate: document.getElementById('spawnSlider'),
+        reefDensity: document.getElementById('reefSlider')
+    };
+
+    const controlDisplays = {
+        current: document.getElementById('currentVal'),
+        turbulence: document.getElementById('turbVal'),
+        spawnRate: document.getElementById('spawnVal'),
+        reefDensity: document.getElementById('reefVal')
+    };
+
+    const metricsDisplays = {
+        active: document.getElementById('metricActive'),
+        survived: document.getElementById('metricSurvived'),
+        perished: document.getElementById('metricPerished'),
+        rate: document.getElementById('metricRate')
+    };
+
+    // State
+    let width, height;
+    let particles = [];
+    let obstacles = [];
+
+    let stats = {
+        survived: 0,
+        perished: 0
+    };
+
+    let params = {
+        current: parseFloat(controls.current.value),
+        turbulence: parseFloat(controls.turbulence.value),
+        spawnRate: parseInt(controls.spawnRate.value),
+        reefDensity: parseInt(controls.reefDensity.value)
+    };
+
+    // Setup events
+    Object.keys(controls).forEach(key => {
+        controls[key].addEventListener('input', (e) => {
+            const val = e.target.value;
+            controlDisplays[key].textContent = val;
+            params[key] = parseFloat(val);
+
+            if (key === 'reefDensity') {
+                generateObstacles();
+            }
+        });
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+        particles = [];
+        stats.survived = 0;
+        stats.perished = 0;
+        generateObstacles();
+    });
+
+    function resize() {
+        width = container.clientWidth;
+        height = container.clientHeight;
+        canvas.width = width;
+        canvas.height = height;
+        generateObstacles();
+    }
+
+    window.addEventListener('resize', resize);
+
+    // Classes
+    class Obstacle {
+        constructor(x, y, radius) {
+            this.x = x;
+            this.y = y;
+            this.radius = radius;
+            // Generate some visual detail points
+            this.points = [];
+            let numPoints = 8 + Math.random() * 8;
+            for (let i = 0; i < numPoints; i++) {
+                let angle = (i / numPoints) * Math.PI * 2;
+                let r = radius * (0.8 + Math.random() * 0.4);
+                this.points.push({x: Math.cos(angle) * r, y: Math.sin(angle) * r});
+            }
+            this.color = `hsl(${190 + Math.random() * 40}, 40%, ${20 + Math.random() * 15}%)`;
+        }
+
+        draw(ctx) {
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            if (this.points.length > 0) {
+                ctx.moveTo(this.x + this.points[0].x, this.y + this.points[0].y);
+                for (let i = 1; i < this.points.length; i++) {
+                    ctx.lineTo(this.x + this.points[i].x, this.y + this.points[i].y);
+                }
+            } else {
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            }
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+
+    class Particle {
+        constructor() {
+            this.x = 0;
+            this.y = Math.random() * height;
+            this.vx = params.current + (Math.random() - 0.5) * params.turbulence;
+            this.vy = (Math.random() - 0.5) * params.turbulence;
+            this.life = 1.0;
+            this.decay = 0.001 + Math.random() * 0.002; // Lifespan decreases over time
+            this.radius = 1.5 + Math.random() * 1.5;
+            this.alive = true;
+            this.survived = false;
+        }
+
+        update() {
+            // Apply current
+            this.vx += (params.current - this.vx) * 0.05;
+
+            // Apply turbulence
+            this.vx += (Math.random() - 0.5) * params.turbulence * 0.5;
+            this.vy += (Math.random() - 0.5) * params.turbulence * 0.5;
+
+            // Damping
+            this.vx *= 0.98;
+            this.vy *= 0.98;
+
+            this.x += this.vx;
+            this.y += this.vy;
+
+            // Boundary wrap vertically
+            if (this.y < 0) this.y += height;
+            if (this.y > height) this.y -= height;
+
+            // Decrease life
+            this.life -= this.decay;
+            if (this.life <= 0) {
+                this.alive = false;
+            }
+
+            // Check survival
+            if (this.x > width) {
+                this.alive = false;
+                this.survived = true;
+            }
+
+            // Obstacle collision
+            for (let obs of obstacles) {
+                let dx = this.x - obs.x;
+                let dy = this.y - obs.y;
+                let distSq = dx*dx + dy*dy;
+                if (distSq < obs.radius * obs.radius) {
+                    this.alive = false; // Perished by hitting reef
+                    break;
+                }
+            }
+        }
+
+        draw(ctx) {
+            let alpha = Math.max(0, this.life);
+            // Plankton color: pale green to white
+            ctx.fillStyle = `rgba(180, 255, 200, ${alpha})`;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    function generateObstacles() {
+        obstacles = [];
+        // Spawn obstacles in the middle 80% of the screen
+        let count = params.reefDensity;
+        for (let i = 0; i < count; i++) {
+            let x = width * 0.1 + Math.random() * width * 0.8;
+            let y = Math.random() * height;
+            let radius = 20 + Math.random() * 50;
+            obstacles.push(new Obstacle(x, y, radius));
+        }
+    }
+
+    function spawnParticles() {
+        // Spawn rate implies particles per frame (scaled down a bit or random chance)
+        // Let's spawn exactly `spawnRate` per frame, up to a limit maybe?
+        let spawnCount = Math.floor(params.spawnRate);
+        if (Math.random() < params.spawnRate % 1) spawnCount++;
+
+        for (let i = 0; i < spawnCount; i++) {
+            particles.push(new Particle());
+        }
+    }
+
+    function updateMetrics() {
+        metricsDisplays.active.textContent = particles.length;
+        metricsDisplays.survived.textContent = stats.survived;
+        metricsDisplays.perished.textContent = stats.perished;
+
+        let total = stats.survived + stats.perished;
+        let rate = total === 0 ? 0 : Math.round((stats.survived / total) * 100);
+        metricsDisplays.rate.textContent = `${rate}%`;
+    }
+
+    let lastTime = 0;
+    function loop(timestamp) {
+        let dt = timestamp - lastTime;
+        lastTime = timestamp;
+
+        // Clear background
+        ctx.fillStyle = '#0b132b'; // match var(--bg-color)
+        ctx.fillRect(0, 0, width, height);
+
+        // Draw obstacles
+        obstacles.forEach(obs => obs.draw(ctx));
+
+        // Update & Draw particles
+        spawnParticles();
+
+        let activeParticles = [];
+        for (let p of particles) {
+            p.update();
+            if (p.alive) {
+                p.draw(ctx);
+                activeParticles.push(p);
+            } else {
+                if (p.survived) {
+                    stats.survived++;
+                } else {
+                    stats.perished++;
+                }
+            }
+        }
+        particles = activeParticles;
+
+        // Limit max particles to prevent performance collapse
+        if (particles.length > 2000) {
+            let culled = particles.length - 2000;
+            particles.splice(0, culled);
+            // Count them as perished to keep metrics honest if they despawn?
+            // Actually just let them disappear, maybe not count to stats.
+        }
+
+        updateMetrics();
+
+        requestAnimationFrame(loop);
+    }
+
+    // Init
+    resize();
+    requestAnimationFrame(loop);
+
+</script>
+</body>
+</html>
