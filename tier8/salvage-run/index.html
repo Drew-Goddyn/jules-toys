@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salvage Run</title>
+    <style>
+        :root {
+            --bg-dark: #0a0e17;
+            --panel-bg: #111827;
+            --border: #374151;
+            --text-main: #f3f4f6;
+            --text-dim: #9ca3af;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --danger: #ef4444;
+            --warn: #f59e0b;
+            --success: #10b981;
+            --grid-line: #1f2937;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Courier New', Courier, monospace; /* Monospaced for tactical feel */
+            box-sizing: border-box;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        h1, h2, h3 {
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent);
+        }
+
+        h1 { font-size: 1.5rem; text-align: center; margin-bottom: 20px; }
+        h2 { font-size: 1.1rem; border-bottom: 1px solid var(--border); padding-bottom: 5px; }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 250px 1fr 300px;
+            grid-template-rows: 1fr 200px;
+            gap: 20px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Status Panel (Left Top/Bottom) */
+        .status-panel {
+            grid-column: 1;
+            grid-row: 1 / 3;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        .status-bar-container {
+            width: 100%;
+            height: 12px;
+            background-color: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+
+        .status-bar {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        #hull-bar { background-color: var(--success); }
+        #energy-bar { background-color: var(--accent); }
+        #shield-bar { background-color: var(--warn); }
+
+        .cargo-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .cargo-list li {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px dashed var(--border);
+            color: var(--text-dim);
+        }
+
+        /* Main Viewport (Center) */
+        .viewport-panel {
+            grid-column: 2;
+            grid-row: 1 / 3;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .grid-container {
+            position: relative;
+            background-color: #000;
+            border: 2px solid var(--accent);
+            image-rendering: pixelated;
+        }
+
+        #game-canvas {
+            display: block;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .overlay.hidden {
+            display: none;
+        }
+
+        .overlay h2 {
+            font-size: 2rem;
+            border: none;
+            margin-bottom: 20px;
+        }
+
+        #game-over-title { color: var(--danger); }
+        #victory-title { color: var(--success); }
+
+        /* Right Column (Controls & Log) */
+        .controls-panel {
+            grid-column: 3;
+            grid-row: 1;
+        }
+
+        .control-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .d-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            margin: 15px 0;
+            width: 100%;
+            max-width: 150px;
+            align-self: center;
+        }
+
+        .d-pad button {
+            padding: 10px;
+            font-size: 1.2rem;
+        }
+
+        .d-pad .up { grid-column: 2; grid-row: 1; }
+        .d-pad .left { grid-column: 1; grid-row: 2; }
+        .d-pad .right { grid-column: 3; grid-row: 2; }
+        .d-pad .down { grid-column: 2; grid-row: 3; }
+
+        button {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            border: 1px solid var(--accent);
+            border-radius: 4px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: var(--accent);
+            color: white;
+        }
+
+        button:disabled {
+            border-color: var(--border);
+            color: var(--border);
+            cursor: not-allowed;
+        }
+
+        button.action-btn {
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 12px;
+        }
+
+        /* Log Panel */
+        .log-panel {
+            grid-column: 3;
+            grid-row: 2;
+        }
+
+        .log-content {
+            flex: 1;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            padding-right: 5px;
+        }
+
+        .log-entry { margin: 0; }
+        .log-entry.sys { color: var(--text-dim); }
+        .log-entry.warn { color: var(--warn); }
+        .log-entry.danger { color: var(--danger); }
+        .log-entry.success { color: var(--success); }
+        .log-entry.info { color: var(--accent); }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+    </style>
+</head>
+<body>
+
+    <h1>Salvage Run</h1>
+
+    <div class="dashboard">
+
+        <!-- Left Column: Status & Objectives -->
+        <div class="panel status-panel">
+            <div>
+                <h2>Vessel Status</h2>
+
+                <div class="status-item">
+                    <span>HULL INTEGRITY</span>
+                    <span id="val-hull">100/100</span>
+                </div>
+                <div class="status-bar-container"><div id="hull-bar" class="status-bar" style="width: 100%"></div></div>
+
+                <div class="status-item">
+                    <span>ENERGY RESERVES</span>
+                    <span id="val-energy">100/100</span>
+                </div>
+                <div class="status-bar-container"><div id="energy-bar" class="status-bar" style="width: 100%"></div></div>
+
+                <div class="status-item">
+                    <span>SHIELD CAPACITOR</span>
+                    <span id="val-shield">0/50</span>
+                </div>
+                <div class="status-bar-container"><div id="shield-bar" class="status-bar" style="width: 0%"></div></div>
+
+                <div class="status-item" style="margin-top: 15px; color: var(--text-dim);">
+                    <span>COORDINATES</span>
+                    <span id="val-coords">X:0 Y:0</span>
+                </div>
+                <div class="status-item" style="color: var(--text-dim);">
+                    <span>TURN</span>
+                    <span id="val-turn">1</span>
+                </div>
+            </div>
+
+            <div style="flex: 1; display: flex; flex-direction: column;">
+                <h2>Cargo & Objectives</h2>
+                <ul class="cargo-list">
+                    <li><span>Salvage Collected:</span> <span id="val-salvage" style="color: var(--accent); font-weight: bold;">0 / 15</span></li>
+                    <li><span>Objective:</span> <span style="font-size: 0.8em; text-align: right;">Collect 15 salvage<br>and reach EXIT.</span></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Center Column: Map/Viewport -->
+        <div class="panel viewport-panel">
+            <div class="grid-container">
+                <canvas id="game-canvas" width="600" height="600"></canvas>
+
+                <!-- Overlays -->
+                <div id="start-overlay" class="overlay">
+                    <h2>SALVAGE RUN</h2>
+                    <p style="text-align: center; max-width: 400px; margin-bottom: 20px; line-height: 1.5; color: var(--text-dim);">
+                        Navigate the debris field. Collect 15 units of salvage and reach the extraction point (E). Watch your energy and hull integrity.
+                    </p>
+                    <p style="color: var(--accent); margin-bottom: 20px;">Use WASD / Arrow Keys or UI to move.</p>
+                    <button id="btn-start" style="padding: 10px 30px; font-size: 1.2rem;">INITIALIZE LAUNCH</button>
+                </div>
+
+                <div id="game-over-overlay" class="overlay hidden">
+                    <h2 id="game-over-title">CRITICAL FAILURE</h2>
+                    <p id="game-over-reason" style="margin-bottom: 20px;">Hull compromised.</p>
+                    <button class="btn-restart" style="padding: 10px 30px; font-size: 1.2rem;">REBOOT SYSTEM</button>
+                </div>
+
+                <div id="victory-overlay" class="overlay hidden">
+                    <h2 id="victory-title">EXTRACTION SUCCESSFUL</h2>
+                    <p style="margin-bottom: 20px;">Salvage quota met. Returning to base.</p>
+                    <p>Turns taken: <span id="final-turns">0</span></p>
+                    <button class="btn-restart" style="padding: 10px 30px; font-size: 1.2rem; margin-top: 20px;">NEW RUN</button>
+                </div>
+            </div>
+            <div style="margin-top: 10px; display: flex; gap: 15px; font-size: 0.8rem; color: var(--text-dim);">
+                <span><span style="color: #3b82f6">▲</span> Player</span>
+                <span><span style="color: #f59e0b">●</span> Salvage</span>
+                <span><span style="color: #ef4444">■</span> Hazard</span>
+                <span><span style="color: #10b981">♥</span> Repair</span>
+                <span><span style="color: #8b5cf6">⚡</span> Energy</span>
+                <span><span style="color: #ffffff">E</span> Exit</span>
+            </div>
+        </div>
+
+        <!-- Right Column: Controls -->
+        <div class="panel controls-panel" style="display: flex; flex-direction: column;">
+            <h2>Tactical Systems</h2>
+
+            <div style="display: flex; justify-content: center;">
+                <div class="d-pad">
+                    <button class="up" id="btn-up" title="Move Up (W/↑)">▲</button>
+                    <button class="left" id="btn-left" title="Move Left (A/←)">◀</button>
+                    <button class="right" id="btn-right" title="Move Right (D/→)">▶</button>
+                    <button class="down" id="btn-down" title="Move Down (S/↓)">▼</button>
+                </div>
+            </div>
+
+            <div style="flex: 1; margin-top: 10px;">
+                <button class="action-btn" id="btn-scan" title="Reveal hidden elements (Cost: 5 Energy)">
+                    SENSOR SCAN (5 ⚡)
+                </button>
+                <button class="action-btn" id="btn-shield" title="Convert Energy to Shield (Cost: 10 Energy)">
+                    CHARGE SHIELDS (10 ⚡)
+                </button>
+                <button class="action-btn" id="btn-wait" title="Wait one turn (Gain: 2 Energy)">
+                    HOLD POSITION (+2 ⚡)
+                </button>
+            </div>
+        </div>
+
+        <!-- Right Column: Log -->
+        <div class="panel log-panel">
+            <h2>System Log</h2>
+            <div class="log-content" id="log-content">
+                <p class="log-entry sys">System initialized...</p>
+                <p class="log-entry sys">Awaiting launch authorization.</p>
+            </div>
+        </div>
+
+    </div>
+
+<script>
+    // --- Constants & Config ---
+    const GRID_SIZE = 20; // 20x20 grid
+    const CELL_SIZE = 600 / GRID_SIZE; // 30px per cell
+    const TARGET_SALVAGE = 15;
+
+    // --- Game State ---
+    let state = {
+        status: 'start', // start, playing, gameover, victory
+        turn: 1,
+        player: { x: 1, y: 1, hull: 100, maxHull: 100, energy: 100, maxEnergy: 100, shield: 0, maxShield: 50 },
+        salvage: 0,
+        map: [], // 2D array of entities
+        hazards: [], // dynamic hazards
+        particles: [], // visual effects
+        exit: { x: GRID_SIZE - 2, y: GRID_SIZE - 2 }
+    };
+
+    // Entity types: 0=empty, 1=wall, 2=salvage, 3=energy, 4=repair, 5=hazard
+    const ENTITY = { EMPTY: 0, WALL: 1, SALVAGE: 2, ENERGY: 3, REPAIR: 4, HAZARD: 5 };
+
+    // --- DOM Elements ---
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+    const logContent = document.getElementById('log-content');
+
+    const ui = {
+        hull: document.getElementById('val-hull'),
+        hullBar: document.getElementById('hull-bar'),
+        energy: document.getElementById('val-energy'),
+        energyBar: document.getElementById('energy-bar'),
+        shield: document.getElementById('val-shield'),
+        shieldBar: document.getElementById('shield-bar'),
+        coords: document.getElementById('val-coords'),
+        turn: document.getElementById('val-turn'),
+        salvage: document.getElementById('val-salvage'),
+
+        btnStart: document.getElementById('btn-start'),
+        btnRestarts: document.querySelectorAll('.btn-restart'),
+
+        btnUp: document.getElementById('btn-up'),
+        btnDown: document.getElementById('btn-down'),
+        btnLeft: document.getElementById('btn-left'),
+        btnRight: document.getElementById('btn-right'),
+
+        btnScan: document.getElementById('btn-scan'),
+        btnShield: document.getElementById('btn-shield'),
+        btnWait: document.getElementById('btn-wait'),
+
+        startOverlay: document.getElementById('start-overlay'),
+        gameOverOverlay: document.getElementById('game-over-overlay'),
+        victoryOverlay: document.getElementById('victory-overlay'),
+        gameOverReason: document.getElementById('game-over-reason'),
+        finalTurns: document.getElementById('final-turns')
+    };
+
+    // --- Map Generation ---
+    function generateMap() {
+        state.map = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(ENTITY.EMPTY));
+        state.hazards = [];
+        state.salvage = 0;
+
+        // Borders
+        for(let i=0; i<GRID_SIZE; i++) {
+            state.map[0][i] = ENTITY.WALL;
+            state.map[GRID_SIZE-1][i] = ENTITY.WALL;
+            state.map[i][0] = ENTITY.WALL;
+            state.map[i][GRID_SIZE-1] = ENTITY.WALL;
+        }
+
+        // Keep start and exit clear
+        const safeZone = [{x:1,y:1}, {x:1,y:2}, {x:2,y:1}, {x:state.exit.x, y:state.exit.y}];
+
+        // Populate entities
+        const totalCells = GRID_SIZE * GRID_SIZE;
+        const targetWalls = Math.floor(totalCells * 0.15);
+        const targetSalvage = 25; // Spawn more than needed
+        const targetEnergy = 10;
+        const targetRepair = 5;
+        const targetHazards = 8; // Dynamic hazards
+
+        const placeRandom = (type, count) => {
+            let placed = 0;
+            while(placed < count) {
+                let rx = Math.floor(Math.random() * (GRID_SIZE - 2)) + 1;
+                let ry = Math.floor(Math.random() * (GRID_SIZE - 2)) + 1;
+
+                if (state.map[ry][rx] === ENTITY.EMPTY && !safeZone.some(p => p.x === rx && p.y === ry)) {
+                    if (type === 'hazardObj') {
+                        state.hazards.push({x: rx, y: ry, dir: Math.floor(Math.random() * 4)});
+                    } else {
+                        state.map[ry][rx] = type;
+                    }
+                    placed++;
+                }
+            }
+        };
+
+        placeRandom(ENTITY.WALL, targetWalls);
+        placeRandom(ENTITY.SALVAGE, targetSalvage);
+        placeRandom(ENTITY.ENERGY, targetEnergy);
+        placeRandom(ENTITY.REPAIR, targetRepair);
+        placeRandom('hazardObj', targetHazards);
+    }
+
+    // --- Rendering ---
+    function draw() {
+        // Clear background
+        ctx.fillStyle = '#0a0e17'; // bg-dark
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw Grid
+        ctx.strokeStyle = '#1f2937'; // grid-line
+        ctx.lineWidth = 1;
+        for(let i=0; i<=GRID_SIZE; i++) {
+            ctx.beginPath(); ctx.moveTo(i*CELL_SIZE, 0); ctx.lineTo(i*CELL_SIZE, canvas.height); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, i*CELL_SIZE); ctx.lineTo(canvas.width, i*CELL_SIZE); ctx.stroke();
+        }
+
+        // Draw Map Entities
+        for(let y=0; y<GRID_SIZE; y++) {
+            for(let x=0; x<GRID_SIZE; x++) {
+                const type = state.map[y][x];
+                if (type === ENTITY.EMPTY) continue;
+
+                const px = x * CELL_SIZE;
+                const py = y * CELL_SIZE;
+
+                if (type === ENTITY.WALL) {
+                    ctx.fillStyle = '#374151'; // border
+                    ctx.fillRect(px + 2, py + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+                } else if (type === ENTITY.SALVAGE) {
+                    ctx.fillStyle = '#f59e0b'; // warn/yellow
+                    ctx.beginPath();
+                    ctx.arc(px + CELL_SIZE/2, py + CELL_SIZE/2, CELL_SIZE/3, 0, Math.PI*2);
+                    ctx.fill();
+                } else if (type === ENTITY.ENERGY) {
+                    ctx.fillStyle = '#8b5cf6'; // purple
+                    ctx.font = '20px Courier';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('⚡', px + CELL_SIZE/2, py + CELL_SIZE/2 + 2);
+                } else if (type === ENTITY.REPAIR) {
+                    ctx.fillStyle = '#10b981'; // success/green
+                    ctx.font = '20px Courier';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('♥', px + CELL_SIZE/2, py + CELL_SIZE/2 + 2);
+                }
+            }
+        }
+
+        // Draw Dynamic Hazards
+        ctx.fillStyle = '#ef4444'; // danger/red
+        for(let h of state.hazards) {
+            ctx.fillRect(h.x * CELL_SIZE + 4, h.y * CELL_SIZE + 4, CELL_SIZE - 8, CELL_SIZE - 8);
+        }
+
+        // Draw Exit
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 22px Courier';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('E', state.exit.x * CELL_SIZE + CELL_SIZE/2, state.exit.y * CELL_SIZE + CELL_SIZE/2);
+
+        // Draw Player
+        const px = state.player.x * CELL_SIZE + CELL_SIZE/2;
+        const py = state.player.y * CELL_SIZE + CELL_SIZE/2;
+
+        ctx.fillStyle = '#3b82f6'; // accent/blue
+        ctx.beginPath();
+        ctx.moveTo(px, py - CELL_SIZE/2.5); // Top
+        ctx.lineTo(px + CELL_SIZE/2.5, py + CELL_SIZE/2.5); // Bottom Right
+        ctx.lineTo(px - CELL_SIZE/2.5, py + CELL_SIZE/2.5); // Bottom Left
+        ctx.closePath();
+        ctx.fill();
+
+        // Draw Shield (if active)
+        if (state.player.shield > 0) {
+            ctx.strokeStyle = `rgba(59, 130, 246, ${state.player.shield / state.player.maxShield})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(px, py, CELL_SIZE/2 - 2, 0, Math.PI*2);
+            ctx.stroke();
+        }
+    }
+
+    // --- UI Updates ---
+    function updateUI() {
+        ui.hull.textContent = `${state.player.hull}/${state.player.maxHull}`;
+        ui.hullBar.style.width = `${(state.player.hull / state.player.maxHull) * 100}%`;
+
+        ui.energy.textContent = `${state.player.energy}/${state.player.maxEnergy}`;
+        ui.energyBar.style.width = `${(state.player.energy / state.player.maxEnergy) * 100}%`;
+
+        ui.shield.textContent = `${state.player.shield}/${state.player.maxShield}`;
+        ui.shieldBar.style.width = `${(state.player.shield / state.player.maxShield) * 100}%`;
+
+        ui.coords.textContent = `X:${state.player.x} Y:${state.player.y}`;
+        ui.turn.textContent = state.turn;
+        ui.salvage.textContent = `${state.salvage} / ${TARGET_SALVAGE}`;
+
+        // Color coding bars
+        ui.hullBar.style.backgroundColor = state.player.hull <= 25 ? 'var(--danger)' : 'var(--success)';
+        ui.energyBar.style.backgroundColor = state.player.energy <= 20 ? 'var(--danger)' : 'var(--accent)';
+    }
+
+    function logMessage(msg, type = 'sys') {
+        const p = document.createElement('p');
+        p.className = `log-entry ${type}`;
+        p.textContent = `[T${state.turn}] ${msg}`;
+        logContent.appendChild(p);
+        logContent.scrollTop = logContent.scrollHeight;
+    }
+
+    // --- Game Logic ---
+    function checkLoss() {
+        if (state.player.hull <= 0) {
+            state.status = 'gameover';
+            ui.gameOverReason.textContent = 'Hull integrity critical. Vessel destroyed.';
+            ui.gameOverOverlay.classList.remove('hidden');
+            logMessage('CRITICAL FAILURE: Vessel Destroyed', 'danger');
+            return true;
+        }
+        if (state.player.energy <= 0) {
+            state.status = 'gameover';
+            ui.gameOverReason.textContent = 'Energy reserves depleted. Life support failed.';
+            ui.gameOverOverlay.classList.remove('hidden');
+            logMessage('CRITICAL FAILURE: Energy Depleted', 'danger');
+            return true;
+        }
+        return false;
+    }
+
+    function checkWin() {
+        if (state.player.x === state.exit.x && state.player.y === state.exit.y) {
+            if (state.salvage >= TARGET_SALVAGE) {
+                state.status = 'victory';
+                ui.finalTurns.textContent = state.turn;
+                ui.victoryOverlay.classList.remove('hidden');
+                logMessage('EXTRACTION SUCCESSFUL', 'success');
+                return true;
+            } else {
+                logMessage('Cannot exit: Insufficient salvage.', 'warn');
+            }
+        }
+        return false;
+    }
+
+    function updateHazards() {
+        for (let h of state.hazards) {
+            let dx = 0, dy = 0;
+            // 0:up, 1:right, 2:down, 3:left
+            if (h.dir === 0) dy = -1;
+            else if (h.dir === 1) dx = 1;
+            else if (h.dir === 2) dy = 1;
+            else if (h.dir === 3) dx = -1;
+
+            let nx = h.x + dx;
+            let ny = h.y + dy;
+
+            // Bounce off walls/entities
+            if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE || state.map[ny][nx] !== ENTITY.EMPTY) {
+                h.dir = (h.dir + 2) % 4; // reverse
+            } else {
+                h.x = nx;
+                h.y = ny;
+            }
+
+            // Check collision with player
+            if (h.x === state.player.x && h.y === state.player.y) {
+                applyDamage(15, 'Asteroid collision');
+            }
+        }
+    }
+
+    function applyDamage(amount, source) {
+        let dmg = amount;
+        if (state.player.shield > 0) {
+            const absorbed = Math.min(state.player.shield, dmg);
+            state.player.shield -= absorbed;
+            dmg -= absorbed;
+            logMessage(`Shield absorbed ${absorbed} dmg from ${source}.`, 'info');
+        }
+        if (dmg > 0) {
+            state.player.hull = Math.max(0, state.player.hull - dmg);
+            logMessage(`Hull integrity breached: -${dmg} (${source})`, 'danger');
+        }
+    }
+
+    function collectEntity(x, y) {
+        const type = state.map[y][x];
+        if (type === ENTITY.SALVAGE) {
+            state.salvage++;
+            state.map[y][x] = ENTITY.EMPTY;
+            logMessage(`Salvage collected. (${state.salvage}/${TARGET_SALVAGE})`, 'success');
+        } else if (type === ENTITY.ENERGY) {
+            state.player.energy = Math.min(state.player.maxEnergy, state.player.energy + 20);
+            state.map[y][x] = ENTITY.EMPTY;
+            logMessage(`Energy reserves replenished (+20)`, 'info');
+        } else if (type === ENTITY.REPAIR) {
+            state.player.hull = Math.min(state.player.maxHull, state.player.hull + 30);
+            state.map[y][x] = ENTITY.EMPTY;
+            logMessage(`Hull repaired (+30)`, 'success');
+        }
+    }
+
+    function advanceTurn() {
+        if (state.status !== 'playing') return;
+
+        state.player.energy -= 1; // Base cost per turn
+        state.turn++;
+
+        updateHazards();
+
+        if (checkLoss()) return;
+        if (checkWin()) return;
+
+        updateUI();
+        draw();
+    }
+
+    // --- Actions ---
+    function movePlayer(dx, dy) {
+        if (state.status !== 'playing') return;
+
+        const nx = state.player.x + dx;
+        const ny = state.player.y + dy;
+
+        if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE) return;
+
+        if (state.map[ny][nx] === ENTITY.WALL) {
+            logMessage('Collision warning: Debris ahead.', 'warn');
+            return;
+        }
+
+        // Cost of moving
+        state.player.energy -= 1;
+
+        state.player.x = nx;
+        state.player.y = ny;
+
+        collectEntity(nx, ny);
+
+        // Check dynamic hazard collision immediately after moving
+        const hitHazard = state.hazards.find(h => h.x === state.player.x && h.y === state.player.y);
+        if (hitHazard) {
+            applyDamage(15, 'Asteroid collision');
+        }
+
+        advanceTurn();
+    }
+
+    function scan() {
+        if (state.status !== 'playing' || state.player.energy < 5) {
+            logMessage('Insufficient energy for sensor scan.', 'warn');
+            return;
+        }
+
+        state.player.energy -= 5;
+        logMessage('Sensor scan initiated.', 'info');
+
+        // Scan logic: reveal hidden info (in this toy, we just show a visual ping and maybe log nearby hazards)
+        let nearbyHazards = 0;
+        for (let h of state.hazards) {
+            if (Math.abs(h.x - state.player.x) <= 3 && Math.abs(h.y - state.player.y) <= 3) {
+                nearbyHazards++;
+            }
+        }
+
+        if (nearbyHazards > 0) {
+            logMessage(`Sensors detect ${nearbyHazards} moving hazards nearby.`, 'warn');
+        } else {
+            logMessage('Local area clear of immediate threats.', 'success');
+        }
+
+        advanceTurn();
+    }
+
+    function chargeShields() {
+        if (state.status !== 'playing') return;
+
+        if (state.player.energy < 10) {
+            logMessage('Insufficient energy for shields.', 'warn');
+            return;
+        }
+        if (state.player.shield >= state.player.maxShield) {
+            logMessage('Shield capacitor at maximum.', 'warn');
+            return;
+        }
+
+        state.player.energy -= 10;
+        state.player.shield = Math.min(state.player.maxShield, state.player.shield + 20);
+        logMessage('Shield capacitor charged (+20)', 'info');
+
+        advanceTurn();
+    }
+
+    function waitTurn() {
+        if (state.status !== 'playing') return;
+
+        state.player.energy = Math.min(state.player.maxEnergy, state.player.energy + 2); // Net +1 since base cost is -1
+        logMessage('Holding position. Systems regenerating.', 'info');
+
+        advanceTurn();
+    }
+
+    // --- Initialization & Input ---
+    function initGame() {
+        state = {
+            status: 'playing',
+            turn: 1,
+            player: { x: 1, y: 1, hull: 100, maxHull: 100, energy: 100, maxEnergy: 100, shield: 0, maxShield: 50 },
+            salvage: 0,
+            map: [],
+            hazards: [],
+            particles: [],
+            exit: { x: GRID_SIZE - 2, y: GRID_SIZE - 2 }
+        };
+
+        ui.startOverlay.classList.add('hidden');
+        ui.gameOverOverlay.classList.add('hidden');
+        ui.victoryOverlay.classList.add('hidden');
+
+        logContent.innerHTML = '';
+        logMessage('Launch sequence complete. Welcome to the field.', 'sys');
+
+        generateMap();
+        updateUI();
+        draw();
+    }
+
+    // Event Listeners
+    ui.btnStart.addEventListener('click', initGame);
+    ui.btnRestarts.forEach(btn => btn.addEventListener('click', initGame));
+
+    ui.btnUp.addEventListener('click', () => movePlayer(0, -1));
+    ui.btnDown.addEventListener('click', () => movePlayer(0, 1));
+    ui.btnLeft.addEventListener('click', () => movePlayer(-1, 0));
+    ui.btnRight.addEventListener('click', () => movePlayer(1, 0));
+
+    ui.btnScan.addEventListener('click', scan);
+    ui.btnShield.addEventListener('click', chargeShields);
+    ui.btnWait.addEventListener('click', waitTurn);
+
+    document.addEventListener('keydown', (e) => {
+        if (state.status !== 'playing') return;
+        switch(e.key) {
+            case 'ArrowUp': case 'w': case 'W': movePlayer(0, -1); break;
+            case 'ArrowDown': case 's': case 'S': movePlayer(0, 1); break;
+            case 'ArrowLeft': case 'a': case 'A': movePlayer(-1, 0); break;
+            case 'ArrowRight': case 'd': case 'D': movePlayer(1, 0); break;
+            case ' ': waitTurn(); break;
+        }
+    });
+
+    // Initial render
+    generateMap();
+    draw();
+    updateUI();
+
+</script>
+</body>
+</html>
