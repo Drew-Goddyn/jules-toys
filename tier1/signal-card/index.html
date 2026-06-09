@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signal Card</title>
+    <style>
+        :root {
+            --bg-color: #0f1115;
+            --card-bg: #1a1d24;
+            --card-border: #2a2e37;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-tertiary: #64748b;
+            --status-healthy: #10b981;
+            --status-warning: #f59e0b;
+            --status-critical: #ef4444;
+            --timeline-bg: #334155;
+            --font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: var(--font-family);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            box-sizing: border-box;
+            padding: 20px;
+        }
+
+        .signal-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 20px;
+            width: 320px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Header section */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .service-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .service-icon {
+            width: 32px;
+            height: 32px;
+            background-color: #3b82f6;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            color: white;
+            font-size: 14px;
+        }
+
+        .service-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .service-name {
+            font-weight: 600;
+            font-size: 15px;
+            letter-spacing: 0.3px;
+        }
+
+        .service-id {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .health-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background-color: rgba(16, 185, 129, 0.1);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--status-healthy);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .pulse-dot {
+            width: 6px;
+            height: 6px;
+            background-color: var(--status-healthy);
+            border-radius: 50%;
+            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+        }
+
+        /* Metrics section */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            padding-top: 16px;
+            border-top: 1px solid var(--card-border);
+        }
+
+        .metric {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .metric-label {
+            font-size: 11px;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        .metric-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: baseline;
+            gap: 2px;
+        }
+
+        .metric-unit {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-weight: normal;
+        }
+
+        .metric-trend-up {
+            color: var(--status-healthy);
+            font-size: 12px;
+            margin-left: 4px;
+        }
+
+        /* Timeline section */
+        .timeline-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding-top: 16px;
+            border-top: 1px solid var(--card-border);
+        }
+
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-tertiary);
+            font-weight: 500;
+        }
+
+        .timeline-track {
+            height: 6px;
+            background-color: var(--card-border);
+            border-radius: 3px;
+            position: relative;
+            width: 100%;
+            overflow: hidden;
+            display: flex;
+        }
+
+        .timeline-segment {
+            height: 100%;
+        }
+
+        .segment-healthy {
+            background-color: var(--status-healthy);
+            width: 60%;
+        }
+
+        .segment-warning {
+            background-color: var(--status-warning);
+            width: 15%;
+        }
+
+        .segment-critical {
+            background-color: var(--status-critical);
+            width: 5%;
+        }
+
+        .segment-healthy-2 {
+            background-color: var(--status-healthy);
+            width: 20%;
+        }
+
+        .timeline-markers {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: var(--text-tertiary);
+        }
+
+        .marker-tick {
+            position: relative;
+        }
+
+        .marker-tick::before {
+            content: '';
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 1px;
+            height: 4px;
+            background-color: var(--text-tertiary);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="signal-card">
+        <!-- Header -->
+        <div class="header">
+            <div class="service-info">
+                <div class="service-icon">API</div>
+                <div class="service-details">
+                    <span class="service-name">Gateway Router</span>
+                    <span class="service-id">us-east-1a • prd-09</span>
+                </div>
+            </div>
+            <div class="health-indicator">
+                <div class="pulse-dot"></div>
+                Healthy
+            </div>
+        </div>
+
+        <!-- Metrics -->
+        <div class="metrics-grid">
+            <div class="metric">
+                <span class="metric-label">Latency</span>
+                <span class="metric-value">42<span class="metric-unit">ms</span></span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Error Rate</span>
+                <span class="metric-value">0.01<span class="metric-unit">%</span></span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Throughput</span>
+                <span class="metric-value">12.4<span class="metric-unit">k/s</span><span class="metric-trend-up">↑</span></span>
+            </div>
+        </div>
+
+        <!-- Timeline -->
+        <div class="timeline-section">
+            <div class="timeline-header">
+                <span>Last 24 Hours</span>
+                <span>99.98% Uptime</span>
+            </div>
+            <div class="timeline-track">
+                <div class="timeline-segment segment-healthy"></div>
+                <div class="timeline-segment segment-warning"></div>
+                <div class="timeline-segment segment-critical"></div>
+                <div class="timeline-segment segment-healthy-2"></div>
+            </div>
+            <div class="timeline-markers">
+                <span class="marker-tick">24h</span>
+                <span class="marker-tick">12h</span>
+                <span class="marker-tick">Now</span>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
