@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bubble Wrap Cooldown</title>
+  <style>
+    :root {
+      --bg-color: #f0f4f8;
+      --text-color: #334155;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --bubble-color: #e0e7ff;
+      --bubble-highlight: #ffffff;
+      --bubble-shadow: #c7d2fe;
+      --popped-color: #f8fafc;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .container {
+      background: white;
+      padding: 2rem;
+      border-radius: 1.5rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.05), 0 4px 6px rgba(0,0,0,0.02);
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .description {
+      font-size: 0.9rem;
+      color: #64748b;
+      margin-bottom: 1rem;
+      line-height: 1.4;
+    }
+
+    .btn {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 1rem 2rem;
+      font-size: 1.1rem;
+      font-weight: 600;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+    }
+
+    .btn:hover {
+      background-color: var(--primary-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+    }
+
+    .btn:disabled {
+      background-color: #cbd5e1;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .cooldown-area {
+      display: none;
+      width: 100%;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .bubble-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0.75rem;
+      background: #f1f5f9;
+      padding: 1rem;
+      border-radius: 1rem;
+      border: 2px solid #e2e8f0;
+    }
+
+    .bubble {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, var(--bubble-highlight) 0%, var(--bubble-color) 60%, var(--bubble-shadow) 100%);
+      box-shadow:
+        inset -2px -2px 6px rgba(0,0,0,0.1),
+        inset 2px 2px 6px rgba(255,255,255,0.8),
+        2px 2px 5px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      touch-action: manipulation;
+    }
+
+    .bubble:active:not(.popped) {
+      transform: scale(0.95);
+    }
+
+    .bubble.popped {
+      background: var(--popped-color);
+      box-shadow:
+        inset 2px 2px 4px rgba(0,0,0,0.05),
+        inset -1px -1px 2px rgba(255,255,255,0.5);
+      cursor: default;
+      transform: scale(0.9);
+    }
+
+    .bubble.popped::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 60%;
+      height: 60%;
+      background: transparent;
+      border: 1px solid rgba(0,0,0,0.05);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .timer-container {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .timer-text {
+      font-size: 1.25rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--primary);
+    }
+
+    .progress-bar-bg {
+      width: 100%;
+      height: 8px;
+      background-color: #e2e8f0;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background-color: var(--primary);
+      width: 100%;
+      transition: width 0.1s linear;
+    }
+
+    .success-message {
+      display: none;
+      color: #10b981;
+      font-weight: 700;
+      font-size: 1.25rem;
+      animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .sparkle {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: #fcd34d;
+      border-radius: 50%;
+      pointer-events: none;
+      animation: sparkleAnim 0.6s forwards;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes popIn {
+      0% { opacity: 0; transform: scale(0.8); }
+      70% { transform: scale(1.1); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes sparkleAnim {
+      0% { transform: scale(0) rotate(0deg); opacity: 1; }
+      50% { opacity: 1; }
+      100% { transform: scale(1.5) rotate(90deg); opacity: 0; }
+    }
+
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div id="intro-area">
+      <h1 class="title">Turbo Boost</h1>
+      <p class="description">Initiate sequence. You can wait patiently, or pop the bubbles to speed things up!</p>
+      <button class="btn" id="start-btn">Start Sequence</button>
+    </div>
+
+    <div class="cooldown-area" id="cooldown-area">
+      <div class="bubble-grid" id="bubble-grid">
+        <!-- Bubbles will be injected here -->
+      </div>
+      <div class="timer-container">
+        <div class="timer-text" id="timer-text">10.0s</div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progress-bar"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="success-message" id="success-message">
+      Sequence Complete! 🎉
+    </div>
+  </div>
+
+  <script>
+    const startBtn = document.getElementById('start-btn');
+    const introArea = document.getElementById('intro-area');
+    const cooldownArea = document.getElementById('cooldown-area');
+    const bubbleGrid = document.getElementById('bubble-grid');
+    const timerText = document.getElementById('timer-text');
+    const progressBar = document.getElementById('progress-bar');
+    const successMessage = document.getElementById('success-message');
+
+    const TOTAL_TIME = 10.0; // seconds
+    const BUBBLES_COUNT = 25;
+    const TIME_REDUCTION_PER_POP = 0.3; // seconds reduced per manual pop
+
+    let remainingTime = 0;
+    let timerInterval = null;
+    let autoPopInterval = null;
+    let bubbles = [];
+
+    startBtn.addEventListener('click', startCooldown);
+
+    function startCooldown() {
+      introArea.style.display = 'none';
+      cooldownArea.style.display = 'flex';
+      successMessage.style.display = 'none';
+
+      remainingTime = TOTAL_TIME;
+      updateTimerDisplay();
+
+      createBubbles();
+
+      // Start the countdown
+      timerInterval = setInterval(() => {
+        remainingTime -= 0.05; // Update every 50ms for smooth progress
+        if (remainingTime <= 0) {
+          finishCooldown();
+        } else {
+          updateTimerDisplay();
+        }
+      }, 50);
+
+      // Start automatic popping to match the timer roughly
+      const popRateMs = (TOTAL_TIME / BUBBLES_COUNT) * 1000;
+      autoPopInterval = setInterval(autoPopBubble, popRateMs);
+    }
+
+    function createBubbles() {
+      bubbleGrid.innerHTML = '';
+      bubbles = [];
+      for (let i = 0; i < BUBBLES_COUNT; i++) {
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+
+        // Add a slight random delay to the float animation if we add one
+        bubble.dataset.index = i;
+
+        // Interaction
+        const popHandler = (e) => {
+          e.preventDefault();
+          if (!bubble.classList.contains('popped')) {
+            popBubble(bubble, true);
+            createSparkles(e.clientX, e.clientY);
+          }
+        };
+
+        bubble.addEventListener('mousedown', popHandler);
+        bubble.addEventListener('touchstart', popHandler, { passive: false });
+
+        bubbleGrid.appendChild(bubble);
+        bubbles.push({ el: bubble, popped: false });
+      }
+    }
+
+    function popBubble(bubbleObj, isManual = false) {
+      if (!bubbleObj) return;
+      const el = bubbleObj.el || bubbleObj;
+      const index = bubbles.findIndex(b => b.el === el);
+
+      if (index !== -1 && !bubbles[index].popped) {
+        bubbles[index].popped = true;
+        el.classList.add('popped');
+
+        if (isManual) {
+          remainingTime -= TIME_REDUCTION_PER_POP;
+          if (remainingTime < 0) remainingTime = 0;
+          updateTimerDisplay();
+
+          // Provide haptic feedback if available
+          if (navigator.vibrate) {
+            navigator.vibrate(20);
+          }
+        }
+      }
+    }
+
+    function autoPopBubble() {
+      const unpopped = bubbles.filter(b => !b.popped);
+      if (unpopped.length > 0) {
+        // Pop a random unpopped bubble
+        const randomBubble = unpopped[Math.floor(Math.random() * unpopped.length)];
+        popBubble(randomBubble, false);
+      }
+    }
+
+    function createSparkles(x, y) {
+      for (let i = 0; i < 4; i++) {
+        const sparkle = document.createElement('div');
+        sparkle.className = 'sparkle';
+        sparkle.style.left = (x - 5) + 'px';
+        sparkle.style.top = (y - 5) + 'px';
+
+        // Random trajectory
+        const angle = Math.random() * Math.PI * 2;
+        const distance = 20 + Math.random() * 20;
+        const tx = Math.cos(angle) * distance;
+        const ty = Math.sin(angle) * distance;
+
+        sparkle.style.setProperty('--tx', `${tx}px`);
+        sparkle.style.setProperty('--ty', `${ty}px`);
+
+        sparkle.animate([
+          { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+          { transform: `translate(${tx}px, ${ty}px) scale(0)`, opacity: 0 }
+        ], {
+          duration: 400 + Math.random() * 200,
+          easing: 'cubic-bezier(0, .9, .57, 1)'
+        });
+
+        document.body.appendChild(sparkle);
+        setTimeout(() => sparkle.remove(), 600);
+      }
+    }
+
+    function updateTimerDisplay() {
+      timerText.textContent = remainingTime.toFixed(1) + 's';
+      const percentage = (remainingTime / TOTAL_TIME) * 100;
+      progressBar.style.width = percentage + '%';
+    }
+
+    function finishCooldown() {
+      clearInterval(timerInterval);
+      clearInterval(autoPopInterval);
+      remainingTime = 0;
+      updateTimerDisplay();
+
+      // Pop all remaining bubbles instantly
+      bubbles.forEach(b => {
+        if (!b.popped) {
+          b.el.classList.add('popped');
+        }
+      });
+
+      setTimeout(() => {
+        cooldownArea.style.display = 'none';
+        successMessage.style.display = 'block';
+
+        setTimeout(() => {
+          // Reset to initial state
+          successMessage.style.display = 'none';
+          introArea.style.display = 'block';
+        }, 2500);
+      }, 400);
+    }
+  </script>
+</body>
+</html>
