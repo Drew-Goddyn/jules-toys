@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Experiment Console</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --surface-color: #1e1e1e;
+            --surface-hover: #2a2a2a;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --accent-1: #4caf50;
+            --accent-2: #2196f3;
+            --accent-3: #ff9800;
+            --accent-4: #e91e63;
+            --accent-5: #9c27b0;
+            --accent-6: #00bcd4;
+            --accent-7: #ffeb3b;
+            --accent-8: #795548;
+            --border-color: #333;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 300px;
+            background-color: var(--surface-color);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        .header-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-title::before {
+            content: '';
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background-color: var(--accent-1);
+            border-radius: 50%;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 10px;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 4px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+            font-size: 0.9rem;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: var(--accent-2);
+        }
+
+        .filter-section {
+            margin-bottom: 24px;
+        }
+
+        .filter-title {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .histogram {
+            display: flex;
+            align-items: flex-end;
+            height: 60px;
+            gap: 4px;
+            margin-bottom: 10px;
+        }
+
+        .histogram-bar-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .histogram-bar {
+            width: 100%;
+            background-color: var(--border-color);
+            border-radius: 2px 2px 0 0;
+            transition: height 0.2s, background-color 0.2s;
+        }
+
+        .histogram-bar-container:hover .histogram-bar,
+        .histogram-bar-container.active .histogram-bar {
+            background-color: var(--accent-2);
+        }
+
+        .histogram-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .chips-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .chip {
+            padding: 4px 10px;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .chip:hover {
+            border-color: var(--text-secondary);
+        }
+
+        .chip.active {
+            background-color: var(--accent-2);
+            color: #fff;
+            border-color: var(--accent-2);
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 24px;
+            background-color: var(--bg-color);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .active-count {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .active-count span {
+            color: var(--text-primary);
+            font-weight: bold;
+        }
+
+        .sort-control {
+            background-color: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        .sort-control option {
+            background-color: var(--surface-color);
+        }
+
+        .cards-grid {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 20px;
+            align-content: start;
+        }
+
+        .card {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            overflow: hidden;
+            transition: transform 0.2s, border-color 0.2s;
+            cursor: pointer;
+            position: relative;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            border-color: var(--text-secondary);
+        }
+
+        .card.selected {
+            border-color: var(--accent-2);
+            box-shadow: 0 0 0 1px var(--accent-2);
+        }
+
+        .card-image {
+            height: 140px;
+            background-color: var(--bg-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-image::after {
+            content: 'Screenshot';
+            color: var(--border-color);
+            font-size: 1.5rem;
+            font-weight: bold;
+            opacity: 0.3;
+        }
+
+        .card-content {
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .card-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .card-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .tier-badge {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.7rem;
+            color: #121212;
+        }
+
+        .tier-1 { background-color: var(--accent-1); }
+        .tier-2 { background-color: var(--accent-2); }
+        .tier-3 { background-color: var(--accent-3); }
+        .tier-4 { background-color: var(--accent-4); }
+        .tier-5 { background-color: var(--accent-5); }
+        .tier-6 { background-color: var(--accent-6); }
+        .tier-7 { background-color: var(--accent-7); }
+        .tier-8 { background-color: var(--accent-8); }
+
+        .detail-drawer {
+            width: 350px;
+            background-color: var(--surface-color);
+            border-left: 1px solid var(--border-color);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+        }
+
+        .detail-drawer.open {
+            transform: translateX(0);
+        }
+
+        .drawer-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .drawer-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .close-btn:hover {
+            color: var(--text-primary);
+        }
+
+        .drawer-content {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .drawer-image {
+            width: 100%;
+            height: 200px;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+        }
+
+        .drawer-meta-item {
+            margin-bottom: 16px;
+        }
+
+        .drawer-meta-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .drawer-meta-value {
+            font-size: 0.95rem;
+        }
+
+        .action-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background-color: var(--accent-2);
+            color: #fff;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            margin-top: 20px;
+            transition: background-color 0.2s;
+        }
+
+        .action-btn:hover {
+            background-color: #1976d2;
+        }
+
+        /* Status indicators */
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        .status-online { background-color: var(--accent-1); }
+        .status-offline { background-color: var(--text-secondary); }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="header-title">Experiment Console</div>
+
+        <input type="text" id="searchInput" class="search-box" placeholder="Search by name...">
+
+        <div class="filter-section">
+            <div class="filter-title">Tier Distribution</div>
+            <div class="histogram" id="tierHistogram">
+                <!-- Histogram bars generated by JS -->
+            </div>
+        </div>
+
+        <div class="filter-section">
+            <div class="filter-title">Filter by Tier</div>
+            <div class="chips-container" id="tierChips">
+                <div class="chip active" data-tier="all">All Tiers</div>
+                <!-- Chips generated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="top-bar">
+            <div class="active-count">Showing <span id="countDisplay">0</span> artifacts</div>
+            <div>
+                <select id="sortControl" class="sort-control">
+                    <option value="name-asc">Name (A-Z)</option>
+                    <option value="name-desc">Name (Z-A)</option>
+                    <option value="tier-asc">Tier (Low-High)</option>
+                    <option value="tier-desc">Tier (High-Low)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="cards-grid" id="cardsGrid">
+            <!-- Cards generated by JS -->
+        </div>
+    </div>
+
+    <div class="detail-drawer" id="detailDrawer">
+        <div class="drawer-header">
+            <h2 class="drawer-title" id="drawerTitle">Artifact Name</h2>
+            <button class="close-btn" id="closeDrawer">&times;</button>
+        </div>
+        <div class="drawer-content">
+            <div class="drawer-image">Screenshot Preview</div>
+
+            <div class="drawer-meta-item">
+                <div class="drawer-meta-label">Tier</div>
+                <div class="drawer-meta-value">
+                    <span id="drawerTierBadge" class="tier-badge">T1</span>
+                </div>
+            </div>
+
+            <div class="drawer-meta-item">
+                <div class="drawer-meta-label">Path</div>
+                <div class="drawer-meta-value" style="font-family: monospace; font-size: 0.85rem;" id="drawerPath">tier1/name</div>
+            </div>
+
+            <div class="drawer-meta-item">
+                <div class="drawer-meta-label">Status</div>
+                <div class="drawer-meta-value">
+                    <span class="status-dot status-online"></span> Ready
+                </div>
+            </div>
+
+            <a href="#" class="action-btn" id="drawerLink">Launch Experiment</a>
+        </div>
+    </div>
+
+    <script>
+        const inventory = [
+            { id: 'forecast-tile', name: 'Forecast Tile', tier: 1 },
+            { id: 'passport-stamp', name: 'Passport Stamp', tier: 1 },
+            { id: 'signal-card', name: 'Signal Card', tier: 1 },
+            { id: 'migration-river', name: 'Migration River', tier: 2 },
+            { id: 'orchard-map', name: 'Orchard Map', tier: 2 },
+            { id: 'subway-cutaway', name: 'Subway Cutaway', tier: 2 },
+            { id: 'lunar-postcards', name: 'Lunar Postcards', tier: 3 },
+            { id: 'traffic-ballet', name: 'Traffic Ballet', tier: 3 },
+            { id: 'weather-console', name: 'Weather Console', tier: 3 },
+            { id: 'recipe-risk', name: 'Recipe Risk', tier: 4 },
+            { id: 'sequencer-map', name: 'Sequencer Map', tier: 4 },
+            { id: 'dream-vending', name: 'Dream Vending', tier: 5 },
+            { id: 'emotion-post-office', name: 'Emotion Post Office', tier: 5 },
+            { id: 'pocket-city', name: 'Pocket City', tier: 5 },
+            { id: 'catalogue-studio', name: 'Catalogue Studio', tier: 6 },
+            { id: 'incident-atlas', name: 'Incident Atlas', tier: 6 },
+            { id: 'kitchen-command', name: 'Kitchen Command', tier: 6 },
+            { id: 'market-algorithm', name: 'Market Algorithm', tier: 7 },
+            { id: 'rail-signal', name: 'Rail Signal', tier: 7 },
+            { id: 'reef-particles', name: 'Reef Particles', tier: 7 },
+            { id: 'biome-forge', name: 'Biome Forge', tier: 8 },
+            { id: 'orbital-foundry', name: 'Orbital Foundry', tier: 8 },
+            { id: 'salvage-run', name: 'Salvage Run', tier: 8 }
+        ];
+
+        // State
+        let currentFilter = 'all';
+        let searchQuery = '';
+        let currentSort = 'name-asc';
+        let selectedArtifactId = null;
+
+        // Elements
+        const searchInput = document.getElementById('searchInput');
+        const tierChipsContainer = document.getElementById('tierChips');
+        const tierHistogramContainer = document.getElementById('tierHistogram');
+        const cardsGrid = document.getElementById('cardsGrid');
+        const countDisplay = document.getElementById('countDisplay');
+        const sortControl = document.getElementById('sortControl');
+        const detailDrawer = document.getElementById('detailDrawer');
+        const closeDrawerBtn = document.getElementById('closeDrawer');
+
+        // Drawer elements
+        const drawerTitle = document.getElementById('drawerTitle');
+        const drawerTierBadge = document.getElementById('drawerTierBadge');
+        const drawerPath = document.getElementById('drawerPath');
+        const drawerLink = document.getElementById('drawerLink');
+
+        // Initialize
+        function init() {
+            setupChips();
+            setupEventListeners();
+            render();
+        }
+
+        function setupChips() {
+            const tiers = [...new Set(inventory.map(item => item.tier))].sort();
+
+            tiers.forEach(tier => {
+                const chip = document.createElement('div');
+                chip.className = 'chip';
+                chip.textContent = `Tier ${tier}`;
+                chip.dataset.tier = tier;
+                chip.addEventListener('click', () => setFilter(tier));
+                tierChipsContainer.appendChild(chip);
+            });
+        }
+
+        function setupEventListeners() {
+            searchInput.addEventListener('input', (e) => {
+                searchQuery = e.target.value.toLowerCase();
+                render();
+            });
+
+            sortControl.addEventListener('change', (e) => {
+                currentSort = e.target.value;
+                render();
+            });
+
+            closeDrawerBtn.addEventListener('click', closeDrawer);
+
+            // Close drawer when clicking outside
+            document.querySelector('.main-content').addEventListener('click', (e) => {
+                if (!e.target.closest('.card')) {
+                    closeDrawer();
+                }
+            });
+
+            // Add click listener for 'All Tiers' chip
+            document.querySelector('.chip[data-tier="all"]').addEventListener('click', () => setFilter('all'));
+        }
+
+        function setFilter(tier) {
+            currentFilter = tier;
+
+            // Update chips UI
+            document.querySelectorAll('.chip').forEach(chip => {
+                if (chip.dataset.tier == tier) {
+                    chip.classList.add('active');
+                } else {
+                    chip.classList.remove('active');
+                }
+            });
+
+            render();
+        }
+
+        function getFilteredAndSortedInventory() {
+            let result = inventory;
+
+            // Apply text search
+            if (searchQuery) {
+                result = result.filter(item =>
+                    item.name.toLowerCase().includes(searchQuery) ||
+                    item.id.toLowerCase().includes(searchQuery)
+                );
+            }
+
+            // Apply tier filter
+            if (currentFilter !== 'all') {
+                result = result.filter(item => item.tier == currentFilter);
+            }
+
+            // Apply sort
+            result.sort((a, b) => {
+                switch (currentSort) {
+                    case 'name-asc': return a.name.localeCompare(b.name);
+                    case 'name-desc': return b.name.localeCompare(a.name);
+                    case 'tier-asc': return a.tier - b.tier || a.name.localeCompare(b.name);
+                    case 'tier-desc': return b.tier - a.tier || a.name.localeCompare(b.name);
+                    default: return 0;
+                }
+            });
+
+            return result;
+        }
+
+        function renderHistogram(filteredItems) {
+            tierHistogramContainer.innerHTML = '';
+
+            // Calculate distribution based on search (but not tier filter, to show full context)
+            const searchFiltered = searchQuery
+                ? inventory.filter(item => item.name.toLowerCase().includes(searchQuery) || item.id.toLowerCase().includes(searchQuery))
+                : inventory;
+
+            const counts = {};
+            const allTiers = [...new Set(inventory.map(i => i.tier))].sort();
+
+            allTiers.forEach(t => counts[t] = 0);
+            searchFiltered.forEach(item => counts[item.tier]++);
+
+            const maxCount = Math.max(...Object.values(counts), 1); // Avoid division by zero
+
+            allTiers.forEach(tier => {
+                const count = counts[tier];
+                const heightPercent = (count / maxCount) * 100;
+
+                const barContainer = document.createElement('div');
+                barContainer.className = 'histogram-bar-container';
+                if (currentFilter == tier) barContainer.classList.add('active');
+
+                barContainer.addEventListener('click', () => setFilter(currentFilter == tier ? 'all' : tier));
+
+                const bar = document.createElement('div');
+                bar.className = 'histogram-bar';
+                bar.style.height = `${heightPercent}%`;
+                if (count === 0) bar.style.height = '2px'; // Minimum height for visibility
+
+                const label = document.createElement('div');
+                label.className = 'histogram-label';
+                label.textContent = `T${tier}`;
+
+                barContainer.appendChild(bar);
+                barContainer.appendChild(label);
+                barContainer.title = `Tier ${tier}: ${count} artifacts`;
+
+                tierHistogramContainer.appendChild(barContainer);
+            });
+        }
+
+        function selectArtifact(item) {
+            selectedArtifactId = item.id;
+
+            // Update UI to show selected card
+            document.querySelectorAll('.card').forEach(card => {
+                if (card.dataset.id === item.id) {
+                    card.classList.add('selected');
+                } else {
+                    card.classList.remove('selected');
+                }
+            });
+
+            // Populate drawer
+            drawerTitle.textContent = item.name;
+            drawerTierBadge.textContent = `T${item.tier}`;
+            drawerTierBadge.className = `tier-badge tier-${item.tier}`;
+
+            const path = `tier${item.tier}/${item.id}/index.html`;
+            drawerPath.textContent = path;
+            drawerLink.href = `../../${path}`;
+
+            // Open drawer
+            detailDrawer.classList.add('open');
+        }
+
+        function closeDrawer() {
+            selectedArtifactId = null;
+            document.querySelectorAll('.card').forEach(card => card.classList.remove('selected'));
+            detailDrawer.classList.remove('open');
+        }
+
+        function render() {
+            const items = getFilteredAndSortedInventory();
+
+            // Update count
+            countDisplay.textContent = items.length;
+
+            // Update histogram
+            renderHistogram(items);
+
+            // Update cards
+            cardsGrid.innerHTML = '';
+
+            if (items.length === 0) {
+                cardsGrid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-secondary); padding: 40px;">No artifacts found matching criteria.</div>';
+                return;
+            }
+
+            items.forEach(item => {
+                const card = document.createElement('div');
+                card.className = `card ${selectedArtifactId === item.id ? 'selected' : ''}`;
+                card.dataset.id = item.id;
+
+                card.innerHTML = `
+                    <div class="card-image"></div>
+                    <div class="card-content">
+                        <div class="card-meta">
+                            <span class="tier-badge tier-${item.tier}">T${item.tier}</span>
+                            <span>Ready</span>
+                        </div>
+                        <h3 class="card-title">${item.name}</h3>
+                    </div>
+                `;
+
+                card.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    selectArtifact(item);
+                });
+
+                cardsGrid.appendChild(card);
+            });
+        }
+
+        // Run
+        init();
+    </script>
+</body>
+</html>
