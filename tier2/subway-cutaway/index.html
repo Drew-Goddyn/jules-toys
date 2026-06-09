@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subway Station Cutaway</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0a0a0a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            height: 100vh;
+            max-height: 900px;
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+        }
+        svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900">
+            <defs>
+                <!-- Gradients -->
+                <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#2c3e50"/>
+                    <stop offset="100%" stop-color="#34495e"/>
+                </linearGradient>
+                <linearGradient id="earth" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#3e2723"/>
+                    <stop offset="50%" stop-color="#21120c"/>
+                    <stop offset="100%" stop-color="#140a05"/>
+                </linearGradient>
+                <linearGradient id="tunnel-shadow" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#111"/>
+                    <stop offset="100%" stop-color="#333"/>
+                </linearGradient>
+                <linearGradient id="platform-floor" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#95a5a6"/>
+                    <stop offset="100%" stop-color="#7f8c8d"/>
+                </linearGradient>
+
+                <!-- Soil Pattern -->
+                <pattern id="soil" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
+                    <circle cx="10" cy="10" r="2" fill="#000" opacity="0.3"/>
+                    <circle cx="30" cy="25" r="3" fill="#000" opacity="0.2"/>
+                    <circle cx="50" cy="15" r="1.5" fill="#000" opacity="0.4"/>
+                    <circle cx="20" cy="45" r="2.5" fill="#000" opacity="0.3"/>
+                    <circle cx="45" cy="50" r="1" fill="#000" opacity="0.2"/>
+                    <path d="M 5 35 L 15 30 L 12 40 Z" fill="#000" opacity="0.2"/>
+                    <path d="M 40 5 L 45 10 L 35 15 Z" fill="#000" opacity="0.2"/>
+                </pattern>
+
+                <!-- Human Silhouette -->
+                <g id="person">
+                    <circle cx="0" cy="-14" r="3" fill="#111"/>
+                    <path d="M-4,-9 C-4,-11 4,-11 4,-9 L5,2 L3,2 L3,10 L-3,10 L-3,2 L-5,2 Z" fill="#111"/>
+                </g>
+                <g id="person-walking">
+                    <circle cx="0" cy="-14" r="3" fill="#111"/>
+                    <path d="M-4,-9 C-4,-11 4,-11 4,-9 L6,0 L4,1 L2,0 L3,10 L-1,10 L-2,4 L-4,10 L-7,9 L-4,0 Z" fill="#111"/>
+                </g>
+
+                <!-- Subway Train Front View -->
+                <g id="train-front">
+                    <!-- Train Body -->
+                    <rect x="-40" y="-50" width="80" height="70" rx="10" fill="#ecf0f1"/>
+                    <rect x="-40" y="-10" width="80" height="15" fill="#e74c3c"/>
+                    <!-- Windshield -->
+                    <rect x="-35" y="-45" width="70" height="30" rx="5" fill="#2c3e50"/>
+                    <rect x="-35" y="-45" width="70" height="30" rx="5" fill="none" stroke="#bdc3c7" stroke-width="2"/>
+                    <!-- Lights -->
+                    <circle cx="-25" cy="5" r="4" fill="#f1c40f"/>
+                    <circle cx="25" cy="5" r="4" fill="#f1c40f"/>
+                    <circle cx="-25" cy="5" r="2" fill="#fff"/>
+                    <circle cx="25" cy="5" r="2" fill="#fff"/>
+                    <rect x="-15" y="-40" width="30" height="10" fill="#34495e"/>
+                    <text x="0" y="-32" font-family="monospace" font-size="6" fill="#fff" text-anchor="middle">A-TRAIN</text>
+                    <path d="M-15,20 L15,20" stroke="#333" stroke-width="2"/>
+                </g>
+
+                <!-- Subway Train Side View Component -->
+                <g id="train-side-car">
+                    <rect x="0" y="0" width="180" height="60" fill="#ecf0f1"/>
+                    <rect x="0" y="35" width="180" height="10" fill="#e74c3c"/>
+                    <!-- Doors -->
+                    <rect x="20" y="10" width="20" height="45" fill="#bdc3c7"/>
+                    <line x1="30" y1="10" x2="30" y2="55" stroke="#7f8c8d" stroke-width="1"/>
+                    <rect x="22" y="15" width="6" height="15" fill="#2c3e50"/>
+                    <rect x="32" y="15" width="6" height="15" fill="#2c3e50"/>
+
+                    <rect x="140" y="10" width="20" height="45" fill="#bdc3c7"/>
+                    <line x1="150" y1="10" x2="150" y2="55" stroke="#7f8c8d" stroke-width="1"/>
+                    <rect x="142" y="15" width="6" height="15" fill="#2c3e50"/>
+                    <rect x="152" y="15" width="6" height="15" fill="#2c3e50"/>
+
+                    <!-- Windows -->
+                    <rect x="55" y="15" width="30" height="15" rx="2" fill="#2c3e50"/>
+                    <rect x="95" y="15" width="30" height="15" rx="2" fill="#2c3e50"/>
+                    <!-- Wheels -->
+                    <circle cx="30" cy="65" r="8" fill="#333"/>
+                    <circle cx="50" cy="65" r="8" fill="#333"/>
+                    <circle cx="130" cy="65" r="8" fill="#333"/>
+                    <circle cx="150" cy="65" r="8" fill="#333"/>
+                    <rect x="20" y="60" width="40" height="5" fill="#555"/>
+                    <rect x="120" y="60" width="40" height="5" fill="#555"/>
+                </g>
+            </defs>
+
+            <!-- ================= BACKGROUND & SURFACE ================= -->
+            <!-- Sky -->
+            <rect x="0" y="0" width="1200" height="180" fill="url(#sky)"/>
+            <!-- Moon/Sun -->
+            <circle cx="150" cy="80" r="30" fill="#f1c40f" opacity="0.8"/>
+
+            <!-- Cityscape Silhouettes -->
+            <path d="M0,180 L0,120 L40,120 L40,80 L90,80 L90,140 L130,140 L130,90 L180,90 L180,110 L230,110 L230,60 L290,60 L290,130 L340,130 L340,100 L400,100 L400,180 Z" fill="#1a252f"/>
+            <path d="M400,180 L400,70 L460,70 L460,110 L520,110 L520,50 L580,50 L580,120 L640,120 L640,90 L700,90 L700,140 L760,140 L760,180 Z" fill="#1a252f"/>
+            <path d="M760,180 L760,100 L810,100 L810,60 L870,60 L870,120 L920,120 L920,80 L980,80 L980,130 L1040,130 L1040,70 L1110,70 L1110,110 L1200,110 L1200,180 Z" fill="#1a252f"/>
+
+            <!-- Street Surface -->
+            <rect x="0" y="180" width="1200" height="20" fill="#7f8c8d"/>
+            <rect x="0" y="200" width="1200" height="10" fill="#555"/>
+            <line x1="0" y1="190" x2="1200" y2="190" stroke="#bdc3c7" stroke-dasharray="30, 30" stroke-width="2"/>
+
+            <!-- Earth Base -->
+            <rect x="0" y="210" width="1200" height="690" fill="url(#earth)"/>
+            <rect x="0" y="210" width="1200" height="690" fill="url(#soil)"/>
+
+            <!-- Buried pipes in the earth -->
+            <circle cx="150" cy="280" r="15" fill="#e67e22"/>
+            <circle cx="150" cy="280" r="10" fill="#d35400"/>
+            <circle cx="850" cy="350" r="25" fill="#7f8c8d"/>
+            <circle cx="850" cy="350" r="20" fill="#2c3e50"/>
+            <circle cx="100" cy="450" r="10" fill="#3498db"/>
+            <line x1="0" y1="260" x2="180" y2="260" stroke="#f1c40f" stroke-width="4"/>
+            <line x1="900" y1="400" x2="1200" y2="400" stroke="#e74c3c" stroke-width="6"/>
+
+
+            <!-- ================= SUBWAY ENTRANCE ================= -->
+            <g transform="translate(650, 110)">
+                <!-- Entrance Building -->
+                <rect x="0" y="0" width="140" height="70" rx="4" fill="#2c3e50"/>
+                <rect x="5" y="5" width="130" height="20" fill="#27ae60"/>
+                <text x="70" y="20" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white" text-anchor="middle">SUBWAY</text>
+
+                <!-- Stairs Cutout into earth -->
+                <path d="M20,70 L20,100 L40,150 L120,150 L120,100 L140,70 Z" fill="#1e272e"/>
+                <!-- Stairs -->
+                <path d="M30,70 L50,150 L110,150 L130,70 Z" fill="#95a5a6"/>
+                <!-- Steps Lines -->
+                <line x1="32" y1="80" x2="128" y2="80" stroke="#7f8c8d"/>
+                <line x1="34" y1="90" x2="126" y2="90" stroke="#7f8c8d"/>
+                <line x1="37" y1="100" x2="123" y2="100" stroke="#7f8c8d"/>
+                <line x1="39" y1="110" x2="121" y2="110" stroke="#7f8c8d"/>
+                <line x1="42" y1="120" x2="118" y2="120" stroke="#7f8c8d"/>
+                <line x1="44" y1="130" x2="116" y2="130" stroke="#7f8c8d"/>
+                <line x1="47" y1="140" x2="113" y2="140" stroke="#7f8c8d"/>
+                <!-- Glass Roof -->
+                <path d="M-5,30 L145,30 Q145,0 70,-10 Q-5,0 -5,30 Z" fill="#3498db" opacity="0.3"/>
+                <path d="M-5,30 L145,30 Q145,0 70,-10 Q-5,0 -5,30 Z" fill="none" stroke="#bdc3c7" stroke-width="2"/>
+
+                <!-- People at entrance -->
+                <use href="#person" x="50" y="65"/>
+                <use href="#person-walking" x="70" y="85"/>
+                <use href="#person" x="90" y="115"/>
+            </g>
+
+
+            <!-- ================= LEVEL 1: MEZZANINE (Ticket Hall) ================= -->
+            <!-- Cutout frame -->
+            <rect x="240" y="250" width="720" height="150" rx="10" fill="#bdc3c7" stroke="#95a5a6" stroke-width="10"/>
+            <rect x="250" y="260" width="700" height="130" fill="#ecf0f1"/>
+
+            <g transform="translate(250, 260)">
+                <!-- Ceiling details -->
+                <rect x="0" y="0" width="700" height="10" fill="#dfe6e9"/>
+                <!-- Lights -->
+                <rect x="50" y="5" width="80" height="5" fill="#fff" filter="drop-shadow(0 5px 10px #f1c40f)"/>
+                <rect x="200" y="5" width="80" height="5" fill="#fff" filter="drop-shadow(0 5px 10px #f1c40f)"/>
+                <rect x="350" y="5" width="80" height="5" fill="#fff" filter="drop-shadow(0 5px 10px #f1c40f)"/>
+                <rect x="500" y="5" width="80" height="5" fill="#fff" filter="drop-shadow(0 5px 10px #f1c40f)"/>
+
+                <!-- Walls/Tiles -->
+                <rect x="0" y="10" width="700" height="70" fill="#b2bec3"/>
+                <line x1="0" y1="20" x2="700" y2="20" stroke="#fff" stroke-width="1" opacity="0.5"/>
+                <line x1="0" y1="30" x2="700" y2="30" stroke="#fff" stroke-width="1" opacity="0.5"/>
+                <line x1="0" y1="40" x2="700" y2="40" stroke="#fff" stroke-width="1" opacity="0.5"/>
+                <line x1="0" y1="50" x2="700" y2="50" stroke="#fff" stroke-width="1" opacity="0.5"/>
+                <line x1="0" y1="60" x2="700" y2="60" stroke="#fff" stroke-width="1" opacity="0.5"/>
+                <line x1="0" y1="70" x2="700" y2="70" stroke="#fff" stroke-width="1" opacity="0.5"/>
+
+                <!-- Ad Posters -->
+                <rect x="80" y="25" width="60" height="40" fill="#3498db" rx="2"/>
+                <rect x="85" y="30" width="50" height="20" fill="#fff"/>
+                <rect x="280" y="25" width="60" height="40" fill="#e67e22" rx="2"/>
+                <rect x="285" y="30" width="50" height="20" fill="#fff"/>
+                <rect x="580" y="25" width="60" height="40" fill="#9b59b6" rx="2"/>
+                <rect x="585" y="30" width="50" height="20" fill="#fff"/>
+
+                <!-- Ticket Machines -->
+                <rect x="180" y="80" width="20" height="40" rx="2" fill="#34495e"/>
+                <rect x="182" y="85" width="16" height="15" fill="#1abc9c"/>
+                <rect x="210" y="80" width="20" height="40" rx="2" fill="#34495e"/>
+                <rect x="212" y="85" width="16" height="15" fill="#1abc9c"/>
+
+                <!-- Ticket Gates -->
+                <rect x="360" y="90" width="10" height="30" fill="#2d3436"/>
+                <rect x="390" y="90" width="10" height="30" fill="#2d3436"/>
+                <rect x="420" y="90" width="10" height="30" fill="#2d3436"/>
+                <rect x="450" y="90" width="10" height="30" fill="#2d3436"/>
+                <line x1="370" y1="105" x2="390" y2="105" stroke="#e74c3c" stroke-width="2"/>
+                <line x1="400" y1="105" x2="420" y2="105" stroke="#e74c3c" stroke-width="2"/>
+                <line x1="430" y1="105" x2="450" y2="105" stroke="#2ecc71" stroke-width="2"/>
+
+                <!-- Information Booth -->
+                <rect x="30" y="70" width="40" height="50" fill="#ecf0f1" stroke="#bdc3c7"/>
+                <rect x="35" y="75" width="30" height="20" fill="#34495e"/>
+                <text x="50" y="73" font-family="sans-serif" font-size="8" fill="#e74c3c" text-anchor="middle">INFO</text>
+
+                <!-- Overhead Signage -->
+                <rect x="380" y="15" width="60" height="15" fill="#27ae60" rx="2"/>
+                <text x="410" y="25" font-family="sans-serif" font-size="8" fill="white" font-weight="bold" text-anchor="middle">TRAINS</text>
+                <path d="M385,22 L395,22 L390,27 Z" fill="#fff"/> <!-- Arrow -->
+
+                <!-- Support Pillars -->
+                <rect x="150" y="0" width="20" height="120" fill="#bdc3c7"/>
+                <rect x="520" y="0" width="20" height="120" fill="#bdc3c7"/>
+
+                <!-- People in Mezzanine -->
+                <use href="#person-walking" x="60" y="120"/>
+                <use href="#person" x="120" y="120"/>
+                <use href="#person" x="190" y="120"/>
+                <use href="#person-walking" x="330" y="120"/>
+                <use href="#person" x="410" y="120"/>
+                <use href="#person-walking" x="480" y="120"/>
+                <use href="#person" x="650" y="120"/>
+                <use href="#person" x="670" y="120"/>
+            </g>
+
+
+            <!-- ================= ESCALATORS TO PLATFORMS ================= -->
+            <!-- Left Escalator (To Platform 1) -->
+            <!-- Mezzanine floor absolute y=380. Platform floor absolute y=680 -->
+            <!-- Wait, Mezzanine floor is 260+120=380. -->
+            <g id="escalator-left">
+                <!-- Hole in ground -->
+                <path d="M300,380 L360,380 L280,680 L220,680 Z" fill="#111"/>
+                <!-- Steps surface -->
+                <path d="M310,380 L350,380 L270,680 L230,680 Z" fill="#7f8c8d"/>
+                <!-- Handrails -->
+                <path d="M295,350 L215,650 L220,680 L300,380 Z" fill="#2c3e50"/>
+                <path d="M365,350 L285,650 L280,680 L360,380 Z" fill="#2c3e50"/>
+                <line x1="290" y1="365" x2="215" y2="665" stroke="#34495e" stroke-width="2"/>
+                <!-- People on escalator -->
+                <use href="#person" x="325" y="420"/>
+                <use href="#person" x="295" y="540"/>
+                <use href="#person" x="270" y="640"/>
+            </g>
+
+            <!-- Right Escalator (To Platform 2) -->
+            <g id="escalator-right">
+                <!-- Hole in ground -->
+                <path d="M840,380 L900,380 L980,680 L920,680 Z" fill="#111"/>
+                <!-- Steps surface -->
+                <path d="M850,380 L890,380 L970,680 L930,680 Z" fill="#7f8c8d"/>
+                <!-- Handrails -->
+                <path d="M835,350 L915,650 L920,680 L840,380 Z" fill="#2c3e50"/>
+                <path d="M905,350 L985,650 L980,680 L900,380 Z" fill="#2c3e50"/>
+                <line x1="840" y1="365" x2="915" y2="665" stroke="#34495e" stroke-width="2"/>
+                <!-- People on escalator -->
+                <use href="#person" x="875" y="420"/>
+                <use href="#person" x="905" y="540"/>
+                <use href="#person" x="930" y="640"/>
+            </g>
+
+
+            <!-- ================= LEVEL 2: PLATFORM 1 (LEFT) ================= -->
+            <g transform="translate(150, 520)">
+                <!-- Tunnel Arch Cutout -->
+                <path d="M0,160 L0,-30 Q150,-100 300,-30 L300,160 Z" fill="none" stroke="#95a5a6" stroke-width="8"/>
+                <path d="M0,160 L0,-30 Q150,-100 300,-30 L300,160 Z" fill="#2c3e50"/>
+
+                <!-- Inner Arch Depth -->
+                <path d="M10,160 L10,-25 Q150,-90 290,-25 L290,160 Z" fill="#1a252f"/>
+
+                <!-- Platform Base -->
+                <path d="M60,160 L300,160 L300,130 L60,130 Z" fill="url(#platform-floor)"/>
+                <!-- Warning Line -->
+                <rect x="60" y="130" width="240" height="4" fill="#f1c40f"/>
+
+                <!-- Tracks Area -->
+                <rect x="10" y="145" width="50" height="15" fill="#111"/>
+                <line x1="20" y1="160" x2="20" y2="145" stroke="#7f8c8d" stroke-width="2"/>
+                <line x1="45" y1="160" x2="45" y2="145" stroke="#7f8c8d" stroke-width="2"/>
+                <line x1="10" y1="150" x2="60" y2="150" stroke="#bdc3c7" stroke-width="2"/>
+                <line x1="10" y1="155" x2="60" y2="155" stroke="#bdc3c7" stroke-width="2"/>
+
+                <!-- The Train (Front View arriving) -->
+                <g transform="translate(35, 125)">
+                    <use href="#train-front"/>
+                </g>
+
+                <!-- Platform Architecture -->
+                <!-- Pillar -->
+                <rect x="250" y="0" width="20" height="130" fill="#ecf0f1"/>
+                <rect x="245" y="60" width="30" height="10" fill="#3498db"/>
+                <text x="260" y="68" font-family="sans-serif" font-size="8" fill="white" font-weight="bold" text-anchor="middle">1</text>
+
+                <!-- Signs -->
+                <rect x="150" y="10" width="80" height="15" fill="#3498db" rx="2"/>
+                <text x="190" y="21" font-family="sans-serif" font-size="10" fill="white" font-weight="bold" text-anchor="middle">UPTOWN</text>
+
+                <!-- Bench -->
+                <rect x="160" y="110" width="40" height="5" fill="#e67e22" rx="2"/>
+                <rect x="165" y="115" width="5" height="15" fill="#7f8c8d"/>
+                <rect x="190" y="115" width="5" height="15" fill="#7f8c8d"/>
+
+                <!-- Clock -->
+                <circle cx="280" cy="20" r="10" fill="#ecf0f1" stroke="#333" stroke-width="2"/>
+                <line x1="280" y1="20" x2="280" y2="14" stroke="#333" stroke-width="1.5"/>
+                <line x1="280" y1="20" x2="285" y2="20" stroke="#333" stroke-width="1.5"/>
+
+                <!-- People waiting -->
+                <use href="#person" x="120" y="130"/>
+                <use href="#person" x="100" y="130"/>
+                <use href="#person-walking" x="180" y="130"/>
+                <use href="#person" x="220" y="130"/>
+            </g>
+
+
+            <!-- ================= LEVEL 2: PLATFORM 2 (RIGHT) ================= -->
+            <g transform="translate(600, 520)">
+                <!-- Tunnel Cutout Extended for Side View -->
+                <path d="M0,160 L0,-30 Q250,-100 500,-30 L500,160 Z" fill="none" stroke="#95a5a6" stroke-width="8"/>
+                <path d="M0,160 L0,-30 Q250,-100 500,-30 L500,160 Z" fill="#1a252f"/>
+
+                <!-- Back wall tiles -->
+                <rect x="20" y="0" width="460" height="100" fill="#2c3e50"/>
+                <rect x="20" y="50" width="460" height="20" fill="#e74c3c"/>
+                <text x="250" y="65" font-family="sans-serif" font-size="14" fill="white" font-weight="bold" text-anchor="middle">STATION SQUARE</text>
+
+                <!-- Tracks (Side view) -->
+                <rect x="10" y="145" width="480" height="15" fill="#111"/>
+                <!-- Track rails -->
+                <line x1="10" y1="150" x2="490" y2="150" stroke="#bdc3c7" stroke-width="2"/>
+
+                <!-- The Train (Side View waiting at platform) -->
+                <g transform="translate(40, 85)">
+                    <use href="#train-side-car" x="0"/>
+                    <use href="#train-side-car" x="190"/>
+                    <use href="#train-side-car" x="380"/>
+                </g>
+
+                <!-- Platform Foreground -->
+                <path d="M0,160 L500,160 L500,140 L0,140 Z" fill="url(#platform-floor)"/>
+                <!-- Warning Line -->
+                <rect x="0" y="140" width="500" height="4" fill="#f1c40f"/>
+
+                <!-- Foreground Pillars -->
+                <rect x="50" y="-10" width="20" height="150" fill="#ecf0f1"/>
+                <rect x="250" y="-20" width="20" height="160" fill="#ecf0f1"/>
+                <rect x="450" y="-10" width="20" height="150" fill="#ecf0f1"/>
+
+                <rect x="45" y="60" width="30" height="10" fill="#e74c3c"/>
+                <text x="60" y="68" font-family="sans-serif" font-size="8" fill="white" font-weight="bold" text-anchor="middle">2</text>
+
+                <rect x="245" y="60" width="30" height="10" fill="#e74c3c"/>
+                <text x="260" y="68" font-family="sans-serif" font-size="8" fill="white" font-weight="bold" text-anchor="middle">2</text>
+
+                <!-- People waiting in foreground platform -->
+                <use href="#person" x="80" y="140"/>
+                <use href="#person" x="120" y="140"/>
+                <use href="#person-walking" x="190" y="140"/>
+                <use href="#person" x="220" y="140"/>
+                <use href="#person" x="310" y="140"/>
+                <use href="#person" x="350" y="140"/>
+                <use href="#person-walking" x="420" y="140"/>
+            </g>
+
+            <!-- ================= CROSS SECTION LABELS & DETAILS ================= -->
+            <!-- Depth Indicator Lines -->
+            <line x1="40" y1="210" x2="60" y2="210" stroke="#fff" stroke-width="2"/>
+            <text x="70" y="215" font-family="sans-serif" font-size="12" fill="#fff">Surface Level</text>
+
+            <line x1="40" y1="380" x2="60" y2="380" stroke="#fff" stroke-width="2"/>
+            <text x="70" y="385" font-family="sans-serif" font-size="12" fill="#fff">-15m Concourse</text>
+
+            <line x1="40" y1="680" x2="60" y2="680" stroke="#fff" stroke-width="2"/>
+            <text x="70" y="685" font-family="sans-serif" font-size="12" fill="#fff">-30m Platforms</text>
+
+            <line x1="50" y1="210" x2="50" y2="680" stroke="#fff" stroke-width="1" stroke-dasharray="5,5"/>
+
+            <!-- Main Title Overlay -->
+            <rect x="400" y="800" width="400" height="50" rx="25" fill="#111" opacity="0.8"/>
+            <text x="600" y="832" font-family="'Segoe UI', sans-serif" font-size="24" font-weight="bold" letter-spacing="2" fill="#f1c40f" text-anchor="middle">SUBWAY STATION CUTAWAY</text>
+
+        </svg>
+    </div>
+</body>
+</html>
