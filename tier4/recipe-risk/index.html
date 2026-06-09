@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recipe Risk Mixer</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background-color: #f0f4f8;
+      color: #333;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+    }
+    .widget-container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    @media(min-width: 600px) {
+      .widget-container {
+        flex-direction: row;
+      }
+    }
+    .inputs-section {
+      padding: 24px;
+      background: #fafafa;
+      flex: 1;
+      border-right: 1px solid #eaeaea;
+    }
+    .outputs-section {
+      padding: 24px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 1.5rem;
+      color: #2c3e50;
+    }
+    h2 {
+      margin-top: 0;
+      font-size: 1.2rem;
+      border-bottom: 2px solid #3498db;
+      padding-bottom: 8px;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 6px;
+      font-size: 0.9rem;
+    }
+    .ingredients-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .checkbox-label {
+      font-weight: normal;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+    input[type="range"] {
+      width: 100%;
+      margin: 8px 0;
+    }
+    select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+    .value-display {
+      font-size: 0.85rem;
+      color: #666;
+      float: right;
+    }
+    .output-card {
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .output-card h3 {
+      margin: 0 0 8px 0;
+      font-size: 1rem;
+      color: #495057;
+    }
+    .risk-bar-container {
+      width: 100%;
+      height: 12px;
+      background: #e9ecef;
+      border-radius: 6px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .risk-bar {
+      height: 100%;
+      width: 0%;
+      background: #2ecc71;
+      transition: width 0.3s ease, background-color 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+
+<div class="widget-container">
+  <div class="inputs-section">
+    <h1>Recipe Risk Mixer</h1>
+
+    <div class="form-group">
+      <label>Ingredients</label>
+      <div class="ingredients-grid" id="ingredients">
+        <label class="checkbox-label"><input type="checkbox" value="ghost_pepper" data-risk="20" data-flavor="Spicy"> Ghost Pepper</label>
+        <label class="checkbox-label"><input type="checkbox" value="durian" data-risk="15" data-flavor="Pungent"> Durian</label>
+        <label class="checkbox-label"><input type="checkbox" value="liquid_nitrogen" data-risk="25" data-flavor="Cold"> Liquid Nitrogen</label>
+        <label class="checkbox-label"><input type="checkbox" value="gold_leaf" data-risk="5" data-flavor="Metallic"> Gold Leaf</label>
+        <label class="checkbox-label"><input type="checkbox" value="wasabi" data-risk="10" data-flavor="Sharp"> Wasabi</label>
+        <label class="checkbox-label"><input type="checkbox" value="pop_rocks" data-risk="5" data-flavor="Sweet"> Pop Rocks</label>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="heat">Heat Level <span class="value-display" id="heat-val">50%</span></label>
+      <input type="range" id="heat" min="0" max="100" value="50">
+    </div>
+
+    <div class="form-group">
+      <label for="timing">Timing (Mins) <span class="value-display" id="timing-val">30m</span></label>
+      <input type="range" id="timing" min="1" max="120" value="30">
+    </div>
+
+    <div class="form-group">
+      <label for="pressure">Serving Pressure</label>
+      <select id="pressure">
+        <option value="1">Casual Gathering</option>
+        <option value="1.5">In-laws Dinner</option>
+        <option value="2">Food Critic</option>
+        <option value="3">Royal Family</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="outputs-section">
+    <h2>Evaluation</h2>
+
+    <div class="output-card">
+      <h3>Risk Profile: <span id="risk-score">Low</span></h3>
+      <div class="risk-bar-container">
+        <div class="risk-bar" id="risk-bar"></div>
+      </div>
+    </div>
+
+    <div class="output-card">
+      <h3>Flavor Balance</h3>
+      <p id="flavor-text" style="margin:0; font-size: 0.95rem;">Bland and uninspired. Add some ingredients!</p>
+    </div>
+
+    <div class="output-card">
+      <h3>Cooking Plan</h3>
+      <p id="plan-text" style="margin:0; font-size: 0.95rem; font-style: italic;">Select parameters to generate a cooking plan.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const ingredientsBoxes = document.querySelectorAll('#ingredients input[type="checkbox"]');
+    const heatSlider = document.getElementById('heat');
+    const heatValDisplay = document.getElementById('heat-val');
+    const timingSlider = document.getElementById('timing');
+    const timingValDisplay = document.getElementById('timing-val');
+    const pressureSelect = document.getElementById('pressure');
+
+    const riskScoreDisplay = document.getElementById('risk-score');
+    const riskBar = document.getElementById('risk-bar');
+    const flavorText = document.getElementById('flavor-text');
+    const planText = document.getElementById('plan-text');
+
+    function updateWidget() {
+      // 1. Get Inputs
+      const selectedIngredients = Array.from(ingredientsBoxes).filter(cb => cb.checked);
+      const heat = parseInt(heatSlider.value);
+      const timing = parseInt(timingSlider.value);
+      const pressure = parseFloat(pressureSelect.value);
+
+      // Update value displays
+      heatValDisplay.textContent = `${heat}%`;
+      timingValDisplay.textContent = `${timing}m`;
+
+      // 2. Calculate Risk
+      let baseRisk = 0;
+      let flavors = [];
+      selectedIngredients.forEach(cb => {
+        baseRisk += parseInt(cb.dataset.risk);
+        flavors.push(cb.dataset.flavor);
+      });
+
+      // Heat risk modifier (extreme heat adds risk)
+      const heatRisk = Math.abs(heat - 50) * 0.4;
+
+      // Timing risk modifier (very fast or very slow adds risk)
+      const timingRisk = (timing < 10 || timing > 90) ? 10 : 0;
+
+      let totalRisk = (baseRisk + heatRisk + timingRisk) * pressure;
+
+      // Cap at 100
+      totalRisk = Math.min(100, Math.max(0, totalRisk));
+
+      // Update Risk Display
+      riskBar.style.width = `${totalRisk}%`;
+      if (totalRisk < 30) {
+        riskScoreDisplay.textContent = `Low (${Math.round(totalRisk)})`;
+        riskBar.style.backgroundColor = '#2ecc71';
+      } else if (totalRisk < 70) {
+        riskScoreDisplay.textContent = `Medium (${Math.round(totalRisk)})`;
+        riskBar.style.backgroundColor = '#f1c40f';
+      } else {
+        riskScoreDisplay.textContent = `High (${Math.round(totalRisk)})`;
+        riskBar.style.backgroundColor = '#e74c3c';
+      }
+
+      // 3. Calculate Flavor Balance
+      if (flavors.length === 0) {
+        flavorText.textContent = "Bland and uninspired. Add some ingredients!";
+      } else {
+        const uniqueFlavors = [...new Set(flavors)];
+        if (uniqueFlavors.length > 3) {
+          flavorText.textContent = `A chaotic mix of ${uniqueFlavors.join(', ')}. Might overwhelm the palate!`;
+        } else {
+          flavorText.textContent = `A focused profile featuring ${uniqueFlavors.join(' and ')} notes.`;
+        }
+      }
+
+      // 4. Generate Cooking Plan
+      let planSteps = [];
+      if (flavors.length > 0) {
+        planSteps.push(`Prep ${selectedIngredients.length} ingredients.`);
+      } else {
+        planSteps.push(`Gather some ingredients first.`);
+      }
+
+      if (heat > 80) {
+        planSteps.push(`Blast at maximum heat (${heat}%) for an intense sear.`);
+      } else if (heat < 20) {
+        planSteps.push(`Gently cold-process or raw-serve at ${heat}% heat.`);
+      } else {
+        planSteps.push(`Cook steadily at moderate heat (${heat}%).`);
+      }
+
+      planSteps.push(`Allow ${timing} minutes for flavors to meld.`);
+
+      if (pressure > 1.5) {
+        planSteps.push(`Plate with extreme precision to survive the high-pressure serving environment.`);
+      } else {
+        planSteps.push(`Serve casually and enjoy.`);
+      }
+
+      planText.textContent = planSteps.join(' ');
+    }
+
+    // Attach event listeners
+    ingredientsBoxes.forEach(cb => cb.addEventListener('change', updateWidget));
+    heatSlider.addEventListener('input', updateWidget);
+    timingSlider.addEventListener('input', updateWidget);
+    pressureSelect.addEventListener('change', updateWidget);
+
+    // Initial render
+    updateWidget();
+  });
+</script>
+
+</body>
+</html>
