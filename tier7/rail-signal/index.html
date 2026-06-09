@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signal Box</title>
+<style>
+    body {
+        margin: 0;
+        background-color: #2c3e50;
+        color: #ecf0f1;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        overflow: hidden;
+    }
+    #game-container {
+        position: relative;
+        background-color: #34495e;
+        border: 4px solid #1abc9c;
+        border-radius: 8px;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+    }
+    canvas {
+        display: block;
+    }
+    #ui-layer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        pointer-events: none;
+        padding: 10px;
+        box-sizing: border-box;
+        display: flex;
+        justify-content: space-between;
+        font-size: 1.2rem;
+        font-weight: bold;
+    }
+    #message-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(44, 62, 80, 0.8);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+    #message-overlay h1 {
+        font-size: 3rem;
+        margin: 0 0 20px 0;
+    }
+    #message-overlay p {
+        font-size: 1.5rem;
+        margin: 0 0 30px 0;
+    }
+    button {
+        pointer-events: auto;
+        padding: 10px 20px;
+        font-size: 1.2rem;
+        background-color: #1abc9c;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    button:hover {
+        background-color: #16a085;
+    }
+    .hidden {
+        display: none !important;
+    }
+</style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
+        <div id="ui-layer">
+            <div id="status-text">Pending: 0 | Delivered: 0</div>
+            <div id="time-text">Time: 0s</div>
+        </div>
+        <div id="message-overlay">
+            <h1 id="overlay-title">Signal Box</h1>
+            <p id="overlay-desc">Route trains to their matching color destinations before time runs out.<br>Avoid collisions!</p>
+            <button id="start-btn">Start Dispatch</button>
+        </div>
+    </div>
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Game Constants
+    const TRAIN_SPEED = 60; // pixels per second
+    const TRAIN_LENGTH = 30;
+    const TRAIN_WIDTH = 14;
+    const TRACK_WIDTH = 6;
+    const COLORS = {
+        bg: '#34495e',
+        track: '#7f8c8d',
+        trackActive: '#bdc3c7',
+        switchBox: '#95a5a6',
+        signalStop: '#e74c3c',
+        signalGo: '#2ecc71',
+        trainA: '#3498db', // Blue
+        trainB: '#f1c40f', // Yellow
+        stationA: '#3498db',
+        stationB: '#f1c40f',
+        stationSpawn: '#9b59b6' // Purple
+    };
+
+    // Network Definitions
+    // A point is {x, y}
+    const points = {
+        spawn: {x: 50, y: 200},
+        p1: {x: 200, y: 200},
+        sw1: {x: 300, y: 200}, // Switch 1
+        p2_top: {x: 400, y: 100},
+        p2_bot: {x: 400, y: 300},
+        sw2_top: {x: 500, y: 100}, // Switch 2 top (signal)
+        sw2_bot: {x: 500, y: 300}, // Switch 2 bot (signal)
+        p3_top: {x: 650, y: 100},
+        p3_bot: {x: 650, y: 300},
+        destA: {x: 750, y: 100},
+        destB: {x: 750, y: 300}
+    };
+
+    // Tracks are defined by segments [startPoint, endPoint]
+    const tracks = [
+        { id: 't_spawn', start: points.spawn, end: points.p1 },
+        { id: 't_main', start: points.p1, end: points.sw1 },
+        { id: 't_branch_top', start: points.sw1, end: points.p2_top, isCurve: true },
+        { id: 't_branch_bot', start: points.sw1, end: points.p2_bot, isCurve: true },
+        { id: 't_top_mid', start: points.p2_top, end: points.sw2_top },
+        { id: 't_bot_mid', start: points.p2_bot, end: points.sw2_bot },
+        { id: 't_top_end', start: points.sw2_top, end: points.p3_top },
+        { id: 't_bot_end', start: points.sw2_bot, end: points.p3_bot },
+        { id: 't_dest_A', start: points.p3_top, end: points.destA },
+        { id: 't_dest_B', start: points.p3_bot, end: points.destB }
+    ];
+
+    // Switches route from a point to another point. Can be toggled.
+    class Switch {
+        constructor(id, point, nextPoints) {
+            this.id = id;
+            this.point = point;
+            this.nextPoints = nextPoints; // Array of points it can connect to
+            this.state = 0; // Index in nextPoints
+        }
+        toggle() {
+            this.state = (this.state + 1) % this.nextPoints.length;
+        }
+        getNextPoint() {
+            return this.nextPoints[this.state];
+        }
+    }
+
+    // Signals stop trains from passing if red.
+    class Signal {
+        constructor(id, point) {
+            this.id = id;
+            this.point = point;
+            this.isGreen = false;
+        }
+        toggle() {
+            this.isGreen = !this.isGreen;
+        }
+    }
+
+    const switches = [
+        new Switch('sw1', points.sw1, [points.p2_top, points.p2_bot])
+    ];
+
+    const signals = [
+        new Signal('sig1', points.p1), // Signal before the switch
+        new Signal('sig2', points.sw2_top),
+        new Signal('sig3', points.sw2_bot)
+    ];
+
+    const stations = [
+        { point: points.spawn, type: 'spawn', color: COLORS.stationSpawn, label: 'Depot' },
+        { point: points.destA, type: 'dest', color: COLORS.stationA, match: 'trainA', label: 'Stn A' },
+        { point: points.destB, type: 'dest', color: COLORS.stationB, match: 'trainB', label: 'Stn B' }
+    ];
+
+    // Train definitions
+    class Train {
+        constructor(id, type) {
+            this.id = id;
+            this.type = type; // 'trainA' or 'trainB'
+            this.color = COLORS[type];
+            this.pos = { x: points.spawn.x, y: points.spawn.y };
+            this.currentPoint = points.spawn;
+            this.nextPoint = points.p1;
+            this.progress = 0; // 0 to 1 between current and next
+            this.state = 'moving'; // 'moving', 'stopped', 'arrived', 'crashed'
+        }
+    }
+
+    // Game State
+    let state = {
+        isRunning: false,
+        trains: [],
+        schedule: [],
+        timeElapsed: 0,
+        lastTime: 0,
+        delivered: 0,
+        pending: 0,
+        maxTime: 60, // seconds
+        result: null // 'win', 'lose_crash', 'lose_time', 'lose_wrong_station'
+    };
+
+    function generateSchedule() {
+        // Create 5 trains to be dispatched over time
+        return [
+            { time: 2, type: 'trainA' },
+            { time: 8, type: 'trainB' },
+            { time: 15, type: 'trainA' },
+            { time: 22, type: 'trainB' },
+            { time: 30, type: 'trainA' }
+        ];
+    }
+
+    function initGame() {
+        state.isRunning = true;
+        state.trains = [];
+        state.schedule = generateSchedule();
+        state.timeElapsed = 0;
+        state.lastTime = performance.now();
+        state.delivered = 0;
+        state.pending = state.schedule.length;
+        state.maxTime = 50;
+        state.result = null;
+
+        // Reset switches and signals
+        switches.forEach(sw => sw.state = 0);
+        signals.forEach(sig => sig.isGreen = false); // All signals red by default
+
+        document.getElementById('message-overlay').classList.add('hidden');
+        requestAnimationFrame(gameLoop);
+    }
+
+    function endGame(result) {
+        state.isRunning = false;
+        state.result = result;
+
+        const overlay = document.getElementById('message-overlay');
+        const title = document.getElementById('overlay-title');
+        const desc = document.getElementById('overlay-desc');
+        const btn = document.getElementById('start-btn');
+
+        overlay.classList.remove('hidden');
+        btn.textContent = "Restart";
+
+        if (result === 'win') {
+            title.textContent = "Success!";
+            desc.textContent = "All trains delivered safely.";
+        } else if (result === 'lose_crash') {
+            title.textContent = "Collision!";
+            desc.textContent = "Two trains crashed into each other.";
+        } else if (result === 'lose_time') {
+            title.textContent = "Time's Up!";
+            desc.textContent = "You missed the delivery deadline.";
+        } else if (result === 'lose_wrong_station') {
+            title.textContent = "Wrong Destination!";
+            desc.textContent = "A train was routed to the wrong station.";
+        }
+    }
+
+    // Math utilities
+    function distance(p1, p2) {
+        return Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    }
+
+    function interpolate(p1, p2, t) {
+        return {
+            x: p1.x + (p2.x - p1.x) * t,
+            y: p1.y + (p2.y - p1.y) * t
+        };
+    }
+
+    // Logic updates
+    function update(dt) {
+        if (!state.isRunning) return;
+
+        state.timeElapsed += dt;
+
+        // Spawn trains
+        if (state.schedule.length > 0 && state.timeElapsed >= state.schedule[0].time) {
+            const nextTrain = state.schedule.shift();
+            state.trains.push(new Train(`t${Date.now()}`, nextTrain.type));
+        }
+
+        // Check time limit
+        if (state.timeElapsed >= state.maxTime) {
+            endGame('lose_time');
+            return;
+        }
+
+        // Update trains
+        for (let i = 0; i < state.trains.length; i++) {
+            let train = state.trains[i];
+
+            if (train.state === 'arrived' || train.state === 'crashed') continue;
+
+            let distToNext = distance(train.currentPoint, train.nextPoint);
+
+            // Check signals
+            let isBlockedBySignal = false;
+            let currentSignal = signals.find(s => s.point === train.nextPoint);
+
+            // If the train is very close to the signal, check if it's red
+            if (currentSignal && !currentSignal.isGreen && train.progress * distToNext >= distToNext - 10) {
+                isBlockedBySignal = true;
+                train.state = 'stopped';
+            }
+
+            if (!isBlockedBySignal) {
+                train.state = 'moving';
+
+                // Move train
+                let moveAmount = (TRAIN_SPEED * dt) / distToNext;
+                train.progress += moveAmount;
+
+                if (train.progress >= 1) {
+                    // Reached a node
+                    train.currentPoint = train.nextPoint;
+                    train.progress = 0;
+                    train.pos = { x: train.currentPoint.x, y: train.currentPoint.y };
+
+                    // Determine next node
+                    // Check if it's a destination
+                    const stn = stations.find(s => s.type === 'dest' && s.point === train.currentPoint);
+                    if (stn) {
+                        train.state = 'arrived';
+                        if (stn.match === train.type) {
+                            state.delivered++;
+                            state.pending--;
+                            if (state.pending === 0 && state.schedule.length === 0) {
+                                endGame('win');
+                            }
+                        } else {
+                            endGame('lose_wrong_station');
+                        }
+                        continue;
+                    }
+
+                    // Otherwise, route to next node
+                    // Is it a switch?
+                    let sw = switches.find(s => s.point === train.currentPoint);
+                    if (sw) {
+                        train.nextPoint = sw.getNextPoint();
+                    } else {
+                        // Find track continuing from here
+                        let nextTrack = tracks.find(t => t.start === train.currentPoint);
+                        if (nextTrack) {
+                            train.nextPoint = nextTrack.end;
+                        } else {
+                            // Dead end (shouldn't happen with proper map)
+                            train.state = 'crashed';
+                        }
+                    }
+                } else {
+                    // Update position
+                    train.pos = interpolate(train.currentPoint, train.nextPoint, train.progress);
+                }
+            }
+        }
+
+        // Collision detection
+        for (let i = 0; i < state.trains.length; i++) {
+            for (let j = i + 1; j < state.trains.length; j++) {
+                let t1 = state.trains[i];
+                let t2 = state.trains[j];
+
+                if (t1.state !== 'arrived' && t2.state !== 'arrived') {
+                    if (distance(t1.pos, t2.pos) < TRAIN_LENGTH * 0.8) {
+                        t1.state = 'crashed';
+                        t2.state = 'crashed';
+                        endGame('lose_crash');
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    // Rendering
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw tracks
+        ctx.lineWidth = TRACK_WIDTH;
+        tracks.forEach(track => {
+            ctx.strokeStyle = COLORS.track;
+            ctx.beginPath();
+            ctx.moveTo(track.start.x, track.start.y);
+
+            if (track.isCurve) {
+                // Simple quadratic curve logic for smooth branches
+                let midX = (track.start.x + track.end.x) / 2;
+                ctx.quadraticCurveTo(track.start.x + 50, track.end.y, track.end.x, track.end.y);
+            } else {
+                ctx.lineTo(track.end.x, track.end.y);
+            }
+            ctx.stroke();
+        });
+
+        // Draw stations
+        stations.forEach(stn => {
+            ctx.fillStyle = stn.color;
+            ctx.fillRect(stn.point.x - 20, stn.point.y - 15, 40, 30);
+
+            ctx.fillStyle = 'white';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(stn.label, stn.point.x, stn.point.y - 20);
+        });
+
+        // Draw switches
+        switches.forEach(sw => {
+            ctx.fillStyle = COLORS.switchBox;
+            ctx.beginPath();
+            ctx.arc(sw.point.x, sw.point.y, 10, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw active path indicator
+            ctx.strokeStyle = COLORS.trackActive;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(sw.point.x, sw.point.y);
+            let nextPt = sw.getNextPoint();
+            // Point towards next point a bit
+            let dx = nextPt.x - sw.point.x;
+            let dy = nextPt.y - sw.point.y;
+            let len = Math.hypot(dx, dy);
+            ctx.lineTo(sw.point.x + (dx/len)*20, sw.point.y + (dy/len)*20);
+            ctx.stroke();
+
+            // Label
+            ctx.fillStyle = 'white';
+            ctx.font = '10px Arial';
+            ctx.fillText("SW", sw.point.x, sw.point.y + 20);
+        });
+
+        // Draw signals
+        signals.forEach(sig => {
+            ctx.fillStyle = sig.isGreen ? COLORS.signalGo : COLORS.signalStop;
+            ctx.fillRect(sig.point.x - 5, sig.point.y - 15, 10, 30);
+
+            // Label
+            ctx.fillStyle = 'white';
+            ctx.font = '10px Arial';
+            ctx.fillText("SIG", sig.point.x, sig.point.y + 25);
+        });
+
+        // Draw trains
+        state.trains.forEach(train => {
+            if (train.state === 'arrived') return;
+
+            ctx.save();
+            ctx.translate(train.pos.x, train.pos.y);
+
+            // Calculate angle
+            let dx = train.nextPoint.x - train.currentPoint.x;
+            let dy = train.nextPoint.y - train.currentPoint.y;
+            let angle = Math.atan2(dy, dx);
+
+            // If on a curve, angle calculation is more complex, just approximate for now
+            let track = tracks.find(t => t.start === train.currentPoint && t.end === train.nextPoint);
+            if (track && track.isCurve) {
+                // Approximate tangent along the curve
+                let t = train.progress;
+                // Bezier derivative approximation could go here, but simple interp is usually fine for this game scale
+                let nextPos = interpolate(train.currentPoint, train.nextPoint, Math.min(1, t + 0.1));
+                angle = Math.atan2(nextPos.y - train.pos.y, nextPos.x - train.pos.x);
+            }
+
+            ctx.rotate(angle);
+
+            ctx.fillStyle = train.color;
+            // Draw train body centered on pos
+            ctx.fillRect(-TRAIN_LENGTH/2, -TRAIN_WIDTH/2, TRAIN_LENGTH, TRAIN_WIDTH);
+
+            // Train window/cab
+            ctx.fillStyle = '#ecf0f1';
+            ctx.fillRect(TRAIN_LENGTH/4, -TRAIN_WIDTH/4, TRAIN_LENGTH/4, TRAIN_WIDTH/2);
+
+            ctx.restore();
+
+            // If crashed, draw explosion
+            if (train.state === 'crashed') {
+                ctx.fillStyle = '#e74c3c';
+                ctx.beginPath();
+                ctx.arc(train.pos.x, train.pos.y, 20, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        });
+    }
+
+    function gameLoop(timestamp) {
+        let dt = (timestamp - state.lastTime) / 1000;
+        state.lastTime = timestamp;
+
+        if (dt > 0.1) dt = 0.1; // Cap delta time
+
+        update(dt);
+        draw();
+
+        // Update UI
+        document.getElementById('status-text').textContent = `Pending: ${state.pending} | Delivered: ${state.delivered}`;
+        let timeLeft = Math.max(0, Math.ceil(state.maxTime - state.timeElapsed));
+        document.getElementById('time-text').textContent = `Time Left: ${timeLeft}s`;
+
+        if (state.isRunning) {
+            requestAnimationFrame(gameLoop);
+        }
+    }
+
+    // Input handling
+    canvas.addEventListener('click', (e) => {
+        if (!state.isRunning) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // Check switch clicks
+        switches.forEach(sw => {
+            if (distance({x, y}, sw.point) < 20) {
+                sw.toggle();
+            }
+        });
+
+        // Check signal clicks
+        signals.forEach(sig => {
+            if (distance({x, y}, sig.point) < 20) {
+                sig.toggle();
+            }
+        });
+    });
+
+    // Keyboard support for accessibility
+    canvas.setAttribute('tabindex', '0'); // make focusable
+    let selectedElementIndex = 0;
+    const interactables = [...switches, ...signals];
+
+    canvas.addEventListener('keydown', (e) => {
+        if (!state.isRunning) return;
+
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            selectedElementIndex = (selectedElementIndex + (e.shiftKey ? -1 : 1) + interactables.length) % interactables.length;
+            draw(); // Redraw immediately to show highlight
+        } else if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            let el = interactables[selectedElementIndex];
+            if (el.toggle) el.toggle();
+            draw();
+        }
+    });
+
+    // Highlight selected element in draw (add to the end of draw function if possible, but we'll override draw here)
+    const originalDraw = draw;
+    draw = function() {
+        originalDraw();
+
+        // Draw focus ring
+        if (document.activeElement === canvas && state.isRunning) {
+            let el = interactables[selectedElementIndex];
+            ctx.strokeStyle = '#e67e22'; // Orange focus ring
+            ctx.lineWidth = 3;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.arc(el.point.x, el.point.y, 25, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+    };
+
+    // Button handling
+    document.getElementById('start-btn').addEventListener('click', () => {
+        initGame();
+        canvas.focus();
+    });
+
+    // Initial draw
+    draw();
+
+</script>
+</body>
+</html>
