@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Silent Sequencer Map</title>
+<style>
+  body {
+    font-family: sans-serif;
+    background-color: #222;
+    color: #eee;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+  }
+  .sequencer-container {
+    background-color: #333;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  }
+  h1 {
+    margin-top: 0;
+    font-size: 24px;
+    text-align: center;
+    color: #fff;
+  }
+  .controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(8, 40px);
+    grid-template-rows: repeat(4, 40px);
+    gap: 5px;
+    margin-bottom: 20px;
+  }
+  .cell {
+    background-color: #555;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.1s;
+  }
+  .cell:hover {
+    background-color: #666;
+  }
+  .cell.active {
+    background-color: #4CAF50;
+  }
+  .cell.playing {
+    border: 2px solid #FFC107;
+    box-sizing: border-box;
+  }
+  .cell.active.playing {
+    background-color: #81C784;
+    border: 2px solid #FFF;
+  }
+  .summary {
+    background-color: #111;
+    padding: 10px;
+    border-radius: 4px;
+    font-family: monospace;
+    white-space: pre-wrap;
+    font-size: 14px;
+    color: #0f0;
+  }
+  button {
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  button:hover {
+    background-color: #1976D2;
+  }
+  button.stop {
+    background-color: #f44336;
+  }
+  button.stop:hover {
+    background-color: #d32f2f;
+  }
+  .tempo-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+</style>
+</head>
+<body>
+<div class="sequencer-container">
+  <h1>Silent Sequencer Map</h1>
+  <div class="controls">
+    <button id="playBtn">Play</button>
+    <div class="tempo-control">
+      <label for="tempo">Tempo: <span id="tempoVal">120</span></label>
+      <input type="range" id="tempo" min="60" max="240" value="120">
+    </div>
+  </div>
+  <div class="grid" id="grid"></div>
+  <div class="summary" id="summary"></div>
+</div>
+
+<script>
+  const rows = 4;
+  const cols = 8;
+  const gridElement = document.getElementById('grid');
+  const playBtn = document.getElementById('playBtn');
+  const tempoSlider = document.getElementById('tempo');
+  const tempoVal = document.getElementById('tempoVal');
+  const summaryElement = document.getElementById('summary');
+
+  let state = Array(rows).fill(null).map(() => Array(cols).fill(false));
+  let isPlaying = false;
+  let currentStep = -1;
+  let tempo = 120;
+  let intervalId = null;
+
+  function initGrid() {
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const cell = document.createElement('div');
+        cell.classList.add('cell');
+        cell.dataset.row = r;
+        cell.dataset.col = c;
+        cell.addEventListener('click', () => toggleCell(r, c));
+        gridElement.appendChild(cell);
+      }
+    }
+  }
+
+  function toggleCell(r, c) {
+    state[r][c] = !state[r][c];
+    renderGrid();
+    updateSummary();
+  }
+
+  function renderGrid() {
+    const cells = gridElement.querySelectorAll('.cell');
+    cells.forEach(cell => {
+      const r = parseInt(cell.dataset.row);
+      const c = parseInt(cell.dataset.col);
+
+      if (state[r][c]) {
+        cell.classList.add('active');
+      } else {
+        cell.classList.remove('active');
+      }
+
+      if (isPlaying && c === currentStep) {
+        cell.classList.add('playing');
+      } else {
+        cell.classList.remove('playing');
+      }
+    });
+  }
+
+  function updateSummary() {
+    let activeCount = 0;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (state[r][c]) activeCount++;
+      }
+    }
+    const totalCells = rows * cols;
+    const density = ((activeCount / totalCells) * 100).toFixed(1);
+
+    // Build textual representation of pattern
+    let patternStr = "";
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        patternStr += state[r][c] ? "X" : ".";
+      }
+      patternStr += "\n";
+    }
+
+    summaryElement.textContent = `Density: ${density}% (${activeCount}/${totalCells})\n\nPattern State:\n${patternStr}`;
+  }
+
+  function nextStep() {
+    currentStep = (currentStep + 1) % cols;
+    renderGrid();
+  }
+
+  function togglePlay() {
+    isPlaying = !isPlaying;
+    if (isPlaying) {
+      playBtn.textContent = 'Stop';
+      playBtn.classList.add('stop');
+      currentStep = -1;
+      nextStep();
+      scheduleNext();
+    } else {
+      playBtn.textContent = 'Play';
+      playBtn.classList.remove('stop');
+      clearTimeout(intervalId);
+      currentStep = -1;
+      renderGrid();
+    }
+  }
+
+  function scheduleNext() {
+    const intervalMs = (60 / tempo) * 1000 / 2; // 8th notes
+    intervalId = setTimeout(() => {
+      if (isPlaying) {
+        nextStep();
+        scheduleNext();
+      }
+    }, intervalMs);
+  }
+
+  tempoSlider.addEventListener('input', (e) => {
+    tempo = e.target.value;
+    tempoVal.textContent = tempo;
+  });
+
+  playBtn.addEventListener('click', togglePlay);
+
+  initGrid();
+  updateSummary();
+</script>
+</body>
+</html>
