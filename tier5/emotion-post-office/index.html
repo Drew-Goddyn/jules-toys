@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Emotion Post Office</title>
+<style>
+  :root {
+    --bg-color: #fdfaf6;
+    --text-color: #333;
+    --border-color: #bfa89e;
+    --accent: #8c6b5d;
+    --joy: #ffb703;
+    --melancholy: #457b9d;
+    --rage: #e63946;
+    --ennui: #a8dadc;
+    --love: #ffb5a7;
+  }
+
+  body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: system-ui, -apple-system, sans-serif;
+    margin: 0;
+    padding: 2rem;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+  }
+
+  .post-office {
+    background: #fff;
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    padding: 2rem;
+    max-width: 900px;
+    width: 100%;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    position: relative;
+  }
+
+  .post-office::before {
+    content: '';
+    position: absolute;
+    top: -10px; right: 20px;
+    width: 50px; height: 50px;
+    background: repeating-linear-gradient(45deg, #e63946, #e63946 5px, transparent 5px, transparent 10px, #457b9d 10px, #457b9d 15px, transparent 15px, transparent 20px);
+    z-index: -1;
+  }
+
+  h1 {
+    grid-column: 1 / -1;
+    text-align: center;
+    font-family: serif;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-top: 0;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 1rem;
+  }
+
+  .composer {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  label {
+    font-weight: bold;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--accent);
+  }
+
+  textarea {
+    resize: none;
+    height: 80px;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-family: monospace;
+    background: #faf8f5;
+  }
+
+  textarea:focus {
+    outline: 2px solid var(--accent);
+  }
+
+  .emotions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .emotion-btn {
+    appearance: none;
+    border: 2px solid transparent;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s;
+    background: #eee;
+  }
+
+  .emotion-btn:checked {
+    border-color: #333;
+    transform: scale(1.05);
+  }
+
+  .emotion-btn[value="joy"] { background-color: var(--joy); color: #000; }
+  .emotion-btn[value="melancholy"] { background-color: var(--melancholy); color: #fff; }
+  .emotion-btn[value="rage"] { background-color: var(--rage); color: #fff; }
+  .emotion-btn[value="ennui"] { background-color: var(--ennui); color: #333; }
+  .emotion-btn[value="love"] { background-color: var(--love); color: #000; }
+
+  select {
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 1rem;
+    background: #faf8f5;
+  }
+
+  button[type="submit"] {
+    padding: 1rem;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    transition: background 0.2s;
+  }
+
+  button[type="submit"]:hover {
+    background: #6a4f43;
+  }
+
+  .live-preview {
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: #faf8f5;
+    transition: all 0.3s ease;
+  }
+
+  .stamp {
+    width: 60px;
+    height: 70px;
+    background: #ddd;
+    border: 3px dashed #fff;
+    box-shadow: 0 0 0 2px #ccc;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2rem;
+    transition: all 0.5s ease;
+  }
+
+  .stamp-inner {
+    width: 40px; height: 50px;
+    background: rgba(255,255,255,0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.5rem;
+  }
+
+  .stamp.joy { background: var(--joy); box-shadow: 0 0 0 2px var(--joy); animation: spin 4s linear infinite; }
+  .stamp.melancholy { background: var(--melancholy); box-shadow: 0 0 0 2px var(--melancholy); animation: float 3s ease-in-out infinite; }
+  .stamp.rage { background: var(--rage); box-shadow: 0 0 0 2px var(--rage); animation: shake 0.2s linear infinite; }
+  .stamp.ennui { background: var(--ennui); box-shadow: 0 0 0 2px var(--ennui); filter: grayscale(50%); opacity: 0.7; }
+  .stamp.love { background: var(--love); box-shadow: 0 0 0 2px var(--love); animation: pulse 1s ease infinite; }
+
+  @keyframes spin { 100% { transform: rotate(360deg); } }
+  @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+  @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); } }
+  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+
+  .ticket-details {
+    flex: 1;
+    font-family: monospace;
+    font-size: 0.85rem;
+  }
+
+  .log-panel {
+    border-left: 2px dashed var(--border-color);
+    padding-left: 2rem;
+    display: flex;
+    flex-direction: column;
+    max-height: 500px;
+    overflow-y: auto;
+  }
+
+  .log-panel h2 {
+    font-family: serif;
+    color: var(--accent);
+    margin-top: 0;
+  }
+
+  .log-entries {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .log-entry {
+    background: #faf8f5;
+    border: 1px solid var(--border-color);
+    padding: 1rem;
+    border-radius: 4px;
+    display: flex;
+    gap: 1rem;
+    animation: slideIn 0.3s ease-out forwards;
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  @keyframes slideIn {
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .log-entry .stamp {
+    width: 40px; height: 50px; font-size: 1rem;
+    animation: none; /* remove animation for log stamps to reduce noise */
+  }
+
+  .log-entry .stamp-inner {
+    width: 25px; height: 35px; font-size: 1rem;
+  }
+
+  .log-content {
+    flex: 1;
+  }
+
+  .log-meta {
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 0.3rem;
+    border-bottom: 1px dotted #ccc;
+    padding-bottom: 0.2rem;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .log-message {
+    font-family: monospace;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    word-break: break-word;
+  }
+
+  .empty-log {
+    color: #999;
+    font-style: italic;
+    text-align: center;
+    margin-top: 2rem;
+  }
+
+  @media (max-width: 700px) {
+    .post-office {
+      grid-template-columns: 1fr;
+    }
+    .log-panel {
+      border-left: none;
+      border-top: 2px dashed var(--border-color);
+      padding-left: 0;
+      padding-top: 2rem;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="post-office">
+  <h1>Emotion Post Office</h1>
+
+  <form class="composer" id="postForm">
+    <div class="form-group">
+      <label for="message">Tiny Message</label>
+      <textarea id="message" required placeholder="A fleeting thought..." maxlength="140"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Emotional Postage</label>
+      <div class="emotions">
+        <input type="radio" name="emotion" value="joy" class="emotion-btn" checked title="Joy" aria-label="Joy">
+        <input type="radio" name="emotion" value="melancholy" class="emotion-btn" title="Melancholy" aria-label="Melancholy">
+        <input type="radio" name="emotion" value="rage" class="emotion-btn" title="Rage" aria-label="Rage">
+        <input type="radio" name="emotion" value="ennui" class="emotion-btn" title="Ennui" aria-label="Ennui">
+        <input type="radio" name="emotion" value="love" class="emotion-btn" title="Love" aria-label="Love">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="destination">Destination Slot</label>
+      <select id="destination">
+        <option value="The Past">The Past</option>
+        <option value="The Future">The Future</option>
+        <option value="The Void">The Void</option>
+        <option value="A Stranger">A Stranger</option>
+        <option value="Yourself">Yourself</option>
+      </select>
+    </div>
+
+    <div class="live-preview" id="livePreview">
+      <div class="stamp joy" id="previewStamp">
+        <div class="stamp-inner" id="previewIcon">✨</div>
+      </div>
+      <div class="ticket-details">
+        <strong>Status:</strong> <span id="statusText">Awaiting processing...</span><br>
+        <strong>Est. Weight:</strong> <span id="weightText">0g</span><br>
+        <strong>Surcharge:</strong> None
+      </div>
+    </div>
+
+    <button type="submit">Post to Universe</button>
+  </form>
+
+  <div class="log-panel">
+    <h2>Delivery Log</h2>
+    <div class="log-entries" id="logEntries">
+      <div class="empty-log">No letters posted yet.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const form = document.getElementById('postForm');
+  const messageInput = document.getElementById('message');
+  const emotionRadios = document.getElementsByName('emotion');
+  const destinationSelect = document.getElementById('destination');
+  const previewStamp = document.getElementById('previewStamp');
+  const previewIcon = document.getElementById('previewIcon');
+  const livePreview = document.getElementById('livePreview');
+  const statusText = document.getElementById('statusText');
+  const weightText = document.getElementById('weightText');
+  const logEntries = document.getElementById('logEntries');
+
+  const emotionData = {
+    joy: { icon: '✨', bg: 'var(--joy)', status: 'High Energy', multiplier: 1.5 },
+    melancholy: { icon: '💧', bg: 'var(--melancholy)', status: 'Heavy', multiplier: 3.0 },
+    rage: { icon: '🔥', bg: 'var(--rage)', status: 'Volatile', multiplier: 0.5 },
+    ennui: { icon: '🌫️', bg: 'var(--ennui)', status: 'Static', multiplier: 0.1 },
+    love: { icon: '💖', bg: 'var(--love)', status: 'Fragile', multiplier: 2.0 }
+  };
+
+  function updatePreview() {
+    const selectedEmotion = Array.from(emotionRadios).find(r => r.checked).value;
+    const msgLength = messageInput.value.length;
+    const data = emotionData[selectedEmotion];
+
+    previewStamp.className = `stamp ${selectedEmotion}`;
+    previewIcon.textContent = data.icon;
+
+    statusText.textContent = `${data.status} (Routing to ${destinationSelect.value})`;
+
+    const weight = (msgLength * data.multiplier).toFixed(1);
+    weightText.textContent = `${weight}g`;
+
+    livePreview.style.borderColor = data.bg;
+  }
+
+  messageInput.addEventListener('input', updatePreview);
+  destinationSelect.addEventListener('change', updatePreview);
+
+  emotionRadios.forEach(radio => {
+    radio.addEventListener('change', updatePreview);
+  });
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const message = messageInput.value.trim();
+    if(!message) return;
+
+    const selectedEmotion = Array.from(emotionRadios).find(r => r.checked).value;
+    const destination = destinationSelect.value;
+    const data = emotionData[selectedEmotion];
+
+    const timestamp = new Date().toLocaleTimeString();
+    const id = 'ID-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+
+    const emptyLog = document.querySelector('.empty-log');
+    if (emptyLog) {
+      emptyLog.remove();
+    }
+
+    const logEntry = document.createElement('div');
+    logEntry.className = 'log-entry';
+    logEntry.innerHTML = `
+      <div class="stamp ${selectedEmotion}">
+        <div class="stamp-inner">${data.icon}</div>
+      </div>
+      <div class="log-content">
+        <div class="log-meta">
+          <span><strong>To:</strong> ${destination}</span>
+          <span>${timestamp} | ${id}</span>
+        </div>
+        <div class="log-message"></div>
+      </div>
+    `;
+
+    logEntry.querySelector('.log-message').textContent = message;
+
+    logEntries.prepend(logEntry);
+
+    messageInput.value = '';
+    updatePreview();
+
+    const btn = form.querySelector('button[type="submit"]');
+    const originalText = btn.textContent;
+    btn.textContent = 'Sent!';
+    btn.style.background = '#4CAF50';
+    setTimeout(() => {
+      btn.textContent = originalText;
+      btn.style.background = '';
+    }, 1500);
+  });
+
+  // Init
+  updatePreview();
+
+</script>
+</body>
+</html>
