@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Market Basket Engine</title>
+<style>
+  :root {
+    --bg: #f8f9fa;
+    --panel: #ffffff;
+    --text: #333;
+    --border: #dee2e6;
+    --primary: #0d6efd;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+  .sidebar {
+    width: 320px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 20px;
+    overflow-y: auto;
+    box-sizing: border-box;
+  }
+  .main {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .control-group {
+    margin-bottom: 20px;
+  }
+  label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+  select, input[type="range"] {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    background: var(--panel);
+  }
+  select:focus, input[type="range"]:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: -1px;
+  }
+  .view-container {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  th, td {
+    text-align: left;
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: #f1f3f5;
+    font-weight: 600;
+  }
+  .bar-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .bar-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+  .bar-label {
+    width: 180px;
+    text-align: right;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .bar-track {
+    flex: 1;
+    height: 24px;
+    background: #e9ecef;
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    background: var(--primary);
+    border-radius: 4px;
+    transition: width 0.3s ease, background-color 0.3s ease;
+  }
+  .bar-value {
+    width: 60px;
+    font-size: 14px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .empty-state {
+    padding: 50px 20px;
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    background: #f8f9fa;
+    border-radius: 6px;
+  }
+  .val-display {
+    display: inline-block;
+    float: right;
+    font-weight: normal;
+    color: #6c757d;
+  }
+  h2 {
+    margin-top: 0;
+    font-size: 18px;
+    margin-bottom: 15px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+  }
+  h1 {
+    font-size: 22px;
+    margin-top: 0;
+    margin-bottom: 25px;
+  }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <h1>Market Basket Engine</h1>
+
+  <div class="control-group">
+    <label for="anchorSelect">Anchor Product</label>
+    <select id="anchorSelect"></select>
+  </div>
+
+  <div class="control-group">
+    <label for="regionFilter">Region Filter</label>
+    <select id="regionFilter">
+      <option value="All">All Regions</option>
+      <option value="North America">North America</option>
+      <option value="Europe">Europe</option>
+      <option value="Asia">Asia</option>
+    </select>
+  </div>
+
+  <div class="control-group">
+    <label for="categoryFilter">Related Category Filter</label>
+    <select id="categoryFilter">
+      <option value="All">All Categories</option>
+      <option value="Electronics">Electronics</option>
+      <option value="Furniture">Furniture</option>
+      <option value="Groceries">Groceries</option>
+      <option value="Home">Home</option>
+      <option value="Office">Office</option>
+    </select>
+  </div>
+
+  <div class="control-group">
+    <label for="minConfidence">Min Confidence <span id="confDisplay" class="val-display">10%</span></label>
+    <input type="range" id="minConfidence" min="0" max="1" step="0.05" value="0.1">
+  </div>
+
+  <div class="control-group">
+    <label for="sortBy">Sort Associations By</label>
+    <select id="sortBy">
+      <option value="confidence">Confidence (P(B|A))</option>
+      <option value="lift">Lift (Correlation)</option>
+      <option value="cooccurrence">Co-occurrence (Count)</option>
+    </select>
+  </div>
+</div>
+
+<div class="main">
+  <div class="view-container">
+    <h2>Ranked Association Rules</h2>
+    <div id="tableContainer"></div>
+  </div>
+
+  <div class="view-container" style="flex: 1;">
+    <h2>Confidence &amp; Lift Overview</h2>
+    <div id="chartContainer" class="bar-chart"></div>
+  </div>
+</div>
+
+<script>
+const items = {
+  p1: { name: 'Laptop', category: 'Electronics' },
+  p2: { name: 'Wireless Mouse', category: 'Electronics' },
+  p3: { name: 'Monitor', category: 'Electronics' },
+  p4: { name: 'Keyboard', category: 'Electronics' },
+  p5: { name: 'Desk Chair', category: 'Furniture' },
+  p6: { name: 'Standing Desk', category: 'Furniture' },
+  p7: { name: 'Desk Lamp', category: 'Furniture' },
+  p8: { name: 'Coffee Beans', category: 'Groceries' },
+  p9: { name: 'Mug', category: 'Home' },
+  p10: { name: 'Notepad', category: 'Office' },
+  p11: { name: 'Pens', category: 'Office' },
+  p12: { name: 'Water Bottle', category: 'Home' },
+  p13: { name: 'Headphones', category: 'Electronics' },
+  p14: { name: 'USB-C Cable', category: 'Electronics' },
+  p15: { name: 'Snack Bars', category: 'Groceries' }
+};
+
+const transactions = [
+  { id: 1, region: 'North America', items: ['p1', 'p2', 'p4', 'p14'] },
+  { id: 2, region: 'Europe', items: ['p1', 'p3', 'p4', 'p5'] },
+  { id: 3, region: 'Asia', items: ['p2', 'p11', 'p10', 'p12'] },
+  { id: 4, region: 'North America', items: ['p8', 'p9', 'p1', 'p13'] },
+  { id: 5, region: 'Europe', items: ['p5', 'p6', 'p7'] },
+  { id: 6, region: 'Asia', items: ['p1', 'p2', 'p3', 'p4'] },
+  { id: 7, region: 'North America', items: ['p8', 'p9', 'p15'] },
+  { id: 8, region: 'Europe', items: ['p1', 'p13', 'p14'] },
+  { id: 9, region: 'Asia', items: ['p10', 'p11', 'p12'] },
+  { id: 10, region: 'North America', items: ['p1', 'p2', 'p3', 'p5', 'p6'] },
+  { id: 11, region: 'Europe', items: ['p2', 'p4', 'p7', 'p9'] },
+  { id: 12, region: 'Asia', items: ['p8', 'p15'] },
+  { id: 13, region: 'North America', items: ['p1', 'p14', 'p10'] },
+  { id: 14, region: 'Europe', items: ['p3', 'p5', 'p12'] },
+  { id: 15, region: 'Asia', items: ['p1', 'p2', 'p13'] },
+  { id: 16, region: 'North America', items: ['p4', 'p6', 'p7', 'p11'] },
+  { id: 17, region: 'Europe', items: ['p8', 'p9', 'p2', 'p14'] },
+  { id: 18, region: 'Asia', items: ['p1', 'p3', 'p5', 'p7'] },
+  { id: 19, region: 'North America', items: ['p10', 'p11', 'p15', 'p8'] },
+  { id: 20, region: 'Europe', items: ['p1', 'p4', 'p13', 'p14'] },
+  { id: 21, region: 'Asia', items: ['p2', 'p3', 'p12'] },
+  { id: 22, region: 'North America', items: ['p5', 'p6', 'p10'] },
+  { id: 23, region: 'Europe', items: ['p7', 'p9', 'p15'] },
+  { id: 24, region: 'Asia', items: ['p1', 'p2', 'p4', 'p13'] },
+  { id: 25, region: 'North America', items: ['p3', 'p5', 'p6', 'p1'] },
+  { id: 26, region: 'Europe', items: ['p8', 'p9', 'p10'] },
+  { id: 27, region: 'Asia', items: ['p11', 'p12', 'p14'] },
+  { id: 28, region: 'North America', items: ['p1', 'p2', 'p4', 'p5'] },
+  { id: 29, region: 'Europe', items: ['p3', 'p7', 'p13'] },
+  { id: 30, region: 'Asia', items: ['p8', 'p15', 'p1', 'p14'] },
+  { id: 31, region: 'North America', items: ['p2', 'p4', 'p10', 'p11'] },
+  { id: 32, region: 'Europe', items: ['p5', 'p6', 'p1', 'p3'] },
+  { id: 33, region: 'Asia', items: ['p7', 'p9', 'p12'] },
+  { id: 34, region: 'North America', items: ['p8', 'p13', 'p15'] },
+  { id: 35, region: 'Europe', items: ['p1', 'p2', 'p14'] },
+  { id: 36, region: 'Asia', items: ['p3', 'p4', 'p5'] },
+  { id: 37, region: 'North America', items: ['p6', 'p7', 'p10'] },
+  { id: 38, region: 'Europe', items: ['p8', 'p9', 'p11', 'p12'] },
+  { id: 39, region: 'Asia', items: ['p1', 'p13', 'p14', 'p15'] },
+  { id: 40, region: 'North America', items: ['p2', 'p3', 'p4', 'p1'] },
+  { id: 41, region: 'Europe', items: ['p5', 'p7', 'p10'] },
+  { id: 42, region: 'Asia', items: ['p8', 'p9', 'p1'] },
+  { id: 43, region: 'North America', items: ['p11', 'p12', 'p13'] },
+  { id: 44, region: 'Europe', items: ['p14', 'p15', 'p2', 'p4'] },
+  { id: 45, region: 'Asia', items: ['p1', 'p3', 'p5', 'p6'] },
+  { id: 46, region: 'North America', items: ['p7', 'p8', 'p9', 'p10'] },
+  { id: 47, region: 'Europe', items: ['p11', 'p12', 'p1', 'p2'] },
+  { id: 48, region: 'Asia', items: ['p13', 'p14', 'p3', 'p4'] },
+  { id: 49, region: 'North America', items: ['p5', 'p6', 'p15'] },
+  { id: 50, region: 'Europe', items: ['p7', 'p8', 'p9', 'p1'] }
+];
+
+document.addEventListener("DOMContentLoaded", () => {
+    const anchorSelect = document.getElementById('anchorSelect');
+    for (let key in items) {
+        let opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = items[key].name;
+        anchorSelect.appendChild(opt);
+    }
+
+    const els = ['anchorSelect', 'regionFilter', 'categoryFilter', 'sortBy'];
+    els.forEach(id => {
+        document.getElementById(id).addEventListener('change', update);
+    });
+
+    const minConfEl = document.getElementById('minConfidence');
+    minConfEl.addEventListener('input', (e) => {
+        document.getElementById('confDisplay').textContent = Math.round(e.target.value * 100) + '%';
+        update();
+    });
+
+    update();
+});
+
+function computeMetrics(anchorId, regionFilter, categoryFilter, minConfidence, sortBy) {
+    let filteredTransactions = transactions;
+    if (regionFilter !== 'All') {
+        filteredTransactions = transactions.filter(t => t.region === regionFilter);
+    }
+
+    let N = filteredTransactions.length;
+    if (N === 0) return [];
+
+    let itemFreq = {};
+    filteredTransactions.forEach(t => {
+        let uniqueItems = [...new Set(t.items)];
+        uniqueItems.forEach(item => {
+            itemFreq[item] = (itemFreq[item] || 0) + 1;
+        });
+    });
+
+    let anchorFreq = itemFreq[anchorId] || 0;
+    if (anchorFreq === 0) return [];
+
+    let cooc = {};
+    filteredTransactions.forEach(t => {
+        if (t.items.includes(anchorId)) {
+            let uniqueItems = [...new Set(t.items)];
+            uniqueItems.forEach(item => {
+                if (item !== anchorId) {
+                    cooc[item] = (cooc[item] || 0) + 1;
+                }
+            });
+        }
+    });
+
+    let results = [];
+    for (let item in cooc) {
+        if (categoryFilter !== 'All' && items[item].category !== categoryFilter) continue;
+
+        let co = cooc[item];
+        let confidence = co / anchorFreq;
+        let supportB = itemFreq[item] / N;
+        let lift = supportB > 0 ? confidence / supportB : 0;
+
+        if (confidence >= minConfidence) {
+            results.push({
+                id: item,
+                name: items[item].name,
+                category: items[item].category,
+                cooccurrence: co,
+                confidence: confidence,
+                lift: lift
+            });
+        }
+    }
+
+    results.sort((a, b) => b[sortBy] - a[sortBy]);
+    return results;
+}
+
+function renderTable(results) {
+    const container = document.getElementById('tableContainer');
+    if (results.length === 0) {
+        container.innerHTML = '<div class="empty-state">No associations found for these filters.</div>';
+        return;
+    }
+
+    let html = `<table>
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Category</th>
+                <th>Co-occurrence</th>
+                <th>Confidence</th>
+                <th>Lift</th>
+            </tr>
+        </thead>
+        <tbody>`;
+
+    results.forEach(r => {
+        html += `<tr>
+            <td>${r.name}</td>
+            <td>${r.category}</td>
+            <td>${r.cooccurrence}</td>
+            <td>${(r.confidence * 100).toFixed(1)}%</td>
+            <td>${r.lift.toFixed(2)}</td>
+        </tr>`;
+    });
+    html += `</tbody></table>`;
+    container.innerHTML = html;
+}
+
+function renderChart(results) {
+    const container = document.getElementById('chartContainer');
+    if (results.length === 0) {
+        container.innerHTML = '<div class="empty-state">Not enough data to chart.</div>';
+        return;
+    }
+
+    let html = '';
+
+    results.forEach(r => {
+        let width = r.confidence * 100;
+        let liftColor = r.lift > 1.2 ? '#198754' : (r.lift < 0.8 ? '#dc3545' : '#6c757d');
+
+        html += `
+        <div class="bar-row">
+            <div class="bar-label" title="${r.name}">${r.name}</div>
+            <div class="bar-track">
+                <div class="bar-fill" style="width: ${width}%; background-color: ${liftColor};"></div>
+            </div>
+            <div class="bar-value">${width.toFixed(1)}%</div>
+        </div>`;
+    });
+
+    container.innerHTML = `<div style="font-size:13px; margin-bottom:15px; color:#6c757d;">
+      <strong>Bar width:</strong> Confidence &nbsp;|&nbsp; <strong>Color:</strong>
+      <span style="color:#198754; font-weight:bold;">Lift > 1.2 (High)</span>,
+      <span style="color:#6c757d; font-weight:bold;">Lift 0.8 - 1.2 (Neutral)</span>,
+      <span style="color:#dc3545; font-weight:bold;">Lift < 0.8 (Low)</span>
+    </div>` + html;
+}
+
+function update() {
+    const anchorId = document.getElementById('anchorSelect').value;
+    const region = document.getElementById('regionFilter').value;
+    const category = document.getElementById('categoryFilter').value;
+    const minConf = parseFloat(document.getElementById('minConfidence').value);
+    const sortBy = document.getElementById('sortBy').value;
+
+    let results = computeMetrics(anchorId, region, category, minConf, sortBy);
+    renderTable(results);
+    renderChart(results);
+}
+</script>
+</body>
+</html>
