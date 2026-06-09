@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Traffic Ballet</title>
+<style>
+  :root {
+    --bg-color: #1a1a1a;
+    --road-color: #333;
+    --marking-color: #e0e0e0;
+    --grass-color: #2a3a2a;
+    --green-light: #2ecc71;
+    --yellow-light: #f1c40f;
+    --red-light: #e74c3c;
+    --car-color-1: #3498db;
+    --car-color-2: #9b59b6;
+    --car-color-3: #e67e22;
+    --car-color-4: #1abc9c;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: sans-serif;
+    overflow: hidden;
+  }
+
+  .container {
+    position: relative;
+    width: 600px;
+    height: 600px;
+    background-color: var(--grass-color);
+    box-shadow: 0 0 50px rgba(0,0,0,0.5);
+    border-radius: 20px;
+    overflow: hidden;
+  }
+
+  /* Roads */
+  .road-v {
+    position: absolute;
+    top: 0;
+    left: 200px;
+    width: 200px;
+    height: 600px;
+    background-color: var(--road-color);
+  }
+
+  .road-h {
+    position: absolute;
+    top: 200px;
+    left: 0;
+    width: 600px;
+    height: 200px;
+    background-color: var(--road-color);
+  }
+
+  .intersection {
+    position: absolute;
+    top: 200px;
+    left: 200px;
+    width: 200px;
+    height: 200px;
+    background-color: var(--road-color);
+    z-index: 5;
+  }
+
+  /* Road markings */
+  .center-line-v {
+    position: absolute;
+    top: 0;
+    left: 298px;
+    width: 4px;
+    height: 600px;
+    background: repeating-linear-gradient(to bottom, var(--marking-color) 0, var(--marking-color) 20px, transparent 20px, transparent 40px);
+  }
+  .center-line-h {
+    position: absolute;
+    top: 298px;
+    left: 0;
+    width: 600px;
+    height: 4px;
+    background: repeating-linear-gradient(to right, var(--marking-color) 0, var(--marking-color) 20px, transparent 20px, transparent 40px);
+  }
+
+  /* Hide center lines inside intersection */
+  .intersection-cover {
+    position: absolute;
+    top: 200px;
+    left: 200px;
+    width: 200px;
+    height: 200px;
+    background-color: var(--road-color);
+    z-index: 2;
+  }
+
+  /* Crosswalks */
+  .crosswalk {
+    position: absolute;
+    z-index: 3;
+    display: flex;
+    justify-content: space-around;
+  }
+
+  .crosswalk-top, .crosswalk-bottom {
+    width: 200px;
+    height: 30px;
+    left: 200px;
+    flex-direction: row;
+  }
+  .crosswalk-top { top: 170px; }
+  .crosswalk-bottom { top: 400px; }
+
+  .crosswalk-left, .crosswalk-right {
+    width: 30px;
+    height: 200px;
+    top: 200px;
+    flex-direction: column;
+  }
+  .crosswalk-left { left: 170px; }
+  .crosswalk-right { left: 400px; }
+
+  .cw-stripe-v {
+    width: 10px;
+    height: 30px;
+    background-color: var(--marking-color);
+  }
+  .cw-stripe-h {
+    width: 30px;
+    height: 10px;
+    background-color: var(--marking-color);
+  }
+
+  /* Traffic Lights */
+  .traffic-light-container {
+    position: absolute;
+    width: 24px;
+    height: 60px;
+    background-color: #222;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-evenly;
+    z-index: 10;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+  }
+
+  .tl-top { top: 130px; left: 165px; } /* Controls northbound (bottom to top) */
+  .tl-bottom { top: 410px; left: 410px; } /* Controls southbound (top to bottom) */
+  .tl-left { top: 410px; left: 130px; flex-direction: row; width: 60px; height: 24px; } /* Controls eastbound (left to right) */
+  .tl-right { top: 165px; left: 410px; flex-direction: row; width: 60px; height: 24px; } /* Controls westbound (right to left) */
+
+  .light {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background-color: #555;
+    transition: background-color 0.3s, box-shadow 0.3s;
+  }
+
+  .state-v-red .tl-v .light.red { background-color: var(--red-light); box-shadow: 0 0 10px var(--red-light); }
+  .state-v-yellow .tl-v .light.yellow { background-color: var(--yellow-light); box-shadow: 0 0 10px var(--yellow-light); }
+  .state-v-green .tl-v .light.green { background-color: var(--green-light); box-shadow: 0 0 10px var(--green-light); }
+
+  .state-h-red .tl-h .light.red { background-color: var(--red-light); box-shadow: 0 0 10px var(--red-light); }
+  .state-h-yellow .tl-h .light.yellow { background-color: var(--yellow-light); box-shadow: 0 0 10px var(--yellow-light); }
+  .state-h-green .tl-h .light.green { background-color: var(--green-light); box-shadow: 0 0 10px var(--green-light); }
+
+  /* Pedestrian Signals */
+  .ped-signal {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background-color: #222;
+    border-radius: 4px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+  }
+  .ped-icon {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #555;
+    transition: background-color 0.3s, box-shadow 0.3s;
+  }
+
+  .ps-top-left { top: 175px; left: 145px; }
+  .ps-top-right { top: 145px; left: 405px; }
+  .ps-bottom-left { top: 435px; left: 175px; }
+  .ps-bottom-right { top: 405px; left: 435px; }
+
+  /* Timing Ring */
+  .timing-ring-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80px;
+    height: 80px;
+    z-index: 15;
+    pointer-events: none;
+  }
+
+  .timing-ring {
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+  }
+
+  .timing-circle {
+    fill: none;
+    stroke: rgba(255,255,255,0.2);
+    stroke-width: 4;
+  }
+
+  .timing-progress {
+    fill: none;
+    stroke: #fff;
+    stroke-width: 4;
+    stroke-dasharray: 220; /* 2 * pi * r (35) ~= 220 */
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 0.1s linear, stroke 0.3s;
+  }
+
+  /* Cars */
+  .car {
+    position: absolute;
+    width: 20px;
+    height: 40px;
+    border-radius: 4px;
+    z-index: 6;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+    transition: transform 0.1s;
+  }
+
+  .car-h {
+    width: 40px;
+    height: 20px;
+  }
+
+  .headlight {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background-color: #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 5px #fff;
+  }
+
+  .taillight {
+    position: absolute;
+    width: 4px;
+    height: 2px;
+    background-color: #ff0000;
+    box-shadow: 0 0 5px #ff0000;
+  }
+
+  /* Title Overlay */
+  .title {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    color: rgba(255,255,255,0.7);
+    font-size: 24px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    z-index: 20;
+    text-transform: uppercase;
+  }
+
+  /* Controls */
+  .controls {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    z-index: 20;
+  }
+
+  .btn {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s;
+    outline: none;
+  }
+
+  .btn:hover {
+    background: rgba(255,255,255,0.2);
+  }
+
+  /* Animations */
+  @keyframes pulse {
+    0% { opacity: 0.5; }
+    50% { opacity: 1; }
+    100% { opacity: 0.5; }
+  }
+
+  .ped-active {
+    background-color: #fff !important;
+    box-shadow: 0 0 8px #fff !important;
+    animation: pulse 1s infinite;
+  }
+
+</style>
+</head>
+<body class="state-v-green state-h-red">
+
+<div class="title">Traffic Ballet</div>
+
+<div class="controls">
+  <button id="playPauseBtn" class="btn">Pause</button>
+</div>
+
+<div class="container" id="simContainer">
+  <!-- Roads -->
+  <div class="road-v"></div>
+  <div class="road-h"></div>
+
+  <!-- Center lines -->
+  <div class="center-line-v"></div>
+  <div class="center-line-h"></div>
+  <div class="intersection-cover"></div>
+
+  <!-- Crosswalks -->
+  <div class="crosswalk crosswalk-top">
+    <div class="cw-stripe-v"></div><div class="cw-stripe-v"></div><div class="cw-stripe-v"></div><div class="cw-stripe-v"></div>
+    <div class="cw-stripe-v"></div><div class="cw-stripe-v"></div><div class="cw-stripe-v"></div><div class="cw-stripe-v"></div>
+  </div>
+  <div class="crosswalk-bottom crosswalk">
+    <div class="cw-stripe-v"></div><div class="cw-stripe-v"></div><div class="cw-stripe-v"></div><div class="cw-stripe-v"></div>
+    <div class="cw-stripe-v"></div><div class="cw-stripe-v"></div><div class="cw-stripe-v"></div><div class="cw-stripe-v"></div>
+  </div>
+  <div class="crosswalk-left crosswalk">
+    <div class="cw-stripe-h"></div><div class="cw-stripe-h"></div><div class="cw-stripe-h"></div><div class="cw-stripe-h"></div>
+    <div class="cw-stripe-h"></div><div class="cw-stripe-h"></div><div class="cw-stripe-h"></div><div class="cw-stripe-h"></div>
+  </div>
+  <div class="crosswalk-right crosswalk">
+    <div class="cw-stripe-h"></div><div class="cw-stripe-h"></div><div class="cw-stripe-h"></div><div class="cw-stripe-h"></div>
+    <div class="cw-stripe-h"></div><div class="cw-stripe-h"></div><div class="cw-stripe-h"></div><div class="cw-stripe-h"></div>
+  </div>
+
+  <!-- Traffic Lights (V) -->
+  <div class="traffic-light-container tl-top tl-v">
+    <div class="light red"></div><div class="light yellow"></div><div class="light green"></div>
+  </div>
+  <div class="traffic-light-container tl-bottom tl-v">
+    <div class="light red"></div><div class="light yellow"></div><div class="light green"></div>
+  </div>
+
+  <!-- Traffic Lights (H) -->
+  <div class="traffic-light-container tl-left tl-h">
+    <div class="light red"></div><div class="light yellow"></div><div class="light green"></div>
+  </div>
+  <div class="traffic-light-container tl-right tl-h">
+    <div class="light red"></div><div class="light yellow"></div><div class="light green"></div>
+  </div>
+
+  <!-- Pedestrian Signals -->
+  <div class="ped-signal ps-top-left"><div class="ped-icon" id="ped-v-1"></div></div>
+  <div class="ped-signal ps-bottom-right"><div class="ped-icon" id="ped-v-2"></div></div>
+  <div class="ped-signal ps-top-right"><div class="ped-icon" id="ped-h-1"></div></div>
+  <div class="ped-signal ps-bottom-left"><div class="ped-icon" id="ped-h-2"></div></div>
+
+  <!-- Timing Ring -->
+  <div class="timing-ring-container">
+    <svg class="timing-ring" width="80" height="80">
+      <circle class="timing-circle" cx="40" cy="40" r="35"></circle>
+      <circle class="timing-progress" id="timingProgress" cx="40" cy="40" r="35"></circle>
+    </svg>
+  </div>
+
+  <!-- Cars Container -->
+  <div id="carsContainer"></div>
+
+</div>
+
+<script>
+  const colors = ['#3498db', '#9b59b6', '#e67e22', '#1abc9c', '#e84393', '#fdcb6e'];
+
+  // Simulation State
+  let isPaused = false;
+  let time = 0;
+  let lastTimestamp = 0;
+
+  // Traffic Light Configuration
+  const cycleLength = 12000; // ms
+  const greenDuration = 5000;
+  const yellowDuration = 1000;
+  const allRedDuration = 0; // ms between transitions
+
+  let currentVState = 'green';
+  let currentHState = 'red';
+  let cycleTime = 0;
+
+  // Lanes
+  // N: Northbound (bottom to top), S: Southbound (top to bottom)
+  // E: Eastbound (left to right), W: Westbound (right to left)
+  const lanes = {
+    N: { startX: 320, startY: 620, dirX: 0, dirY: -1, stopLine: 420 },
+    S: { startX: 260, startY: -20, dirX: 0, dirY: 1, stopLine: 180 },
+    E: { startX: -20, startY: 320, dirX: 1, dirY: 0, stopLine: 180 },
+    W: { startX: 620, startY: 260, dirX: -1, dirY: 0, stopLine: 420 }
+  };
+
+  let cars = [];
+  let carIdCounter = 0;
+
+  class Car {
+    constructor(lane) {
+      this.id = carIdCounter++;
+      this.lane = lane;
+      this.width = (lane === 'E' || lane === 'W') ? 40 : 20;
+      this.height = (lane === 'N' || lane === 'S') ? 40 : 20;
+
+      const laneInfo = lanes[lane];
+      this.x = laneInfo.startX - this.width/2;
+      this.y = laneInfo.startY - this.height/2;
+
+      this.speed = 0;
+      this.maxSpeed = 120; // pixels per second
+      this.accel = 100;
+      this.decel = 150;
+
+      this.color = colors[Math.floor(Math.random() * colors.length)];
+
+      this.el = document.createElement('div');
+      this.el.className = `car ${lane === 'E' || lane === 'W' ? 'car-h' : ''}`;
+      this.el.style.backgroundColor = this.color;
+      this.el.id = `car-${this.id}`;
+
+      // Add lights
+      if (lane === 'N') {
+        this.addLight(2, 2, 'headlight'); this.addLight(14, 2, 'headlight');
+        this.addLight(2, 36, 'taillight'); this.addLight(14, 36, 'taillight');
+      } else if (lane === 'S') {
+        this.addLight(2, 34, 'headlight'); this.addLight(14, 34, 'headlight');
+        this.addLight(2, 2, 'taillight'); this.addLight(14, 2, 'taillight');
+      } else if (lane === 'E') {
+        this.addLight(34, 2, 'headlight'); this.addLight(34, 14, 'headlight');
+        this.addLight(2, 2, 'taillight'); this.addLight(2, 14, 'taillight');
+      } else if (lane === 'W') {
+        this.addLight(2, 2, 'headlight'); this.addLight(2, 14, 'headlight');
+        this.addLight(36, 2, 'taillight'); this.addLight(36, 14, 'taillight');
+      }
+
+      document.getElementById('carsContainer').appendChild(this.el);
+      this.updateDOM();
+    }
+
+    addLight(x, y, type) {
+      const light = document.createElement('div');
+      light.className = type;
+      light.style.left = `${x}px`;
+      light.style.top = `${y}px`;
+      this.el.appendChild(light);
+    }
+
+    update(dt) {
+      const l = lanes[this.lane];
+
+      // Determine distance to intersection stop line
+      let distToStop = Infinity;
+      let lightState = (this.lane === 'N' || this.lane === 'S') ? currentVState : currentHState;
+
+      if (this.lane === 'N' && this.y > l.stopLine) distToStop = this.y - l.stopLine;
+      if (this.lane === 'S' && this.y + this.height < l.stopLine) distToStop = l.stopLine - (this.y + this.height);
+      if (this.lane === 'E' && this.x + this.width < l.stopLine) distToStop = l.stopLine - (this.x + this.width);
+      if (this.lane === 'W' && this.x > l.stopLine) distToStop = this.x - l.stopLine;
+
+      // Find car ahead
+      let distToCarAhead = Infinity;
+      cars.forEach(otherCar => {
+        if (otherCar.id !== this.id && otherCar.lane === this.lane) {
+          if (this.lane === 'N' && otherCar.y < this.y && otherCar.y > -50) distToCarAhead = Math.min(distToCarAhead, this.y - (otherCar.y + otherCar.height));
+          if (this.lane === 'S' && otherCar.y > this.y && otherCar.y < 650) distToCarAhead = Math.min(distToCarAhead, otherCar.y - (this.y + this.height));
+          if (this.lane === 'E' && otherCar.x > this.x && otherCar.x < 650) distToCarAhead = Math.min(distToCarAhead, otherCar.x - (this.x + this.width));
+          if (this.lane === 'W' && otherCar.x < this.x && otherCar.x > -50) distToCarAhead = Math.min(distToCarAhead, this.x - (otherCar.x + otherCar.width));
+        }
+      });
+
+      let targetSpeed = this.maxSpeed;
+      const safeDistance = 15;
+
+      // Stop for red/yellow light
+      if ((lightState === 'red' || lightState === 'yellow') && distToStop > 0 && distToStop < 80) {
+        // Only stop if we haven't entered the intersection
+        targetSpeed = 0;
+      }
+
+      // Stop for car ahead
+      if (distToCarAhead < 40) {
+        targetSpeed = 0;
+      } else if (distToCarAhead < 80) {
+        targetSpeed = this.maxSpeed * 0.5;
+      }
+
+      // Update speed
+      if (this.speed < targetSpeed) {
+        this.speed = Math.min(targetSpeed, this.speed + this.accel * dt);
+      } else if (this.speed > targetSpeed) {
+        // Brake harder if very close
+        let decelRate = distToCarAhead < safeDistance ? this.decel * 2 : this.decel;
+        if ((lightState === 'red' || lightState === 'yellow') && distToStop < 10) decelRate = this.decel * 2;
+
+        this.speed = Math.max(targetSpeed, this.speed - decelRate * dt);
+      }
+
+      // Move
+      this.x += l.dirX * this.speed * dt;
+      this.y += l.dirY * this.speed * dt;
+
+      this.updateDOM();
+    }
+
+    updateDOM() {
+      this.el.style.transform = `translate(${this.x}px, ${this.y}px)`;
+    }
+
+    isOutOfBounds() {
+      return this.x < -100 || this.x > 700 || this.y < -100 || this.y > 700;
+    }
+
+    remove() {
+      if (this.el.parentNode) {
+        this.el.parentNode.removeChild(this.el);
+      }
+    }
+  }
+
+  function updateTrafficLights(dt) {
+    cycleTime += dt * 1000;
+    if (cycleTime >= cycleLength) cycleTime = 0;
+
+    let nextV = currentVState;
+    let nextH = currentHState;
+    let ringProgress = 0;
+    let ringColor = '#fff';
+
+    const hStart = greenDuration + yellowDuration;
+
+    // Phase 1: V Green, H Red
+    if (cycleTime < greenDuration) {
+      nextV = 'green'; nextH = 'red';
+      ringProgress = 1 - (cycleTime / greenDuration);
+      ringColor = 'var(--green-light)';
+    }
+    // Phase 2: V Yellow, H Red
+    else if (cycleTime < greenDuration + yellowDuration) {
+      nextV = 'yellow'; nextH = 'red';
+      ringProgress = 1 - ((cycleTime - greenDuration) / yellowDuration);
+      ringColor = 'var(--yellow-light)';
+    }
+    // Phase 3: V Red, H Green
+    else if (cycleTime < hStart + greenDuration) {
+      nextV = 'red'; nextH = 'green';
+      ringProgress = 1 - ((cycleTime - hStart) / greenDuration);
+      ringColor = 'var(--green-light)';
+    }
+    // Phase 4: V Red, H Yellow
+    else {
+      nextV = 'red'; nextH = 'yellow';
+      ringProgress = 1 - ((cycleTime - hStart - greenDuration) / yellowDuration);
+      ringColor = 'var(--yellow-light)';
+    }
+
+    if (nextV !== currentVState || nextH !== currentHState) {
+      currentVState = nextV;
+      currentHState = nextH;
+      document.body.className = `state-v-${currentVState} state-h-${currentHState}`;
+
+      // Update pedestrian signals
+      const pedV = document.querySelectorAll('#ped-v-1, #ped-v-2');
+      const pedH = document.querySelectorAll('#ped-h-1, #ped-h-2');
+
+      if (currentVState === 'green') {
+        pedV.forEach(el => el.classList.add('ped-active'));
+      } else {
+        pedV.forEach(el => el.classList.remove('ped-active'));
+      }
+
+      if (currentHState === 'green') {
+        pedH.forEach(el => el.classList.add('ped-active'));
+      } else {
+        pedH.forEach(el => el.classList.remove('ped-active'));
+      }
+    }
+
+    // Update timing ring
+    const ring = document.getElementById('timingProgress');
+    const offset = 220 * (1 - ringProgress);
+    ring.style.strokeDashoffset = offset;
+    ring.style.stroke = ringColor;
+  }
+
+  let spawnTimer = 0;
+  function spawnCars(dt) {
+    spawnTimer -= dt;
+    if (spawnTimer <= 0) {
+      // Try to spawn a car
+      const laneKeys = ['N', 'S', 'E', 'W'];
+      const lane = laneKeys[Math.floor(Math.random() * laneKeys.length)];
+
+      // Check if spawn area is clear
+      const l = lanes[lane];
+      let clear = true;
+      cars.forEach(c => {
+        if (c.lane === lane) {
+          if (lane === 'N' && c.y > 560) clear = false;
+          if (lane === 'S' && c.y < 40) clear = false;
+          if (lane === 'E' && c.x < 40) clear = false;
+          if (lane === 'W' && c.x > 560) clear = false;
+        }
+      });
+
+      if (clear) {
+        cars.push(new Car(lane));
+      }
+
+      // Next spawn in 0.8 to 2.5 seconds
+      spawnTimer = 0.8 + Math.random() * 1.7;
+    }
+  }
+
+  function loop(timestamp) {
+    if (!lastTimestamp) lastTimestamp = timestamp;
+    const dt = (timestamp - lastTimestamp) / 1000; // in seconds
+    lastTimestamp = timestamp;
+
+    if (!isPaused) {
+      // Clamp dt to prevent huge jumps if tab was inactive
+      const clampedDt = Math.min(dt, 0.1);
+
+      updateTrafficLights(clampedDt);
+      spawnCars(clampedDt);
+
+      // Update cars backwards to safely remove
+      for (let i = cars.length - 1; i >= 0; i--) {
+        cars[i].update(clampedDt);
+        if (cars[i].isOutOfBounds()) {
+          cars[i].remove();
+          cars.splice(i, 1);
+        }
+      }
+    }
+
+    requestAnimationFrame(loop);
+  }
+
+  // Setup
+  document.getElementById('playPauseBtn').addEventListener('click', (e) => {
+    isPaused = !isPaused;
+    e.target.textContent = isPaused ? 'Play' : 'Pause';
+  });
+
+  // Initialize ped signals
+  document.querySelectorAll('#ped-v-1, #ped-v-2').forEach(el => el.classList.add('ped-active'));
+
+  // Initial cars
+  setTimeout(() => { cars.push(new Car('N')); }, 100);
+  setTimeout(() => { cars.push(new Car('S')); }, 500);
+
+  // Start loop
+  requestAnimationFrame(loop);
+
+</script>
+</body>
+</html>
