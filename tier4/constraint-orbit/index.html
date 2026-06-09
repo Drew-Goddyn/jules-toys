@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Constraint Orbit Planner</title>
+<style>
+  :root {
+    --bg-color: #0f172a;
+    --text-color: #f8fafc;
+    --panel-bg: #1e293b;
+    --accent: #38bdf8;
+    --accent-hover: #0ea5e9;
+    --font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: var(--font-family);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  header {
+    padding: 1.5rem;
+    background-color: #0b1120;
+    border-bottom: 1px solid #334155;
+    text-align: center;
+  }
+  h1 {
+    margin: 0;
+    font-size: 1.8rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+  .container {
+    display: flex;
+    flex: 1;
+    padding: 2rem;
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  @media (max-width: 800px) {
+    .container {
+      flex-direction: column;
+    }
+  }
+  .controls {
+    flex: 1;
+    background-color: var(--panel-bg);
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .control-header {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 500;
+  }
+  input[type=range] {
+    width: 100%;
+    accent-color: var(--accent);
+  }
+  .visualization {
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  .orbit-container {
+    background-color: var(--panel-bg);
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    aspect-ratio: 1;
+    position: relative;
+    overflow: hidden;
+  }
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+  .recommendation {
+    background-color: var(--panel-bg);
+    padding: 1.5rem;
+    border-radius: 12px;
+    border-left: 4px solid var(--accent);
+  }
+  .recommendation h2 {
+    margin-top: 0;
+    font-size: 1.2rem;
+  }
+  .recommendation p {
+    margin-bottom: 0;
+    line-height: 1.6;
+    color: #cbd5e1;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Constraint Orbit Planner</h1>
+</header>
+
+<div class="container">
+  <div class="controls">
+    <div class="control-group">
+      <div class="control-header">
+        <label for="budget">Budget</label>
+        <span id="budget-val">50%</span>
+      </div>
+      <input type="range" id="budget" min="0" max="100" value="50">
+    </div>
+
+    <div class="control-group">
+      <div class="control-header">
+        <label for="urgency">Urgency</label>
+        <span id="urgency-val">50%</span>
+      </div>
+      <input type="range" id="urgency" min="0" max="100" value="50">
+    </div>
+
+    <div class="control-group">
+      <div class="control-header">
+        <label for="risk">Risk Tolerance</label>
+        <span id="risk-val">50%</span>
+      </div>
+      <input type="range" id="risk" min="0" max="100" value="50">
+    </div>
+
+    <div class="control-group">
+      <div class="control-header">
+        <label for="capacity">Team Capacity</label>
+        <span id="capacity-val">50%</span>
+      </div>
+      <input type="range" id="capacity" min="0" max="100" value="50">
+    </div>
+  </div>
+
+  <div class="visualization">
+    <div class="orbit-container">
+      <svg viewBox="-200 -200 400 400" id="orbit-svg">
+        <defs>
+          <radialGradient id="core-glow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#fbbf24" stop-opacity="0.8" />
+            <stop offset="100%" stop-color="#fbbf24" stop-opacity="0" />
+          </radialGradient>
+        </defs>
+
+        <circle cx="0" cy="0" r="40" fill="none" stroke="#334155" stroke-width="1" />
+        <circle cx="0" cy="0" r="80" fill="none" stroke="#334155" stroke-width="1" />
+        <circle cx="0" cy="0" r="120" fill="none" stroke="#334155" stroke-width="1" />
+        <circle cx="0" cy="0" r="160" fill="none" stroke="#334155" stroke-width="1" />
+
+        <circle id="core-glow-circle" cx="0" cy="0" r="25" fill="url(#core-glow)" />
+        <circle id="core" cx="0" cy="0" r="10" fill="#f59e0b" />
+
+        <g id="planet-budget">
+          <circle cx="40" cy="0" r="5" fill="#10b981" />
+          <text x="48" y="3" fill="#10b981" font-size="10">Budget</text>
+        </g>
+
+        <g id="planet-urgency">
+          <circle cx="80" cy="0" r="5" fill="#ef4444" />
+          <text x="88" y="3" fill="#ef4444" font-size="10">Urgency</text>
+        </g>
+
+        <g id="planet-risk">
+          <circle cx="120" cy="0" r="5" fill="#8b5cf6" />
+          <text x="128" y="3" fill="#8b5cf6" font-size="10">Risk</text>
+        </g>
+
+        <g id="planet-capacity">
+          <circle cx="160" cy="0" r="5" fill="#3b82f6" />
+          <text x="168" y="3" fill="#3b82f6" font-size="10">Capacity</text>
+        </g>
+      </svg>
+    </div>
+
+    <div class="recommendation">
+      <h2>Project Status & Recommendation</h2>
+      <p id="rec-text">Adjust the parameters to see the recommendation.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  const state = { budget: 50, urgency: 50, risk: 50, capacity: 50 };
+
+  const inputs = {
+    budget: document.getElementById('budget'),
+    urgency: document.getElementById('urgency'),
+    risk: document.getElementById('risk'),
+    capacity: document.getElementById('capacity')
+  };
+
+  const values = {
+    budget: document.getElementById('budget-val'),
+    urgency: document.getElementById('urgency-val'),
+    risk: document.getElementById('risk-val'),
+    capacity: document.getElementById('capacity-val')
+  };
+
+  const planets = {
+    budget: document.getElementById('planet-budget'),
+    urgency: document.getElementById('planet-urgency'),
+    risk: document.getElementById('planet-risk'),
+    capacity: document.getElementById('planet-capacity')
+  };
+
+  const planetRadii = {
+    budget: planets.budget.querySelector('circle'),
+    urgency: planets.urgency.querySelector('circle'),
+    risk: planets.risk.querySelector('circle'),
+    capacity: planets.capacity.querySelector('circle')
+  };
+
+  const recText = document.getElementById('rec-text');
+  const coreGlow = document.getElementById('core-glow-circle');
+  const core = document.getElementById('core');
+
+  let time = 0;
+
+  function updateState() {
+    state.budget = parseInt(inputs.budget.value, 10);
+    state.urgency = parseInt(inputs.urgency.value, 10);
+    state.risk = parseInt(inputs.risk.value, 10);
+    state.capacity = parseInt(inputs.capacity.value, 10);
+
+    values.budget.textContent = state.budget + '%';
+    values.urgency.textContent = state.urgency + '%';
+    values.risk.textContent = state.risk + '%';
+    values.capacity.textContent = state.capacity + '%';
+
+    updateVisualization();
+    updateRecommendation();
+  }
+
+  function updateVisualization() {
+    planetRadii.budget.setAttribute('r', 3 + (state.budget / 10));
+    planetRadii.urgency.setAttribute('r', 3 + (state.urgency / 10));
+    planetRadii.risk.setAttribute('r', 3 + (state.risk / 10));
+    planetRadii.capacity.setAttribute('r', 3 + (state.capacity / 10));
+
+    const stress = (state.urgency + (100 - state.budget)) / 2;
+    const coreSize = 5 + (state.capacity / 6);
+    core.setAttribute('r', coreSize);
+    coreGlow.setAttribute('r', coreSize * 2 + (stress / 4));
+  }
+
+  function updateRecommendation() {
+    let recommendation = "";
+    const isHighStress = state.urgency > 75 && state.budget < 40;
+    const hasCapacity = state.capacity > 60;
+    const isRisky = state.risk > 70;
+
+    if (isHighStress && !hasCapacity) {
+      recommendation = "<strong>CRITICAL ALERT:</strong> The project is highly constrained with tight urgency and low budget, but lacks the team capacity to compensate. Extreme burnout risk. ";
+      if (isRisky) {
+        recommendation += "Your high risk tolerance means you might attempt this anyway, but expect severe quality compromises.";
+      } else {
+        recommendation += "Consider reducing scope or immediately securing more budget/capacity.";
+      }
+    } else if (isHighStress && hasCapacity) {
+      recommendation = "<strong>WARNING:</strong> High urgency and low budget will stress the system. Fortunately, your high team capacity provides a buffer. ";
+      if (!isRisky) {
+        recommendation += "Since you are risk-averse, focus the team on delivering core features perfectly rather than attempting full scope.";
+      } else {
+        recommendation += "Your team will likely have to take technical debt to meet these constraints.";
+      }
+    } else if (state.budget > 75 && state.urgency < 40) {
+      recommendation = "<strong>COMFORTABLE:</strong> You have abundant budget and low urgency. This is an ideal state for innovation and high-quality engineering. ";
+      if (state.capacity < 30) {
+        recommendation += "However, low capacity means delivery will be slow. Use the budget to hire or outsource if speed becomes necessary.";
+      } else {
+        recommendation += "With solid capacity, this project is set up for resounding success.";
+      }
+    } else {
+      recommendation = "<strong>BALANCED:</strong> The constraints are within normal operating parameters. ";
+      if (state.capacity < state.urgency) {
+        recommendation += "Watch your team capacity; it is trailing behind the urgency demands. ";
+      }
+      if (state.risk > 80 && state.budget < 50) {
+        recommendation += "High risk and limited budget means you are betting on a happy path without a safety net. ";
+      }
+      recommendation += "Continue monitoring constraints as the project evolves.";
+    }
+
+    recText.innerHTML = recommendation;
+  }
+
+  function animate() {
+    time += 0.01;
+    const speedBudget = (110 - state.budget) * 0.01;
+    const speedUrgency = (10 + state.urgency) * 0.02;
+    const speedRisk = 1.2;
+    const speedCapacity = 0.8;
+
+    planets.budget.setAttribute('transform', `rotate(${time * speedBudget * 20})`);
+    planets.urgency.setAttribute('transform', `rotate(${time * speedUrgency * 20})`);
+
+    const riskWobble = state.risk > 50 ? Math.sin(time * 10) * ((state.risk - 50) / 10) : 0;
+    planets.risk.setAttribute('transform', `rotate(${time * speedRisk * 20}) translate(${riskWobble}, 0)`);
+
+    planets.capacity.setAttribute('transform', `rotate(${time * speedCapacity * 20})`);
+
+    requestAnimationFrame(animate);
+  }
+
+  Object.values(inputs).forEach(input => {
+    input.addEventListener('input', updateState);
+  });
+
+  updateState();
+  animate();
+
+</script>
+</body>
+</html>
