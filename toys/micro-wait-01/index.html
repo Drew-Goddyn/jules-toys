@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Breakout Loading Bar</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #1e1e2e;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      cursor: none; /* Hide default cursor to use paddle */
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    let width, height;
+    function resize() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    const state = {
+      blocks: [],
+      totalBlocks: 50,
+      progress: 0,
+      done: false,
+      ball: {
+        x: width / 2,
+        y: height / 2 + 50,
+        vx: 3,
+        vy: -5,
+        r: 6,
+        trail: []
+      },
+      paddle: {
+        w: 120,
+        h: 12
+      },
+      particles: [],
+      autoFillTimer: 0
+    };
+
+    // Initialize blocks
+    for (let i = 0; i < state.totalBlocks; i++) {
+      state.blocks.push({ i: i, filled: false });
+    }
+
+    let mouseX = width / 2;
+    window.addEventListener('mousemove', (e) => {
+      mouseX = e.clientX;
+    });
+    // For touch devices
+    window.addEventListener('touchmove', (e) => {
+      mouseX = e.touches[0].clientX;
+    });
+
+    let lastTime = performance.now();
+
+    function fillBlock(index) {
+      if (!state.blocks[index].filled) {
+        state.blocks[index].filled = true;
+        state.progress++;
+
+        const barWidth = Math.min(600, width - 40);
+        const blockW = barWidth / state.totalBlocks;
+        const barX = width / 2 - barWidth / 2;
+        const barY = height / 2 - 20;
+
+        const bx = barX + index * blockW + blockW / 2;
+        const by = barY + 20;
+
+        for(let p = 0; p < 8; p++){
+          state.particles.push({
+            x: bx, y: by,
+            vx: (Math.random() - 0.5) * 6,
+            vy: (Math.random() - 0.5) * 6,
+            life: 1.0,
+            color: '#89b4fa'
+          });
+        }
+
+        if (state.progress >= state.totalBlocks && !state.done) {
+          state.done = true;
+          for(let i = 0; i < 100; i++){
+            state.particles.push({
+              x: width / 2, y: height / 2,
+              vx: (Math.random() - 0.5) * 20,
+              vy: (Math.random() - 0.5) * 20,
+              life: 2.0,
+              color: ['#89b4fa', '#a6e3a1', '#f38ba8', '#f9e2af'][Math.floor(Math.random() * 4)]
+            });
+          }
+        }
+      }
+    }
+
+    function update(dt) {
+      if (state.done) {
+        updateParticles(dt);
+        return;
+      }
+
+      state.autoFillTimer += dt;
+      if (state.autoFillTimer > 1000) { // auto fill 1 block every second
+        state.autoFillTimer = 0;
+        for (let i = 0; i < state.totalBlocks; i++) {
+          if (!state.blocks[i].filled) {
+            fillBlock(i);
+            break;
+          }
+        }
+      }
+
+      // update paddle
+      const paddleY = height - 50;
+      let paddleX = mouseX - state.paddle.w / 2;
+      if (paddleX < 0) paddleX = 0;
+      if (paddleX + state.paddle.w > width) paddleX = width - state.paddle.w;
+
+      // update ball
+      const b = state.ball;
+      b.trail.push({x: b.x, y: b.y});
+      if (b.trail.length > 8) b.trail.shift();
+
+      b.x += b.vx;
+      b.y += b.vy;
+
+      // bounce walls
+      if (b.x - b.r < 0) { b.x = b.r; b.vx *= -1; }
+      if (b.x + b.r > width) { b.x = width - b.r; b.vx *= -1; }
+      if (b.y - b.r < 0) { b.y = b.r; b.vy *= -1; }
+      // bottom drop
+      if (b.y + b.r > height) {
+        b.x = width / 2;
+        b.y = height / 2 + 50;
+        b.vy = -5;
+        b.vx = 5 * (Math.random() > 0.5 ? 1 : -1);
+        b.trail = [];
+      }
+
+      // bounce paddle
+      if (b.vy > 0 &&
+          b.x + b.r > paddleX && b.x - b.r < paddleX + state.paddle.w &&
+          b.y + b.r > paddleY && b.y - b.r < paddleY + state.paddle.h) {
+        b.y = paddleY - b.r;
+        let hitPoint = (b.x - (paddleX + state.paddle.w/2)) / (state.paddle.w/2);
+        b.vx = hitPoint * 6;
+        b.vy = -Math.abs(b.vy);
+
+        // normalize speed
+        const speed = 8;
+        let len = Math.hypot(b.vx, b.vy);
+        b.vx = (b.vx / len) * speed;
+        b.vy = (b.vy / len) * speed;
+      }
+
+      // bounce blocks
+      const barWidth = Math.min(600, width - 40);
+      const barHeight = 40;
+      const barX = width / 2 - barWidth / 2;
+      const barY = height / 2 - barHeight / 2;
+      const blockW = barWidth / state.totalBlocks;
+
+      if (b.x + b.r > barX && b.x - b.r < barX + barWidth &&
+          b.y + b.r > barY && b.y - b.r < barY + barHeight) {
+
+        const relX = b.x - barX;
+        const i = Math.floor(relX / blockW);
+
+        if (i >= 0 && i < state.totalBlocks && !state.blocks[i].filled) {
+          fillBlock(i);
+          b.vy *= -1; // simple bounce
+        }
+      }
+
+      updateParticles(dt);
+    }
+
+    function updateParticles(dt) {
+      for (let i = state.particles.length - 1; i >= 0; i--) {
+        let p = state.particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= dt / 1000;
+        if (p.life <= 0) {
+          state.particles.splice(i, 1);
+        }
+      }
+    }
+
+    function draw() {
+      ctx.fillStyle = '#1e1e2e';
+      ctx.fillRect(0, 0, width, height);
+
+      const barWidth = Math.min(600, width - 40);
+      const barHeight = 40;
+      const barX = width / 2 - barWidth / 2;
+      const barY = height / 2 - barHeight / 2;
+      const blockW = barWidth / state.totalBlocks;
+
+      // text
+      ctx.textAlign = 'center';
+      if (!state.done) {
+        const pct = Math.floor((state.progress / state.totalBlocks) * 100);
+
+        ctx.fillStyle = '#cdd6f4';
+        ctx.font = 'bold 28px sans-serif';
+        ctx.fillText(`LOADING... ${pct}%`, width / 2, barY - 40);
+
+        ctx.fillStyle = '#a6adc8';
+        ctx.font = 'italic 16px sans-serif';
+        ctx.fillText(`(hit the remaining blocks to speed it up)`, width / 2, barY - 15);
+      } else {
+        ctx.fillStyle = '#a6e3a1';
+        ctx.font = 'bold 42px sans-serif';
+        ctx.fillText(`LOADING COMPLETE`, width / 2, barY - 20);
+      }
+
+      // Draw bar background (empty track)
+      ctx.strokeStyle = '#313244';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(barX - 2, barY - 2, barWidth + 4, barHeight + 4);
+
+      // Draw blocks
+      for (let i = 0; i < state.totalBlocks; i++) {
+        const bx = barX + i * blockW;
+        const by = barY;
+        if (state.blocks[i].filled) {
+          ctx.fillStyle = '#89b4fa';
+          ctx.fillRect(bx, by, blockW + 0.5, barHeight);
+        } else {
+          ctx.fillStyle = '#45475a';
+          ctx.fillRect(bx, by, blockW, barHeight);
+          ctx.strokeStyle = '#1e1e2e';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(bx, by, blockW, barHeight);
+        }
+      }
+
+      if (!state.done) {
+        // Draw paddle
+        const paddleY = height - 50;
+        let paddleX = mouseX - state.paddle.w / 2;
+        if (paddleX < 0) paddleX = 0;
+        if (paddleX + state.paddle.w > width) paddleX = width - state.paddle.w;
+
+        ctx.fillStyle = '#a6e3a1';
+        ctx.beginPath();
+        ctx.roundRect(paddleX, paddleY, state.paddle.w, state.paddle.h, 6);
+        ctx.fill();
+
+        // Draw ball trail
+        ctx.fillStyle = '#f38ba8';
+        for (let i = 0; i < state.ball.trail.length; i++) {
+          const t = state.ball.trail[i];
+          ctx.globalAlpha = (i + 1) / state.ball.trail.length * 0.5;
+          ctx.beginPath();
+          ctx.arc(t.x, t.y, state.ball.r * (i + 1) / state.ball.trail.length, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1.0;
+
+        // Draw ball
+        ctx.fillStyle = '#f38ba8';
+        ctx.beginPath();
+        ctx.arc(state.ball.x, state.ball.y, state.ball.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Draw particles
+      for (let p of state.particles) {
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1.0;
+    }
+
+    function loop(time) {
+      const dt = time - lastTime;
+      lastTime = time;
+
+      // cap dt to prevent huge jumps if tab is inactive
+      update(Math.min(dt, 50));
+      draw();
+
+      requestAnimationFrame(loop);
+    }
+
+    // start the ball with proper velocity
+    const speed = 8;
+    let len = Math.hypot(state.ball.vx, state.ball.vy);
+    state.ball.vx = (state.ball.vx / len) * speed;
+    state.ball.vy = (state.ball.vy / len) * speed;
+
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
