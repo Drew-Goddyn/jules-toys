@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Migration River</title>
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: #0f172a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+  .container {
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    border-radius: 12px;
+    overflow: hidden;
+    background-color: #1e293b;
+    margin: 20px;
+  }
+  svg {
+    display: block;
+  }
+  text {
+    font-family: inherit;
+    fill: #f8fafc;
+  }
+  .title {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+  }
+  .subtitle {
+    font-size: 14px;
+    fill: #94a3b8;
+  }
+  .label {
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .flow-label {
+    font-size: 13px;
+    font-weight: 700;
+    fill: #ffffff;
+    text-anchor: middle;
+    pointer-events: none;
+  }
+  .path-standard {
+    fill: none;
+    stroke: #38bdf8;
+    opacity: 0.25;
+    transition: opacity 0.3s;
+  }
+  .path-standard:hover {
+    opacity: 0.5;
+  }
+  .path-highlight {
+    fill: none;
+    stroke: #f43f5e;
+    opacity: 0.85;
+  }
+  .node-src {
+    fill: #8b5cf6;
+  }
+  .node-dest {
+    fill: #10b981;
+  }
+  .legend-text {
+    font-size: 13px;
+    fill: #cbd5e1;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <svg width="850" height="550" viewBox="0 0 850 550">
+      <!-- Title & Subtitle -->
+      <text x="40" y="50" class="title">Migration River</text>
+      <text x="40" y="75" class="subtitle">Live data flow distribution analysis</text>
+
+      <!-- Legend -->
+      <g transform="translate(680, 35)">
+        <rect x="0" y="0" width="16" height="16" fill="#f43f5e" rx="4"/>
+        <text x="24" y="13" class="legend-text">Critical Path</text>
+
+        <rect x="0" y="24" width="16" height="16" fill="#38bdf8" opacity="0.4" rx="4"/>
+        <text x="24" y="37" class="legend-text">Standard Flow</text>
+      </g>
+
+
+      <!-- Flows -->
+      <g>
+        <!-- S1 to D1 (w=50) -->
+        <path class="path-standard" stroke-width="50" d="M 170 125 C 370 125, 450 105, 650 105" />
+        <!-- S1 to D2 (w=30) -->
+        <path class="path-standard" stroke-width="30" d="M 170 165 C 370 165, 450 205, 650 205" />
+        <!-- S2 to D1 (w=20) -->
+        <path class="path-standard" stroke-width="20" d="M 170 230 C 370 230, 450 140, 650 140" />
+        <!-- S2 to D2 (w=70) HIGHLIGHT -->
+        <path class="path-highlight" stroke-width="70" d="M 170 275 C 370 275, 450 255, 650 255" />
+        <text x="410" y="280" class="flow-label">70TB/s High Priority</text>
+        <!-- S2 to D3 (w=30) -->
+        <path class="path-standard" stroke-width="30" d="M 170 325 C 370 325, 450 345, 650 345" />
+        <!-- S3 to D3 (w=60) -->
+        <path class="path-standard" stroke-width="60" d="M 170 410 C 370 410, 450 390, 650 390" />
+        <!-- S3 to D4 (w=40) -->
+        <path class="path-standard" stroke-width="40" d="M 170 460 C 370 460, 450 480, 650 480" />
+      </g>
+
+      <!-- Source Nodes (x=150) -->
+      <g>
+        <rect class="node-src" x="150" y="100" width="20" height="80" rx="4" />
+        <text x="135" y="145" class="label" text-anchor="end">Data Center A</text>
+
+        <rect class="node-src" x="150" y="220" width="20" height="120" rx="4" />
+        <text x="135" y="285" class="label" text-anchor="end">Data Center B</text>
+
+        <rect class="node-src" x="150" y="380" width="20" height="100" rx="4" />
+        <text x="135" y="435" class="label" text-anchor="end">Cloud Region X</text>
+      </g>
+
+      <!-- Destination Nodes (x=650) -->
+      <g>
+        <rect class="node-dest" x="650" y="80" width="20" height="70" rx="4" />
+        <text x="685" y="120" class="label" text-anchor="start">Auth Service</text>
+
+        <rect class="node-dest" x="650" y="190" width="20" height="100" rx="4" />
+        <text x="685" y="245" class="label" text-anchor="start">Payment Gateway</text>
+
+        <rect class="node-dest" x="650" y="330" width="20" height="90" rx="4" />
+        <text x="685" y="380" class="label" text-anchor="start">Analytics Engine</text>
+
+        <rect class="node-dest" x="650" y="460" width="20" height="40" rx="4" />
+        <text x="685" y="485" class="label" text-anchor="start">Backup Storage</text>
+      </g>
+    </svg>
+  </div>
+</body>
+</html>
