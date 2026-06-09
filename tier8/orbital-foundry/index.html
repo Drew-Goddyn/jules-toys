@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orbital Foundry</title>
+<style>
+  :root {
+    --bg-main: #0b0e14;
+    --bg-panel: #151a22;
+    --border: #2a3342;
+    --text: #a0aec0;
+    --text-bright: #f7fafc;
+    --accent: #4299e1;
+    --success: #48bb78;
+    --danger: #f56565;
+    --warn: #ecc94b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 10px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-main); color: var(--text);
+    display: grid;
+    grid-template-columns: 350px 1fr 350px;
+    grid-template-rows: auto 1fr;
+    gap: 10px;
+    height: 100vh;
+    overflow: hidden;
+  }
+  header {
+    grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;
+    background: var(--bg-panel); padding: 10px 20px; border: 1px solid var(--border); border-radius: 6px;
+  }
+  h1 { margin: 0; color: var(--text-bright); font-size: 1.5rem; }
+  .panel {
+    background: var(--bg-panel); border: 1px solid var(--border); border-radius: 6px;
+    padding: 15px; display: flex; flex-direction: column; overflow-y: auto;
+  }
+  .panel-header { font-size: 1.1rem; color: var(--text-bright); margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid var(--border); }
+
+  /* Map Container */
+  .map-container { display: flex; flex-direction: column; position: relative; }
+  canvas { background: #000; width: 100%; height: 100%; border-radius: 4px; border: 1px solid var(--border); }
+
+  /* Controls */
+  button {
+    background: #2b3a4a; border: 1px solid #4a5568; color: var(--text-bright);
+    padding: 6px 10px; border-radius: 4px; cursor: pointer; transition: background 0.2s; font-size: 0.9rem;
+  }
+  button:hover { background: #3c4e63; }
+  button:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .metric { display: flex; justify-content: space-between; margin-bottom: 8px; }
+  .metric-val { color: var(--text-bright); font-weight: bold; }
+
+  .control-group { margin-bottom: 15px; }
+  .control-group label { display: block; margin-bottom: 5px; font-size: 0.9rem; }
+  .route-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; background: #1a202c; padding: 5px 10px; border-radius: 4px; }
+  .route-controls { display: flex; gap: 5px; align-items: center;}
+
+  /* Logs */
+  .log-container { flex: 1; overflow-y: auto; font-family: monospace; font-size: 0.85rem; background: #0b0e14; padding: 10px; border-radius: 4px; border: 1px solid var(--border); }
+  .log-entry { margin-bottom: 4px; }
+  .log-warn { color: var(--warn); }
+  .log-danger { color: var(--danger); }
+  .log-success { color: var(--success); }
+
+  .inspector-station { margin-bottom: 15px; background: #1a202c; padding: 10px; border-radius: 4px; }
+  .station-title { font-weight: bold; color: var(--text-bright); margin-bottom: 5px; }
+  .inventory-item { font-size: 0.85rem; display: flex; justify-content: space-between; margin-bottom: 2px; }
+  .inventory-bar { height: 4px; background: #2d3748; margin-top: 2px; margin-bottom: 6px; border-radius: 2px; overflow: hidden; }
+  .inventory-fill { height: 100%; background: var(--accent); transition: width 0.2s; }
+
+  .throttle-control { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; font-size: 0.85rem; }
+  .throttle-control input { width: 60px; }
+
+  #game-overlay {
+    display: flex; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.8); z-index: 10; flex-direction: column;
+    align-items: center; justify-content: center; color: white; border-radius: 4px;
+    opacity: 0; pointer-events: none; transition: opacity 0.3s;
+  }
+  #game-overlay.active { opacity: 1; pointer-events: auto; }
+  #game-overlay h2 { margin: 0 0 10px 0; font-size: 2rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Orbital Foundry</h1>
+  <div style="display: flex; gap: 20px;">
+    <div>Time Remaining: <span id="time-val" style="color:var(--text-bright); font-weight:bold;">05:00</span></div>
+    <div>Quota (Components): <span id="quota-val" style="color:var(--text-bright); font-weight:bold;">0 / 500</span></div>
+    <button id="btn-restart">Restart Foundry</button>
+  </div>
+</header>
+
+<div class="panel" style="grid-column: 1;">
+  <div class="panel-header">Transport Fleet Control</div>
+  <div class="metric">
+    <span>Idle Transports:</span>
+    <span class="metric-val" id="idle-transports">0</span>
+  </div>
+  <div class="metric" style="margin-bottom: 15px;">
+    <span>Active Transports:</span>
+    <span class="metric-val" id="active-transports">0</span>
+  </div>
+
+  <div class="control-group" id="route-controls">
+    <!-- Populated by JS -->
+  </div>
+
+  <div class="panel-header" style="margin-top: auto;">Station Throttle</div>
+  <div id="station-throttles">
+    <!-- Populated by JS -->
+  </div>
+</div>
+
+<div class="panel map-container" style="grid-column: 2; padding: 0;">
+  <canvas id="orbital-map"></canvas>
+  <div id="game-overlay">
+    <h2 id="overlay-title">Target Reached</h2>
+    <p id="overlay-desc">You have fulfilled the quota.</p>
+    <button id="btn-overlay-restart" style="margin-top: 20px; font-size: 1.1rem; padding: 10px 20px;">Play Again</button>
+  </div>
+</div>
+
+<div class="panel" style="grid-column: 3;">
+  <div class="panel-header">Station Inspector</div>
+  <div id="inspector-content" style="flex: 1; overflow-y: auto;">
+    <!-- Populated by JS -->
+  </div>
+
+  <div class="panel-header" style="margin-top: 15px;">System Log</div>
+  <div class="log-container" id="sys-log">
+    <!-- Populated by JS -->
+  </div>
+</div>
+
+<script>
+  // Simulation Constants
+  const TICK_RATE = 1000 / 30; // 30 FPS logic
+  const TOTAL_TIME = 5 * 60; // 5 minutes
+  const TARGET_QUOTA = 100;
+  const MAX_TRANSPORTS = 25;
+  const MAX_INVENTORY = 50;
+
+  // Enums / Definitions
+  const RES = {
+    ORE_FE: 'Iron Ore',
+    ORE_CU: 'Copper Ore',
+    PLATES: 'Iron Plates',
+    WIRE: 'Copper Wire',
+    CIRCUITS: 'Circuits',
+    COMPONENTS: 'Components'
+  };
+
+  const COLORS = {
+    [RES.ORE_FE]: '#a0aec0',
+    [RES.ORE_CU]: '#ed8936',
+    [RES.PLATES]: '#cbd5e0',
+    [RES.WIRE]: '#dd6b20',
+    [RES.CIRCUITS]: '#48bb78',
+    [RES.COMPONENTS]: '#4299e1'
+  };
+
+  // State
+  let state = {};
+
+  function initState() {
+    state = {
+      time: TOTAL_TIME,
+      quota: 0,
+      gameOver: false,
+      won: false,
+      transports: {
+        total: MAX_TRANSPORTS,
+        idle: MAX_TRANSPORTS
+      },
+      routes: [
+        { id: 'r1', name: 'Mine A → Smeltery', from: 's1', to: 's2', res: RES.ORE_FE, assigned: 2, ships: [] },
+        { id: 'r2', name: 'Mine B → Smeltery', from: 's3', to: 's2', res: RES.ORE_CU, assigned: 2, ships: [] },
+        { id: 'r3', name: 'Smeltery → Fab', from: 's2', to: 's4', res: RES.PLATES, assigned: 1, ships: [] },
+        { id: 'r4', name: 'Smeltery → Fab', from: 's2', to: 's4', res: RES.WIRE, assigned: 1, ships: [] },
+        { id: 'r5', name: 'Smeltery → Assembly', from: 's2', to: 's5', res: RES.PLATES, assigned: 1, ships: [] },
+        { id: 'r6', name: 'Fab → Assembly', from: 's4', to: 's5', res: RES.CIRCUITS, assigned: 1, ships: [] },
+        { id: 'r7', name: 'Assembly → Cargo Hub', from: 's5', to: 's6', res: RES.COMPONENTS, assigned: 1, ships: [] }
+      ],
+      stations: {
+        's1': { id: 's1', name: 'Mining Outpost Alpha', type: 'miner', angle: 0, rad: 200,
+                inv: { [RES.ORE_FE]: 0 }, prodRate: 0.5, throttle: 100, activeProd: RES.ORE_FE },
+        's3': { id: 's3', name: 'Mining Outpost Beta', type: 'miner', angle: Math.PI*2/3, rad: 200,
+                inv: { [RES.ORE_CU]: 0 }, prodRate: 0.5, throttle: 100, activeProd: RES.ORE_CU },
+        's2': { id: 's2', name: 'Smelting Complex', type: 'processor', angle: Math.PI/3, rad: 140,
+                inv: { [RES.ORE_FE]: 0, [RES.ORE_CU]: 0, [RES.PLATES]: 0, [RES.WIRE]: 0 },
+                throttle: 100, recipes: [
+                  { in: {[RES.ORE_FE]: 1}, out: {[RES.PLATES]: 1}, time: 60, timer: 0 },
+                  { in: {[RES.ORE_CU]: 1}, out: {[RES.WIRE]: 1}, time: 60, timer: 0 }
+                ] },
+        's4': { id: 's4', name: 'Fabrication Lab', type: 'processor', angle: Math.PI, rad: 100,
+                inv: { [RES.PLATES]: 0, [RES.WIRE]: 0, [RES.CIRCUITS]: 0 },
+                throttle: 100, recipes: [
+                  { in: {[RES.PLATES]: 1, [RES.WIRE]: 2}, out: {[RES.CIRCUITS]: 1}, time: 90, timer: 0 }
+                ] },
+        's5': { id: 's5', name: 'Assembly Plant', type: 'processor', angle: Math.PI*4/3, rad: 100,
+                inv: { [RES.PLATES]: 0, [RES.CIRCUITS]: 0, [RES.COMPONENTS]: 0 },
+                throttle: 100, recipes: [
+                  { in: {[RES.PLATES]: 2, [RES.CIRCUITS]: 1}, out: {[RES.COMPONENTS]: 1}, time: 120, timer: 0 }
+                ] },
+        's6': { id: 's6', name: 'Cargo Hub', type: 'hub', angle: Math.PI*5/3, rad: 60,
+                inv: { [RES.COMPONENTS]: 0 } }
+      },
+      logs: []
+    };
+
+    // Recalculate idle transports
+    let assigned = 0;
+    state.routes.forEach(r => assigned += r.assigned);
+    state.transports.idle = state.transports.total - assigned;
+
+    log("Simulation initialized.", "success");
+
+    buildUI();
+  }
+
+  function log(msg, type = '') {
+    state.logs.unshift({ time: state.time, msg, type });
+    if (state.logs.length > 50) state.logs.pop();
+    renderLogs();
+  }
+
+  function formatTime(sec) {
+    const m = Math.floor(sec / 60).toString().padStart(2, '0');
+    const s = Math.floor(sec % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  }
+
+  // DOM Elements
+  const elTime = document.getElementById('time-val');
+  const elQuota = document.getElementById('quota-val');
+  const elIdle = document.getElementById('idle-transports');
+  const elActive = document.getElementById('active-transports');
+  const elRoutes = document.getElementById('route-controls');
+  const elThrottles = document.getElementById('station-throttles');
+  const elInspector = document.getElementById('inspector-content');
+  const elLogs = document.getElementById('sys-log');
+  const elOverlay = document.getElementById('game-overlay');
+  const elOverlayTitle = document.getElementById('overlay-title');
+  const elOverlayDesc = document.getElementById('overlay-desc');
+  const canvas = document.getElementById('orbital-map');
+  const ctx = canvas.getContext('2d');
+
+  // Resize canvas
+  function resizeCanvas() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+  }
+  window.addEventListener('resize', resizeCanvas);
+
+  function buildUI() {
+    elOverlay.classList.remove('active');
+    // Routes
+    elRoutes.innerHTML = '';
+    state.routes.forEach((r, idx) => {
+      const row = document.createElement('div');
+      row.className = 'route-row';
+      row.innerHTML = `
+        <div style="font-size: 0.85rem;">
+          <div style="font-weight:bold;">${r.name}</div>
+          <div style="color: ${COLORS[r.res]}; font-size: 0.75rem;">${r.res}</div>
+        </div>
+        <div class="route-controls">
+          <button onclick="changeRouteAssign(${idx}, -1)">-</button>
+          <span style="display:inline-block; width:20px; text-align:center; font-weight:bold;">${r.assigned}</span>
+          <button onclick="changeRouteAssign(${idx}, 1)">+</button>
+        </div>
+      `;
+      elRoutes.appendChild(row);
+    });
+
+    // Throttles
+    elThrottles.innerHTML = '';
+    Object.values(state.stations).forEach(s => {
+      if (s.type === 'hub') return;
+      const t = document.createElement('div');
+      t.className = 'throttle-control';
+      t.innerHTML = `
+        <span>${s.name}</span>
+        <input type="range" min="0" max="100" value="${s.throttle}" onchange="changeThrottle('${s.id}', this.value)" oninput="this.nextElementSibling.innerText = this.value + '%'">
+        <span style="display:inline-block; width:35px; text-align:right;">${s.throttle}%</span>
+      `;
+      elThrottles.appendChild(t);
+    });
+
+    renderInspector();
+  }
+
+  window.changeRouteAssign = function(idx, delta) {
+    if (state.gameOver) return;
+    const r = state.routes[idx];
+    if (delta > 0 && state.transports.idle > 0) {
+      r.assigned++;
+      state.transports.idle--;
+    } else if (delta < 0 && r.assigned > 0) {
+      r.assigned--;
+      state.transports.idle++;
+      // Kill a ship if necessary
+      if (r.ships.length > r.assigned) {
+        r.ships.pop();
+      }
+    }
+    buildUI();
+    renderInspector();
+  };
+
+  window.changeThrottle = function(sid, val) {
+    state.stations[sid].throttle = parseInt(val);
+  };
+
+  function renderInspector() {
+    elInspector.innerHTML = '';
+    Object.values(state.stations).forEach(s => {
+      let html = `<div class="inspector-station">
+        <div class="station-title">${s.name}</div>`;
+
+      for (const [res, amt] of Object.entries(s.inv)) {
+        const pct = Math.min(100, (amt / MAX_INVENTORY) * 100);
+        html += `
+          <div class="inventory-item">
+            <span>${res}</span>
+            <span>${Math.floor(amt)} / ${MAX_INVENTORY}</span>
+          </div>
+          <div class="inventory-bar"><div class="inventory-fill" style="width:${pct}%; background:${COLORS[res]}"></div></div>
+        `;
+      }
+      html += `</div>`;
+      elInspector.innerHTML += html;
+    });
+  }
+
+  function renderLogs() {
+    elLogs.innerHTML = state.logs.map(l => `
+      <div class="log-entry log-${l.type}">
+        <span style="opacity:0.5">[${formatTime(l.time)}]</span> ${l.msg}
+      </div>
+    `).join('');
+  }
+
+  function renderTop() {
+    elTime.innerText = formatTime(state.time);
+    elQuota.innerText = `${Math.floor(state.quota)} / ${TARGET_QUOTA}`;
+    elIdle.innerText = state.transports.idle;
+
+    let active = 0;
+    state.routes.forEach(r => active += r.ships.length);
+    elActive.innerText = active;
+  }
+
+  // Simulation Logic
+  let lastTime = performance.now();
+  let timeAcc = 0;
+
+  function update() {
+    if (state.gameOver) return;
+
+    const now = performance.now();
+    const dt = now - lastTime;
+    lastTime = now;
+
+    // Time tick
+    timeAcc += dt;
+    if (timeAcc >= 1000) {
+      timeAcc -= 1000;
+      state.time--;
+      if (state.time <= 0) {
+        endGame(false);
+      }
+
+      // Update DOM less frequently
+      renderTop();
+      renderInspector();
+    }
+
+    const logicDt = dt / 1000; // in seconds
+
+    // Station Production
+    Object.values(state.stations).forEach(s => {
+      const eff = s.throttle / 100;
+      if (eff === 0) return;
+
+      if (s.type === 'miner') {
+        const prod = s.prodRate * eff * logicDt;
+        s.inv[s.activeProd] = Math.min(MAX_INVENTORY, s.inv[s.activeProd] + prod);
+      } else if (s.type === 'processor') {
+        s.recipes.forEach(r => {
+          // Check ingredients
+          let canProduce = true;
+          for (const [res, amt] of Object.entries(r.in)) {
+            if (s.inv[res] < amt) canProduce = false;
+          }
+          // Check output space
+          for (const [res, amt] of Object.entries(r.out)) {
+            if (s.inv[res] + amt > MAX_INVENTORY) canProduce = false;
+          }
+
+          if (canProduce) {
+            r.timer += eff * logicDt * 60; // speed multiplier
+            if (r.timer >= r.time) {
+              r.timer -= r.time;
+              // consume
+              for (const [res, amt] of Object.entries(r.in)) {
+                s.inv[res] -= amt;
+              }
+              // produce
+              for (const [res, amt] of Object.entries(r.out)) {
+                s.inv[res] += amt;
+                if (res === RES.COMPONENTS && s.type === 'processor') {
+                    // It's going to cargo hub soon
+                }
+              }
+            }
+          }
+        });
+      }
+    });
+
+    // Check cargo hub for quota
+    const hub = state.stations['s6'];
+    if (hub.inv[RES.COMPONENTS] > 0) {
+      const delivered = Math.floor(hub.inv[RES.COMPONENTS]);
+      state.quota += delivered;
+      hub.inv[RES.COMPONENTS] -= delivered;
+
+      if (state.quota >= TARGET_QUOTA) {
+        endGame(true);
+      }
+    }
+
+    // Ship Logistics
+    const SHIP_SPEED = 0.2; // rad/sec or distance/sec
+    const LOAD_TIME = 1.0;
+
+    state.routes.forEach(r => {
+      // Spawn ships up to assigned
+      if (r.ships.length < r.assigned) {
+        r.ships.push({ phase: 'travel_to_source', prog: 0, loadTimer: 0, capacity: 5, payload: 0 });
+      }
+
+      const sFrom = state.stations[r.from];
+      const sTo = state.stations[r.to];
+
+      r.ships.forEach(ship => {
+        if (ship.phase === 'travel_to_source') {
+          ship.prog += SHIP_SPEED * logicDt;
+          if (ship.prog >= 1) {
+            ship.prog = 1;
+            ship.phase = 'load';
+          }
+        } else if (ship.phase === 'load') {
+          ship.loadTimer += logicDt;
+          if (ship.loadTimer >= LOAD_TIME) {
+            ship.loadTimer = 0;
+            const available = Math.floor(sFrom.inv[r.res]);
+            const take = Math.min(ship.capacity, available);
+            if (take > 0) {
+              sFrom.inv[r.res] -= take;
+              ship.payload = take;
+              ship.phase = 'travel_to_dest';
+              ship.prog = 0;
+            } else {
+              // Idle, wait for resources
+              if (Math.random() < 0.01) log(`${r.name}: Ship waiting for ${r.res}.`, 'warn');
+            }
+          }
+        } else if (ship.phase === 'travel_to_dest') {
+          ship.prog += SHIP_SPEED * logicDt;
+          if (ship.prog >= 1) {
+            ship.prog = 1;
+            ship.phase = 'unload';
+          }
+        } else if (ship.phase === 'unload') {
+          ship.loadTimer += logicDt;
+          if (ship.loadTimer >= LOAD_TIME) {
+            ship.loadTimer = 0;
+            const space = MAX_INVENTORY - sTo.inv[r.res];
+            const drop = Math.min(ship.payload, space);
+            if (drop > 0) {
+              sTo.inv[r.res] += drop;
+              ship.payload -= drop;
+              if (ship.payload <= 0) {
+                ship.phase = 'travel_to_source';
+                ship.prog = 0;
+              }
+            } else {
+              if (Math.random() < 0.01) log(`${r.name}: ${sTo.name} full. Ship waiting.`, 'danger');
+            }
+          }
+        }
+      });
+    });
+
+  }
+
+  function endGame(won) {
+    state.gameOver = true;
+    state.won = won;
+    elOverlay.classList.add('active');
+    if (won) {
+      elOverlayTitle.innerText = "Quota Reached";
+      elOverlayTitle.style.color = "var(--success)";
+      elOverlayDesc.innerText = `You completed ${TARGET_QUOTA} components with ${formatTime(state.time)} remaining.`;
+    } else {
+      elOverlayTitle.innerText = "Time Expired";
+      elOverlayTitle.style.color = "var(--danger)";
+      elOverlayDesc.innerText = `Failed to meet the quota. You built ${state.quota} / ${TARGET_QUOTA}.`;
+    }
+  }
+
+  document.getElementById('btn-restart').addEventListener('click', initState);
+  document.getElementById('btn-overlay-restart').addEventListener('click', initState);
+
+  // Rendering
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+
+    // Draw orbital rings
+    [200, 140, 100, 60].forEach(rad => {
+      ctx.beginPath();
+      ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+      ctx.strokeStyle = '#2a3342';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    });
+
+    // Draw Stations
+    Object.values(state.stations).forEach(s => {
+      const x = cx + Math.cos(s.angle) * s.rad;
+      const y = cy + Math.sin(s.angle) * s.rad;
+
+      ctx.beginPath();
+      ctx.arc(x, y, 12, 0, Math.PI * 2);
+      ctx.fillStyle = s.type === 'hub' ? '#ecc94b' : (s.type === 'miner' ? '#4a5568' : '#2b6cb0');
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Station throttle indicator
+      if (s.type !== 'hub') {
+        ctx.beginPath();
+        ctx.arc(x, y, 16, -Math.PI/2, -Math.PI/2 + (s.throttle/100)*Math.PI*2);
+        ctx.strokeStyle = '#48bb78';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = '#f7fafc';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(s.name.split(' ')[0], x, y + 25);
+    });
+
+    // Draw Ships
+    state.routes.forEach(r => {
+      const sFrom = state.stations[r.from];
+      const sTo = state.stations[r.to];
+
+      const fx = cx + Math.cos(sFrom.angle) * sFrom.rad;
+      const fy = cy + Math.sin(sFrom.angle) * sFrom.rad;
+      const tx = cx + Math.cos(sTo.angle) * sTo.rad;
+      const ty = cy + Math.sin(sTo.angle) * sTo.rad;
+
+      r.ships.forEach(ship => {
+        let x, y, prog;
+        if (ship.phase === 'travel_to_source' || ship.phase === 'load') {
+          // moving to source
+          prog = ship.prog;
+          x = tx + (fx - tx) * prog;
+          y = ty + (fy - ty) * prog;
+        } else {
+          // moving to dest
+          prog = ship.prog;
+          x = fx + (tx - fx) * prog;
+          y = fy + (ty - fy) * prog;
+        }
+
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = ship.payload > 0 ? COLORS[r.res] : '#718096';
+        ctx.fill();
+      });
+    });
+
+    requestAnimationFrame(draw);
+  }
+
+  function loop() {
+    update();
+    setTimeout(loop, TICK_RATE);
+  }
+
+  // Init
+  resizeCanvas();
+  initState();
+  loop();
+  draw();
+
+</script>
+</body>
+</html>
