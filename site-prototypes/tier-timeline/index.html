@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jules Toys - Tier Timeline</title>
+    <style>
+        :root {
+            --bg: #1a1a1a;
+            --surface: #2d2d2d;
+            --text: #e0e0e0;
+            --text-muted: #888;
+            --primary: #4ade80;
+            --border: #404040;
+            --hover: #3d3d3d;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        header {
+            padding: 1rem 2rem;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .controls input {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            width: 250px;
+        }
+
+        .controls input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .timeline-sidebar {
+            width: 200px;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            padding: 2rem 0;
+            overflow-y: auto;
+        }
+
+        .timeline-nav {
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .timeline-nav::before {
+            content: '';
+            position: absolute;
+            left: 2rem;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--border);
+        }
+
+        .tier-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 0.75rem 1rem 0.75rem 3.5rem;
+            text-align: left;
+            cursor: pointer;
+            position: relative;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .tier-btn::before {
+            content: '';
+            position: absolute;
+            left: 1.7rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--bg);
+            border: 2px solid var(--border);
+            transition: all 0.2s;
+        }
+
+        .tier-btn:hover {
+            color: var(--text);
+            background: var(--hover);
+        }
+
+        .tier-btn.active {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .tier-btn.active::before {
+            background: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 0 10px var(--primary);
+        }
+
+        .tier-count {
+            font-size: 0.75rem;
+            background: var(--bg);
+            padding: 0.1rem 0.4rem;
+            border-radius: 10px;
+            margin-left: 0.5rem;
+        }
+
+        .gallery {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        .tier-section {
+            margin-bottom: 3rem;
+        }
+
+        .tier-header {
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .tier-title {
+            color: var(--primary);
+            font-size: 1.5rem;
+        }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .toy-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            text-decoration: none;
+            color: var(--text);
+            transition: transform 0.2s, border-color 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .toy-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--primary);
+        }
+
+        .toy-screenshot {
+            height: 160px;
+            background: #222;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 1px solid var(--border);
+            position: relative;
+        }
+
+        /* Mock screenshots since we don't have actual images */
+        .toy-screenshot::after {
+            content: 'No Preview';
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        .toy-info {
+            padding: 1rem;
+        }
+
+        .toy-name {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .toy-tier {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Jules Toys - Tier Timeline</h1>
+        <div class="controls">
+            <input type="text" id="search-input" placeholder="Search toys...">
+        </div>
+    </header>
+
+    <main>
+        <section class="timeline-sidebar">
+            <nav id="timeline-nav" class="timeline-nav">
+                <!-- Timeline items will be generated by JS -->
+            </nav>
+        </section>
+
+        <section class="gallery" id="gallery-container">
+            <!-- Sections will be generated by JS -->
+        </section>
+    </main>
+
+    <script>
+        const contentInventory = [
+            { tier: 1, name: 'forecast-tile', title: 'Forecast Tile' },
+            { tier: 1, name: 'passport-stamp', title: 'Passport Stamp' },
+            { tier: 1, name: 'signal-card', title: 'Signal Card' },
+            { tier: 2, name: 'migration-river', title: 'Migration River' },
+            { tier: 2, name: 'orchard-map', title: 'Orchard Map' },
+            { tier: 2, name: 'subway-cutaway', title: 'Subway Cutaway' },
+            { tier: 3, name: 'lunar-postcards', title: 'Lunar Postcards' },
+            { tier: 3, name: 'traffic-ballet', title: 'Traffic Ballet' },
+            { tier: 3, name: 'weather-console', title: 'Weather Console' },
+            { tier: 4, name: 'recipe-risk', title: 'Recipe Risk' },
+            { tier: 4, name: 'sequencer-map', title: 'Sequencer Map' },
+            { tier: 5, name: 'dream-vending', title: 'Dream Vending' },
+            { tier: 5, name: 'emotion-post-office', title: 'Emotion Post Office' },
+            { tier: 5, name: 'pocket-city', title: 'Pocket City' },
+            { tier: 6, name: 'catalogue-studio', title: 'Catalogue Studio' },
+            { tier: 6, name: 'incident-atlas', title: 'Incident Atlas' },
+            { tier: 6, name: 'kitchen-command', title: 'Kitchen Command' },
+            { tier: 7, name: 'market-algorithm', title: 'Market Algorithm' },
+            { tier: 7, name: 'rail-signal', title: 'Rail Signal' },
+            { tier: 7, name: 'reef-particles', title: 'Reef Particles' },
+            { tier: 8, name: 'biome-forge', title: 'Biome Forge' },
+            { tier: 8, name: 'orbital-foundry', title: 'Orbital Foundry' },
+            { tier: 8, name: 'salvage-run', title: 'Salvage Run' }
+        ];
+
+        const timelineNav = document.getElementById('timeline-nav');
+        const galleryContainer = document.getElementById('gallery-container');
+        const searchInput = document.getElementById('search-input');
+
+        let currentTierFilter = null;
+
+        function init() {
+            renderTimeline();
+            renderGallery();
+            setupSearch();
+        }
+
+        function getTiers() {
+            const tiers = new Map();
+            contentInventory.forEach(item => {
+                if (!tiers.has(item.tier)) {
+                    tiers.set(item.tier, []);
+                }
+                tiers.get(item.tier).push(item);
+            });
+            // Return sorted by tier number (1 to 8)
+            return Array.from(tiers.entries()).sort((a, b) => a[0] - b[0]);
+        }
+
+        function renderTimeline() {
+            timelineNav.innerHTML = '';
+
+            const allBtn = document.createElement('button');
+            allBtn.className = 'tier-btn active';
+            allBtn.innerHTML = `All Tiers <span class="tier-count">${contentInventory.length}</span>`;
+            allBtn.onclick = () => filterByTier(null);
+            timelineNav.appendChild(allBtn);
+
+            const tiers = getTiers();
+            tiers.forEach(([tier, items]) => {
+                const btn = document.createElement('button');
+                btn.className = 'tier-btn';
+                btn.dataset.tier = tier;
+                btn.innerHTML = `Tier ${tier} <span class="tier-count">${items.length}</span>`;
+                btn.onclick = () => filterByTier(tier);
+                timelineNav.appendChild(btn);
+            });
+        }
+
+        function renderGallery() {
+            galleryContainer.innerHTML = '';
+            const tiers = getTiers();
+
+            tiers.forEach(([tier, items]) => {
+                const section = document.createElement('div');
+                section.className = 'tier-section';
+                section.id = `tier-section-${tier}`;
+
+                const header = document.createElement('div');
+                header.className = 'tier-header';
+                header.innerHTML = `
+                    <h2 class="tier-title">Tier ${tier}</h2>
+                    <span class="tier-count">${items.length} items</span>
+                `;
+                section.appendChild(header);
+
+                const grid = document.createElement('div');
+                grid.className = 'gallery-grid';
+
+                items.forEach(item => {
+                    const card = document.createElement('a');
+                    card.href = `../../tier${item.tier}/${item.name}/index.html`;
+                    card.className = 'toy-card';
+                    card.dataset.title = item.title.toLowerCase();
+
+                    card.innerHTML = `
+                        <div class="toy-screenshot"></div>
+                        <div class="toy-info">
+                            <div class="toy-name">${item.title}</div>
+                            <div class="toy-tier">Tier ${item.tier}</div>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+
+                section.appendChild(grid);
+                galleryContainer.appendChild(section);
+            });
+        }
+
+        function filterByTier(tier) {
+            currentTierFilter = tier;
+
+            // Update active state in timeline
+            document.querySelectorAll('.tier-btn').forEach(btn => {
+                if (tier === null) {
+                    btn.classList.toggle('active', !btn.dataset.tier);
+                } else {
+                    btn.classList.toggle('active', parseInt(btn.dataset.tier) === tier);
+                }
+            });
+
+            // Update sections visibility
+            document.querySelectorAll('.tier-section').forEach(section => {
+                const sectionTier = parseInt(section.id.replace('tier-section-', ''));
+                if (tier === null || sectionTier === tier) {
+                    section.classList.remove('hidden');
+                } else {
+                    section.classList.add('hidden');
+                }
+            });
+
+            // Re-apply search if it exists
+            applySearch(searchInput.value);
+
+            if (tier !== null) {
+                const targetSection = document.getElementById(`tier-section-${tier}`);
+                if (targetSection) {
+                    targetSection.scrollIntoView({ behavior: 'smooth' });
+                }
+            }
+        }
+
+        function setupSearch() {
+            searchInput.addEventListener('input', (e) => {
+                applySearch(e.target.value);
+            });
+        }
+
+        function applySearch(query) {
+            const searchTerm = query.toLowerCase().trim();
+
+            document.querySelectorAll('.tier-section').forEach(section => {
+                // Only process visible sections (filtered by tier)
+                if (currentTierFilter !== null) {
+                    const sectionTier = parseInt(section.id.replace('tier-section-', ''));
+                    if (sectionTier !== currentTierFilter) return;
+                }
+
+                const grid = section.querySelector('.gallery-grid');
+                const cards = grid.querySelectorAll('.toy-card');
+                let visibleInSection = 0;
+
+                cards.forEach(card => {
+                    const title = card.dataset.title;
+                    if (title.includes(searchTerm)) {
+                        card.classList.remove('hidden');
+                        visibleInSection++;
+                    } else {
+                        card.classList.add('hidden');
+                    }
+                });
+
+                // Hide entire section if no matches
+                if (visibleInSection === 0 && searchTerm !== '') {
+                    section.style.display = 'none';
+                } else {
+                    section.style.display = 'block';
+                }
+            });
+        }
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
