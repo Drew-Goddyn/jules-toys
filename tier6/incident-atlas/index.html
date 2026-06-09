@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Incident Atlas</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel-bg: #1e293b;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --border: #334155;
+    --primary: #3b82f6;
+    --primary-hover: #2563eb;
+    --accent: #8b5cf6;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --success: #10b981;
+    --font: system-ui, -apple-system, sans-serif;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* Header */
+  header {
+    background-color: var(--panel-bg);
+    padding: 1rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .header-controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  select, button {
+    background-color: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 0.5rem;
+    border-radius: 4px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  button:hover {
+    background-color: var(--border);
+  }
+
+  button.primary {
+    background-color: var(--primary);
+    border-color: var(--primary);
+  }
+
+  button.primary:hover {
+    background-color: var(--primary-hover);
+  }
+
+  /* Main Layout */
+  main {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 1rem;
+    padding: 1rem;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .panel {
+    background-color: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    font-weight: bold;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    background-color: rgba(0,0,0,0.2);
+  }
+
+  .panel-body {
+    padding: 1rem;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  /* Map Panel */
+  .map-panel {
+    grid-column: 1 / 2;
+    grid-row: 1 / 3;
+  }
+
+  .map-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 0.5rem;
+    height: 100%;
+  }
+
+  .district {
+    background-color: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.5rem;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .district:hover, .district:focus {
+    border-color: var(--primary);
+    outline: none;
+  }
+
+  .district.selected {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 1px var(--primary);
+    background-color: rgba(59, 130, 246, 0.1);
+  }
+
+  .district-name {
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: var(--text-muted);
+  }
+
+  .incidents-container {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    align-content: flex-start;
+    margin-top: 0.5rem;
+  }
+
+  .incident-marker {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: bold;
+    color: white;
+    cursor: pointer;
+    border: 2px solid transparent;
+  }
+
+  .incident-marker:hover, .incident-marker:focus {
+    border-color: white;
+    transform: scale(1.1);
+    outline: none;
+  }
+
+  .incident-marker.selected {
+    border-color: white;
+    box-shadow: 0 0 8px rgba(255,255,255,0.5);
+  }
+
+  .type-fire { background-color: var(--danger); }
+  .type-medical { background-color: var(--success); }
+  .type-police { background-color: var(--primary); }
+
+  /* Resources Panel */
+  .resources-panel {
+    grid-column: 3 / 4;
+    grid-row: 1 / 3;
+  }
+
+  .crew-item {
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+    background-color: var(--bg);
+  }
+
+  .crew-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+  }
+
+  .crew-name {
+    font-weight: bold;
+  }
+
+  .crew-status {
+    font-size: 0.8rem;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+  }
+
+  .status-available { background-color: rgba(16, 185, 129, 0.2); color: var(--success); }
+  .status-assigned { background-color: rgba(245, 158, 11, 0.2); color: var(--warning); }
+
+  .crew-assign-btn {
+    width: 100%;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  /* Log Panel */
+  .log-panel {
+    grid-column: 2 / 3;
+    grid-row: 2 / 3;
+  }
+
+  .log-entry {
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+
+  .log-entry:hover {
+    background-color: var(--bg);
+  }
+
+  .log-entry.selected {
+    background-color: rgba(59, 130, 246, 0.1);
+    border-left: 2px solid var(--primary);
+  }
+
+  .log-time {
+    color: var(--text-muted);
+    font-family: monospace;
+  }
+
+  /* Inspector Panel */
+  .inspector-panel {
+    grid-column: 2 / 3;
+    grid-row: 1 / 2;
+  }
+
+  .detail-row {
+    display: flex;
+    margin-bottom: 0.5rem;
+  }
+
+  .detail-label {
+    width: 100px;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+
+  .detail-value {
+    flex: 1;
+    font-weight: 500;
+  }
+
+  .empty-state {
+    color: var(--text-muted);
+    font-style: italic;
+    text-align: center;
+    padding: 2rem;
+  }
+
+  /* Responsive */
+  @media (max-width: 1024px) {
+    main {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto auto;
+      overflow-y: auto;
+    }
+    .map-panel { grid-column: 1 / 3; grid-row: 1; height: 400px; }
+    .inspector-panel { grid-column: 1 / 2; grid-row: 2; }
+    .log-panel { grid-column: 2 / 3; grid-row: 2; }
+    .resources-panel { grid-column: 1 / 3; grid-row: 3; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div style="font-weight: bold; font-size: 1.2rem; display:flex; align-items:center; gap:0.5rem;">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary)"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>
+    Incident Atlas
+  </div>
+  <div class="header-controls">
+    <select id="filter-type" aria-label="Filter by Type">
+      <option value="all">All Types</option>
+      <option value="fire">Fire</option>
+      <option value="medical">Medical</option>
+      <option value="police">Police</option>
+    </select>
+    <select id="filter-severity" aria-label="Filter by Severity">
+      <option value="all">All Severities</option>
+      <option value="high">High</option>
+      <option value="medium">Medium</option>
+      <option value="low">Low</option>
+    </select>
+    <button id="reset-btn" class="primary">Reset App</button>
+  </div>
+</header>
+
+<main>
+  <!-- Map View -->
+  <div class="panel map-panel">
+    <div class="panel-header">District Grid</div>
+    <div class="panel-body">
+      <div class="map-grid" id="map-grid">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Inspector View -->
+  <div class="panel inspector-panel">
+    <div class="panel-header">Inspector</div>
+    <div class="panel-body" id="inspector-body">
+      <!-- Rendered via JS -->
+      <div class="empty-state">Select a district or incident to view details.</div>
+    </div>
+  </div>
+
+  <!-- Log View -->
+  <div class="panel log-panel">
+    <div class="panel-header">Shift Log</div>
+    <div class="panel-body" id="log-body" style="padding:0;">
+      <!-- Rendered via JS -->
+    </div>
+  </div>
+
+  <!-- Resources View -->
+  <div class="panel resources-panel">
+    <div class="panel-header">Crews & Resources</div>
+    <div class="panel-body" id="resources-body">
+      <!-- Rendered via JS -->
+    </div>
+  </div>
+</main>
+
+<script>
+// Initial State Data
+const initialDistricts = [
+  { id: 'd1', name: 'North Hills' },
+  { id: 'd2', name: 'Uptown' },
+  { id: 'd3', name: 'Downtown' },
+  { id: 'd4', name: 'Waterfront' },
+  { id: 'd5', name: 'Westside' },
+  { id: 'd6', name: 'Central' },
+  { id: 'd7', name: 'East Village' },
+  { id: 'd8', name: 'Industrial' },
+  { id: 'd9', name: 'Suburbs' },
+  { id: 'd10', name: 'University' },
+  { id: 'd11', name: 'Airport' },
+  { id: 'd12', name: 'Port' }
+];
+
+const initialIncidents = [
+  { id: 'i1', districtId: 'd3', type: 'fire', severity: 'high', time: '08:14', description: 'Structure fire at main street.' },
+  { id: 'i2', districtId: 'd8', type: 'medical', severity: 'medium', time: '08:45', description: 'Industrial accident, worker injured.' },
+  { id: 'i3', districtId: 'd4', type: 'police', severity: 'low', time: '09:10', description: 'Traffic control requested for event.' },
+  { id: 'i4', districtId: 'd6', type: 'fire', severity: 'medium', time: '09:30', description: 'Dumpster fire spreading to alley.' },
+  { id: 'i5', districtId: 'd11', type: 'police', severity: 'high', time: '10:05', description: 'Security breach at terminal B.' }
+];
+
+const initialCrews = [
+  { id: 'c1', name: 'Engine 42', type: 'fire' },
+  { id: 'c2', name: 'Medic 12', type: 'medical' },
+  { id: 'c3', name: 'Squad 7', type: 'police' },
+  { id: 'c4', name: 'Ladder 9', type: 'fire' },
+  { id: 'c5', name: 'Patrol Car 104', type: 'police' }
+];
+
+// App State
+let state = {
+  districts: [],
+  incidents: [],
+  crews: [],
+  filters: {
+    type: 'all',
+    severity: 'all'
+  },
+  selection: {
+    type: null, // 'district', 'incident'
+    id: null
+  }
+};
+
+// Initialization
+function init() {
+  resetState();
+  setupEventListeners();
+  render();
+}
+
+function resetState() {
+  // Deep copy to reset
+  state.districts = JSON.parse(JSON.stringify(initialDistricts));
+  state.incidents = JSON.parse(JSON.stringify(initialIncidents));
+  state.crews = JSON.parse(JSON.stringify(initialCrews)).map(c => ({...c, assignedIncidentId: null}));
+
+  // Assign some default crews
+  assignCrew('c1', 'i1');
+  assignCrew('c3', 'i5');
+
+  state.filters = { type: 'all', severity: 'all' };
+  state.selection = { type: null, id: null };
+
+  document.getElementById('filter-type').value = 'all';
+  document.getElementById('filter-severity').value = 'all';
+
+  render();
+}
+
+function setupEventListeners() {
+  document.getElementById('filter-type').addEventListener('change', (e) => {
+    state.filters.type = e.target.value;
+    render();
+  });
+  document.getElementById('filter-severity').addEventListener('change', (e) => {
+    state.filters.severity = e.target.value;
+    render();
+  });
+  document.getElementById('reset-btn').addEventListener('click', resetState);
+}
+
+// Logic Actions
+function selectItem(type, id) {
+  state.selection = { type, id };
+  render();
+}
+
+function assignCrew(crewId, incidentId) {
+  const crew = state.crews.find(c => c.id === crewId);
+  if (crew) {
+    crew.assignedIncidentId = incidentId;
+  }
+}
+
+function unassignCrew(crewId) {
+  const crew = state.crews.find(c => c.id === crewId);
+  if (crew) {
+    crew.assignedIncidentId = null;
+  }
+}
+
+// Selectors
+function getFilteredIncidents() {
+  return state.incidents.filter(inc => {
+    const matchType = state.filters.type === 'all' || inc.type === state.filters.type;
+    const matchSeverity = state.filters.severity === 'all' || inc.severity === state.filters.severity;
+    return matchType && matchSeverity;
+  });
+}
+
+function getCrewForIncident(incidentId) {
+  return state.crews.filter(c => c.assignedIncidentId === incidentId);
+}
+
+function isIncidentVisible(incidentId) {
+  return getFilteredIncidents().some(i => i.id === incidentId);
+}
+
+// Rendering
+function render() {
+  renderMap();
+  renderLog();
+  renderResources();
+  renderInspector();
+}
+
+function renderMap() {
+  const grid = document.getElementById('map-grid');
+  grid.innerHTML = '';
+
+  const visibleIncidents = getFilteredIncidents();
+
+  state.districts.forEach(dist => {
+    const distEl = document.createElement('div');
+    distEl.className = `district ${state.selection.type === 'district' && state.selection.id === dist.id ? 'selected' : ''}`;
+    distEl.tabIndex = 0;
+    distEl.onclick = () => selectItem('district', dist.id);
+    distEl.onkeydown = (e) => { if(e.key==='Enter') selectItem('district', dist.id); };
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'district-name';
+    nameEl.textContent = dist.name;
+    distEl.appendChild(nameEl);
+
+    const incContainer = document.createElement('div');
+    incContainer.className = 'incidents-container';
+
+    // Find incidents for this district
+    const distIncidents = state.incidents.filter(i => i.districtId === dist.id);
+
+    distIncidents.forEach(inc => {
+      // Only show if it matches filter
+      if (!isIncidentVisible(inc.id)) return;
+
+      const incEl = document.createElement('div');
+      const isSelected = state.selection.type === 'incident' && state.selection.id === inc.id;
+      incEl.className = `incident-marker type-${inc.type} ${isSelected ? 'selected' : ''}`;
+      incEl.textContent = inc.id.replace('i', '');
+      incEl.title = `${inc.type.toUpperCase()} - ${inc.severity} severity`;
+      incEl.tabIndex = 0;
+
+      incEl.onclick = (e) => {
+        e.stopPropagation(); // prevent district selection
+        selectItem('incident', inc.id);
+      };
+      incEl.onkeydown = (e) => {
+        if(e.key==='Enter') {
+            e.stopPropagation();
+            selectItem('incident', inc.id);
+        }
+      };
+
+      incContainer.appendChild(incEl);
+    });
+
+    distEl.appendChild(incContainer);
+    grid.appendChild(distEl);
+  });
+}
+
+function renderLog() {
+  const logBody = document.getElementById('log-body');
+  logBody.innerHTML = '';
+
+  const visibleIncidents = getFilteredIncidents().sort((a,b) => a.time.localeCompare(b.time));
+
+  if (visibleIncidents.length === 0) {
+    logBody.innerHTML = '<div style="padding:1rem;color:var(--text-muted);font-style:italic;">No events matching filters.</div>';
+    return;
+  }
+
+  visibleIncidents.forEach(inc => {
+    const el = document.createElement('div');
+    const isSelected = state.selection.type === 'incident' && state.selection.id === inc.id;
+    el.className = `log-entry ${isSelected ? 'selected' : ''}`;
+    el.tabIndex = 0;
+    el.onclick = () => selectItem('incident', inc.id);
+    el.onkeydown = (e) => { if(e.key==='Enter') selectItem('incident', inc.id); };
+
+    const dist = state.districts.find(d => d.id === inc.districtId);
+
+    el.innerHTML = `
+      <span class="log-time">${inc.time}</span> -
+      <strong>${inc.type.toUpperCase()}</strong> at ${dist ? dist.name : 'Unknown'}
+    `;
+    logBody.appendChild(el);
+  });
+}
+
+function renderResources() {
+  const resBody = document.getElementById('resources-body');
+  resBody.innerHTML = '';
+
+  state.crews.forEach(crew => {
+    const el = document.createElement('div');
+    el.className = 'crew-item';
+
+    const isAssigned = crew.assignedIncidentId !== null;
+    const statusClass = isAssigned ? 'status-assigned' : 'status-available';
+    const statusText = isAssigned ? `Assigned to ${crew.assignedIncidentId}` : 'Available';
+
+    // Check if there is a selected incident to potentially assign to
+    const selIncId = state.selection.type === 'incident' ? state.selection.id : null;
+    const canAssign = selIncId && !isAssigned && isIncidentVisible(selIncId);
+
+    el.innerHTML = `
+      <div class="crew-header">
+        <span class="crew-name">${crew.name}</span>
+        <span class="crew-status ${statusClass}">${statusText}</span>
+      </div>
+      <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem;">Type: ${crew.type}</div>
+    `;
+
+    if (canAssign) {
+      const btn = document.createElement('button');
+      btn.className = 'crew-assign-btn primary';
+      btn.textContent = `Assign to ${selIncId}`;
+      btn.onclick = () => {
+        assignCrew(crew.id, selIncId);
+        render();
+      };
+      el.appendChild(btn);
+    } else if (isAssigned) {
+      const btn = document.createElement('button');
+      btn.className = 'crew-assign-btn';
+      btn.textContent = 'Unassign';
+      btn.onclick = () => {
+        unassignCrew(crew.id);
+        render();
+      };
+      el.appendChild(btn);
+    }
+
+    resBody.appendChild(el);
+  });
+}
+
+function renderInspector() {
+  const inspBody = document.getElementById('inspector-body');
+
+  if (!state.selection.type || !state.selection.id) {
+    inspBody.innerHTML = '<div class="empty-state">Select a district or incident to view details.</div>';
+    return;
+  }
+
+  if (state.selection.type === 'district') {
+    const dist = state.districts.find(d => d.id === state.selection.id);
+    const allDistIncidents = state.incidents.filter(i => i.districtId === dist.id);
+    const visibleDistIncidents = getFilteredIncidents().filter(i => i.districtId === dist.id);
+
+    inspBody.innerHTML = `
+      <h3 style="margin-top:0;">${dist.name}</h3>
+      <div class="detail-row">
+        <div class="detail-label">District ID</div>
+        <div class="detail-value">${dist.id}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Total Incidents</div>
+        <div class="detail-value">${allDistIncidents.length}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Visible Incidents</div>
+        <div class="detail-value">${visibleDistIncidents.length}</div>
+      </div>
+    `;
+  } else if (state.selection.type === 'incident') {
+    const inc = state.incidents.find(i => i.id === state.selection.id);
+    if (!inc) {
+      inspBody.innerHTML = '<div class="empty-state">Incident not found.</div>';
+      return;
+    }
+
+    const dist = state.districts.find(d => d.id === inc.districtId);
+    const assignedCrews = getCrewForIncident(inc.id);
+
+    let crewsHtml = assignedCrews.length > 0
+      ? assignedCrews.map(c => c.name).join(', ')
+      : '<span style="color:var(--warning)">None - Resources Needed</span>';
+
+    let severityColor = 'var(--text)';
+    if(inc.severity==='high') severityColor = 'var(--danger)';
+    if(inc.severity==='medium') severityColor = 'var(--warning)';
+    if(inc.severity==='low') severityColor = 'var(--success)';
+
+    inspBody.innerHTML = `
+      <h3 style="margin-top:0;">Incident ${inc.id}</h3>
+      <div class="detail-row">
+        <div class="detail-label">Location</div>
+        <div class="detail-value">${dist ? dist.name : 'Unknown'}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Type</div>
+        <div class="detail-value" style="text-transform:capitalize;">${inc.type}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Severity</div>
+        <div class="detail-value" style="color:${severityColor}; text-transform:capitalize; font-weight:bold;">${inc.severity}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Time</div>
+        <div class="detail-value">${inc.time}</div>
+      </div>
+      <div class="detail-row" style="margin-top:1rem;">
+        <div class="detail-label">Description</div>
+        <div class="detail-value" style="line-height:1.4;">${inc.description}</div>
+      </div>
+      <div class="detail-row" style="margin-top:1rem; padding-top:1rem; border-top:1px solid var(--border);">
+        <div class="detail-label">Assigned Crews</div>
+        <div class="detail-value">${crewsHtml}</div>
+      </div>
+      <div style="margin-top:1rem; font-size:0.85rem; color:var(--text-muted);">
+        * Select an available crew from the Resources panel to assign it to this incident.
+      </div>
+    `;
+  }
+}
+
+// Start
+document.addEventListener('DOMContentLoaded', init);
+
+</script>
+</body>
+</html>
