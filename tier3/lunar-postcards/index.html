@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lunar Postcards</title>
+<style>
+  body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    background-color: #0b0f19;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #333;
+    user-select: none;
+  }
+
+  #desk {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    perspective: 1200px;
+    background: radial-gradient(circle at 50% 20%, #1a2235 0%, #080b12 80%);
+  }
+
+  .moonlight {
+    position: absolute;
+    top: -30vh;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80vw;
+    height: 80vw;
+    background: radial-gradient(circle, rgba(162, 194, 255, 0.08) 0%, transparent 60%);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .dust-particle {
+    position: absolute;
+    background-color: rgba(255, 255, 255, 0.4);
+    border-radius: 50%;
+    pointer-events: none;
+    animation: float 10s infinite linear;
+  }
+
+  @keyframes float {
+    0% { transform: translateY(0) translateX(0); opacity: 0; }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { transform: translateY(-100px) translateX(20px); opacity: 0; }
+  }
+
+  .postcard-wrapper {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 320px;
+    height: 220px;
+    margin-top: -110px;
+    margin-left: -160px;
+    opacity: 0;
+    transform: translate(0, -100px) scale(0.8) rotate(0deg);
+    transition: transform 0.1s linear; /* Parallax smooth */
+  }
+
+  .postcard-wrapper.arrived {
+    opacity: 1;
+  }
+
+  .postcard-wrapper.entrance {
+    opacity: 1;
+    transition: opacity 0.6s ease, transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .postcard-container {
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  .postcard-wrapper:hover {
+    z-index: 100 !important;
+  }
+
+  .postcard-wrapper:hover .postcard-container {
+    transform: translateY(-15px) scale(1.05);
+  }
+
+  .postcard {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.4s ease;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    border-radius: 4px;
+  }
+
+  .postcard-wrapper:hover .postcard {
+    box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    cursor: pointer;
+  }
+
+  .postcard.flipped {
+    transform: rotateY(180deg);
+  }
+
+  .face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    border-radius: 4px;
+    background-color: #f8f5ed;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .front {
+    padding: 12px;
+    box-sizing: border-box;
+    background-image: linear-gradient(#e8e4d9 1px, transparent 1px),
+                      linear-gradient(90deg, #e8e4d9 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  .back {
+    transform: rotateY(180deg);
+    background-color: #f0ece1;
+    padding: 20px;
+    box-sizing: border-box;
+    background-image: repeating-linear-gradient(
+      transparent,
+      transparent 28px,
+      #ccc 28px,
+      #ccc 29px
+    );
+    background-position: 0 40px;
+  }
+
+  .back-content {
+    margin-top: 30px;
+    color: #444;
+    font-family: 'Georgia', serif;
+    font-style: italic;
+    font-size: 16px;
+    line-height: 29px;
+    pointer-events: none;
+  }
+
+  .stamp-mark {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: 60px;
+    height: 60px;
+    border: 3px solid rgba(180, 40, 40, 0.8);
+    border-radius: 50%;
+    color: rgba(180, 40, 40, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-align: center;
+    line-height: 1.2;
+    transform: rotate(25deg) scale(3);
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    pointer-events: none;
+  }
+
+  .postcard-wrapper.stamped .stamp-mark {
+    transform: rotate(-10deg) scale(1);
+    opacity: 1;
+  }
+
+  .image-placeholder {
+    flex-grow: 1;
+    border-radius: 2px;
+    margin-bottom: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .image-overlay {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at top right, rgba(255,255,255,0.2), transparent 50%);
+  }
+
+  .mountain {
+    position: absolute;
+    bottom: 0;
+    width: 0;
+    height: 0;
+    border-left: 60px solid transparent;
+    border-right: 60px solid transparent;
+    border-bottom: 80px solid rgba(0,0,0,0.2);
+  }
+
+  .mountain-1 { left: -20px; border-bottom-width: 100px; border-bottom-color: rgba(0,0,0,0.3); }
+  .mountain-2 { left: 40px; border-bottom-width: 70px; border-bottom-color: rgba(0,0,0,0.2); }
+  .mountain-3 { right: -10px; border-bottom-width: 90px; border-bottom-color: rgba(0,0,0,0.4); }
+
+  .text-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+  }
+  .text-lines div {
+    height: 6px;
+    background-color: #d0cbc0;
+    border-radius: 3px;
+  }
+  .text-lines div:first-child { width: 40%; }
+  .text-lines div:last-child { width: 70%; }
+</style>
+</head>
+<body>
+
+<div id="desk">
+  <div class="moonlight"></div>
+  <div id="postcards-container"></div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const container = document.getElementById('postcards-container');
+  const desk = document.getElementById('desk');
+
+  // Create some dust particles
+  for(let i=0; i<40; i++) {
+    const dust = document.createElement('div');
+    dust.className = 'dust-particle';
+    dust.style.width = Math.random() * 3 + 'px';
+    dust.style.height = dust.style.width;
+    dust.style.left = Math.random() * 100 + 'vw';
+    dust.style.top = Math.random() * 100 + 'vh';
+    dust.style.animationDuration = (Math.random() * 10 + 5) + 's';
+    dust.style.animationDelay = (Math.random() * 5) + 's';
+    desk.appendChild(dust);
+  }
+
+  const postcardData = [
+    { c1: "#4a5b6c", c2: "#1a2530", msg: "Greetings from the<br>Sea of Tranquility." },
+    { c1: "#6c5b4a", c2: "#30251a", msg: "Dusty but beautiful here." },
+    { c1: "#4a6c5b", c2: "#1a3025", msg: "Stormy views,<br>wish you were here." },
+    { c1: "#5b4a6c", c2: "#251a30", msg: "The horizons are<br>out of this world." },
+    { c1: "#6c4a4a", c2: "#301a1a", msg: "Found some interesting rocks<br>for the collection." }
+  ];
+
+  const wrappers = [];
+
+  postcardData.forEach((data, index) => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'postcard-wrapper';
+    wrapper.style.zIndex = index + 1;
+
+    // Spread calculation
+    const rot = (Math.random() - 0.5) * 50;
+    const tx = (Math.random() - 0.5) * 450;
+    const ty = (Math.random() - 0.5) * 250;
+
+    wrapper.dataset.baseTx = tx;
+    wrapper.dataset.baseTy = ty;
+    wrapper.dataset.baseRot = rot;
+
+    wrapper.innerHTML = `
+      <div class="postcard-container">
+        <div class="postcard">
+          <div class="face front">
+            <div class="image-placeholder" style="background: linear-gradient(135deg, ${data.c1} 0%, ${data.c2} 100%)">
+              <div class="mountain mountain-1"></div>
+              <div class="mountain mountain-2"></div>
+              <div class="mountain mountain-3"></div>
+              <div class="image-overlay"></div>
+            </div>
+            <div class="text-lines">
+              <div></div>
+              <div></div>
+            </div>
+            <div class="stamp-mark">LUNAR<br>POST</div>
+          </div>
+          <div class="face back">
+            <div class="back-content">${data.msg}</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    container.appendChild(wrapper);
+    wrappers.push(wrapper);
+
+    // Sequence entrance
+    setTimeout(() => {
+      // Setup transition for entrance
+      wrapper.classList.add('entrance');
+      wrapper.style.transform = `translate(${tx}px, ${ty}px) rotate(${rot}deg)`;
+
+      // Stamp after arrival
+      setTimeout(() => {
+        wrapper.classList.add('stamped');
+      }, 600 + Math.random() * 400);
+
+      // Once entrance finishes, change transition to allow parallax to be immediate
+      setTimeout(() => {
+        wrapper.classList.remove('entrance'); wrapper.classList.add('arrived');
+        // Manually apply final transform so it doesn't jump
+        wrapper.style.transform = `translate(${tx}px, ${ty}px) rotate(${rot}deg)`;
+      }, 1000);
+
+    }, 400 + index * 600);
+
+    // Flip Interaction
+    const card = wrapper.querySelector('.postcard');
+    wrapper.addEventListener('click', () => {
+      card.classList.toggle('flipped');
+    });
+  });
+
+  // Parallax on mouse move over desk
+  let rafId;
+  desk.addEventListener('mousemove', (e) => {
+    if(rafId) cancelAnimationFrame(rafId);
+
+    rafId = requestAnimationFrame(() => {
+      const cx = window.innerWidth / 2;
+      const cy = window.innerHeight / 2;
+      const dx = (e.clientX - cx) / cx;
+      const dy = (e.clientY - cy) / cy;
+
+      wrappers.forEach((wrapper, index) => {
+        if(wrapper.classList.contains('entrance')) return;
+
+        const baseTx = parseFloat(wrapper.dataset.baseTx);
+        const baseTy = parseFloat(wrapper.dataset.baseTy);
+        const baseRot = parseFloat(wrapper.dataset.baseRot);
+
+        const depth = (index + 1) * 10;
+        const px = dx * depth;
+        const py = dy * depth;
+
+        wrapper.style.transform = `translate(${baseTx + px}px, ${baseTy + py}px) rotate(${baseRot}deg)`;
+      });
+    });
+  });
+
+  // Reset parallax when mouse leaves desk
+  desk.addEventListener('mouseleave', () => {
+    wrappers.forEach((wrapper) => {
+      if(wrapper.classList.contains('entrance')) return;
+      const baseTx = parseFloat(wrapper.dataset.baseTx);
+      const baseTy = parseFloat(wrapper.dataset.baseTy);
+      const baseRot = parseFloat(wrapper.dataset.baseRot);
+
+      // Briefly restore transition for smooth reset
+      wrapper.style.transition = 'transform 0.4s ease';
+      wrapper.style.transform = `translate(${baseTx}px, ${baseTy}px) rotate(${baseRot}deg)`;
+      setTimeout(() => {
+        wrapper.style.transition = 'transform 0.1s linear';
+      }, 400);
+    });
+  });
+});
+</script>
+</body>
+</html>
