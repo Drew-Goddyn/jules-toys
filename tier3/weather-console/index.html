@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pressure Front Console</title>
+<style>
+  :root {
+    --bg-color: #050a10;
+    --text-main: #4af5e8;
+    --alert-color: #ff3366;
+    --scanline: rgba(74, 245, 232, 0.1);
+  }
+
+  body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    font-family: 'Courier New', Courier, monospace;
+    overflow: hidden;
+  }
+
+  .console-wrapper {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    z-index: 1;
+  }
+
+  /* Scanlines */
+  .scanlines {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: linear-gradient(to bottom, transparent 50%, var(--scanline) 51%);
+    background-size: 100% 4px;
+    z-index: 10;
+    pointer-events: none;
+    animation: scrollScanlines 10s linear infinite;
+  }
+
+  @keyframes scrollScanlines {
+    0% { background-position: 0 0; }
+    100% { background-position: 0 400px; }
+  }
+
+  /* Moving Pressure Bands */
+  .pressure-bands {
+    position: absolute;
+    top: 0; left: 0; width: 200%; height: 200%;
+    background: radial-gradient(circle at 50% 50%, rgba(0, 50, 100, 0.4) 0%, transparent 40%),
+                radial-gradient(circle at 20% 80%, rgba(255, 51, 102, 0.2) 0%, transparent 30%),
+                radial-gradient(circle at 80% 20%, rgba(74, 245, 232, 0.2) 0%, transparent 40%);
+    z-index: 0;
+    animation: moveBands 20s ease-in-out infinite alternate;
+  }
+
+  @keyframes moveBands {
+    0% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(-10%, -10%) scale(1.1); }
+    100% { transform: translate(5%, 15%) scale(1.05); }
+  }
+
+  /* Radar Sweep */
+  .radar {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 400px; height: 400px;
+    margin-top: -200px; margin-left: -200px;
+    border-radius: 50%;
+    border: 2px solid rgba(74, 245, 232, 0.3);
+    z-index: 2;
+    overflow: hidden;
+  }
+
+  .radar::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 200px; height: 200px;
+    transform-origin: 0 0;
+    background: linear-gradient(45deg, transparent 50%, rgba(74, 245, 232, 0.6) 100%);
+    animation: sweep 4s linear infinite;
+  }
+
+  @keyframes sweep {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  /* Header */
+  header {
+    padding: 20px;
+    border-bottom: 2px solid var(--text-main);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(5, 10, 16, 0.8);
+    z-index: 3;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 24px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-shadow: 0 0 10px var(--text-main);
+  }
+
+  /* Readouts */
+  .readouts {
+    position: absolute;
+    top: 80px; left: 20px;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .readout-box {
+    border: 1px solid var(--text-main);
+    padding: 10px 15px;
+    background: rgba(5, 10, 16, 0.6);
+    backdrop-filter: blur(4px);
+    width: 200px;
+  }
+
+  .readout-label {
+    font-size: 12px;
+    opacity: 0.8;
+  }
+
+  .readout-value {
+    font-size: 24px;
+    font-weight: bold;
+    margin-top: 5px;
+  }
+
+  /* Alert */
+  .alert-container {
+    position: absolute;
+    bottom: 30px;
+    right: 30px;
+    z-index: 4;
+  }
+
+  .alert-box {
+    border: 2px solid var(--alert-color);
+    color: var(--alert-color);
+    padding: 15px 30px;
+    font-size: 20px;
+    font-weight: bold;
+    text-transform: uppercase;
+    background: rgba(255, 51, 102, 0.1);
+    box-shadow: 0 0 15px var(--alert-color);
+    animation: alertFlash 2s infinite;
+  }
+
+  @keyframes alertFlash {
+    0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 15px var(--alert-color); }
+    50% { opacity: 0.5; transform: scale(0.98); box-shadow: 0 0 5px var(--alert-color); }
+  }
+
+</style>
+</head>
+<body>
+
+  <div class="pressure-bands"></div>
+  <div class="scanlines"></div>
+
+  <div class="console-wrapper">
+    <header>
+      <h1>Pressure Front Console</h1>
+      <div id="clock">00:00:00</div>
+    </header>
+
+    <div class="radar"></div>
+
+    <div class="readouts">
+      <div class="readout-box">
+        <div class="readout-label">BAROMETRIC PRESSURE</div>
+        <div class="readout-value" id="pressure-val">1013 hPa</div>
+      </div>
+      <div class="readout-box">
+        <div class="readout-label">WIND VELOCITY</div>
+        <div class="readout-value" id="wind-val">12.4 kts</div>
+      </div>
+      <div class="readout-box">
+        <div class="readout-label">FRONT DISTANCE</div>
+        <div class="readout-value" id="dist-val">42.8 km</div>
+      </div>
+    </div>
+
+    <div class="alert-container">
+      <div class="alert-box">
+        <span id="alert-text">Warning: High Pressure Front Approaching</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Shifting readouts
+    const pressureEl = document.getElementById('pressure-val');
+    const windEl = document.getElementById('wind-val');
+    const distEl = document.getElementById('dist-val');
+    const clockEl = document.getElementById('clock');
+
+    let basePressure = 1013.0;
+    let baseWind = 12.0;
+    let baseDist = 42.8;
+
+    function updateReadouts() {
+      basePressure += (Math.random() - 0.5) * 0.5;
+      baseWind += (Math.random() - 0.5) * 1.2;
+      baseDist -= (Math.random() * 0.1);
+
+      if (baseDist < 0) baseDist = 100.0;
+      if (baseWind < 0) baseWind = 0.0;
+
+      pressureEl.innerText = basePressure.toFixed(1) + ' hPa';
+      windEl.innerText = baseWind.toFixed(1) + ' kts';
+      distEl.innerText = baseDist.toFixed(1) + ' km';
+    }
+
+    function updateClock() {
+      const now = new Date();
+      clockEl.innerText = now.toTimeString().split(' ')[0];
+    }
+
+    setInterval(updateReadouts, 250); // Fast update for shifting effect
+    setInterval(updateClock, 1000);
+
+    // Initial calls
+    updateReadouts();
+    updateClock();
+  </script>
+</body>
+</html>
