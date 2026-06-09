@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Collection Studio</title>
+<style>
+:root {
+  --bg-color: #f4f4f9;
+  --text-color: #333;
+  --header-bg: #2c3e50;
+  --header-text: #ecf0f1;
+  --panel-bg: #fff;
+  --border-color: #ddd;
+  --accent-color: #3498db;
+  --danger-color: #e74c3c;
+  --success-color: #2ecc71;
+  --warning-color: #f39c12;
+  --hover-bg: #f9f9f9;
+  --selected-bg: #e8f4fd;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+header {
+  background-color: var(--header-bg);
+  color: var(--header-text);
+  padding: 10px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+h2 { margin: 0; font-size: 20px; }
+
+.header-controls {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+select, button {
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+button {
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+button:hover { background-color: #2980b9; }
+button:disabled { background-color: #95a5a6; cursor: not-allowed; }
+button.btn-outline { background-color: transparent; border: 1px solid var(--accent-color); color: var(--accent-color); }
+button.btn-outline:hover { background-color: var(--accent-color); color: white; }
+button.btn-danger { background-color: var(--danger-color); color: white; border: none;}
+button.btn-danger:hover { background-color: #c0392b; }
+button.btn-outline.btn-danger { background-color: transparent; border: 1px solid var(--danger-color); color: var(--danger-color); }
+button.btn-outline.btn-danger:hover { background-color: var(--danger-color); color: white; }
+
+.main-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.panel {
+  background-color: var(--panel-bg);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 15px;
+  font-weight: bold;
+  border-bottom: 1px solid var(--border-color);
+  background-color: #fafafa;
+  flex-shrink: 0;
+}
+
+.panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 15px;
+}
+
+/* Left Panel - Catalogue */
+.catalogue-panel {
+  width: 300px;
+  flex-shrink: 0;
+}
+
+.gallery-mode .catalogue-panel {
+  flex: 1;
+  width: auto;
+}
+
+/* Object Item */
+.object-item {
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.object-item:hover { background-color: var(--hover-bg); }
+.object-item.selected {
+  background-color: var(--selected-bg);
+  border-color: var(--accent-color);
+}
+
+.object-title { font-weight: bold; margin-bottom: 5px; }
+.object-meta { font-size: 12px; color: #666; display: flex; gap: 8px; flex-wrap: wrap;}
+.badge {
+  padding: 2px 6px;
+  border-radius: 10px;
+  background-color: #eee;
+  font-size: 11px;
+}
+.badge.fragility-High { background-color: #fadbd8; color: #c0392b; }
+.badge.status-Placed { background-color: #d5f5e3; color: #27ae60; }
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 15px;
+}
+
+/* Center Panel - Floorplan */
+.floorplan-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.gallery-mode .floorplan-panel {
+  display: none;
+}
+
+.floorplan-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 20px;
+  height: 100%;
+}
+
+.zone {
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.zone:hover { border-color: var(--accent-color); }
+.zone.selected { border-color: var(--accent-color); background-color: var(--selected-bg); border-style: solid; }
+
+.zone-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  font-weight: bold;
+}
+
+.zone-capacity { font-size: 12px; color: #666; }
+.zone-content {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-content: flex-start;
+  overflow-y: auto;
+}
+
+.placed-object {
+  background-color: white;
+  border: 1px solid #ccc;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.placed-object:hover {
+  border-color: #999;
+}
+.placed-object.selected { border-color: var(--accent-color); background-color: var(--accent-color); color: white; }
+
+/* Right Panel - Inspector & Checklist */
+.right-panel {
+  width: 350px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.inspector-section {
+  flex: 1;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  max-height: 50%;
+}
+
+.checklist-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  max-height: 50%;
+}
+
+.detail-row {
+  margin-bottom: 10px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.detail-label { font-weight: bold; width: 80px; display: inline-block; color: #555; vertical-align: top; }
+
+.actions-bar {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.empty-state {
+  color: #999;
+  text-align: center;
+  margin-top: 20px;
+  font-style: italic;
+}
+
+.checklist-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px dashed #eee;
+  font-size: 13px;
+}
+
+.checklist-summary {
+  margin-bottom: 15px;
+}
+.progress-bar {
+  height: 8px;
+  background-color: #eee;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 5px;
+}
+.progress-fill {
+  height: 100%;
+  background-color: var(--success-color);
+  transition: width 0.3s;
+}
+.progress-fill.over { background-color: var(--danger-color); }
+
+</style>
+</head>
+<body class="planning-mode">
+
+<header>
+  <h2>Collection Studio</h2>
+  <div class="header-controls">
+    <select id="filter-era" aria-label="Filter by Era">
+      <option value="All">All Eras</option>
+    </select>
+    <select id="filter-type" aria-label="Filter by Type">
+      <option value="All">All Types</option>
+    </select>
+    <select id="filter-fragility" aria-label="Filter by Fragility">
+      <option value="All">All Fragilities</option>
+    </select>
+    <button id="toggle-mode-btn">Switch to Gallery Mode</button>
+  </div>
+</header>
+
+<div class="main-container">
+
+  <!-- Left Panel: Catalogue -->
+  <div class="panel catalogue-panel">
+    <div class="panel-header">
+      Catalogue <span id="catalogue-count" style="font-weight:normal; color:#666; font-size:12px; margin-left:10px;"></span>
+    </div>
+    <div class="panel-content" id="catalogue-list" role="listbox">
+      <!-- Objects rendered here -->
+    </div>
+  </div>
+
+  <!-- Center Panel: Floorplan (Visible only in Planning Mode) -->
+  <div class="panel floorplan-panel" id="floorplan-panel">
+    <div class="panel-header">Exhibition Floorplan</div>
+    <div class="panel-content">
+      <div class="floorplan-grid" id="floorplan-grid">
+        <!-- Zones rendered here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Panel: Inspector & Checklist -->
+  <div class="panel right-panel">
+
+    <div class="inspector-section">
+      <div class="panel-header">Selection Inspector</div>
+      <div class="panel-content" id="inspector-content">
+        <div class="empty-state">Select an object or zone to inspect</div>
+      </div>
+    </div>
+
+    <div class="checklist-section">
+      <div class="panel-header">Loan & Prep Checklist</div>
+      <div class="panel-content" id="checklist-content">
+        <!-- Checklist rendered here -->
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+// Data
+const objectsData = [
+  { id: 'o1', title: 'Nefertiti Bust', type: 'Sculpture', era: 'Ancient Egypt', fragility: 'High', description: 'Painted stucco-coated limestone bust.' },
+  { id: 'o2', title: 'Rosetta Stone', type: 'Artifact', era: 'Ancient Egypt', fragility: 'Low', description: 'Granodiorite stele inscribed with three versions of a decree.' },
+  { id: 'o3', title: 'Greek Amphora', type: 'Pottery', era: 'Ancient Greece', fragility: 'High', description: 'Black-figure pottery depicting mythological scenes.' },
+  { id: 'o4', title: 'Roman Denarius', type: 'Artifact', era: 'Ancient Rome', fragility: 'Low', description: 'Small silver coin from the Roman Empire.' },
+  { id: 'o5', title: 'Terracotta Warrior', type: 'Sculpture', era: 'Ancient China', fragility: 'Medium', description: 'Life-sized terracotta sculpture of a soldier.' },
+  { id: 'o6', title: 'Ming Dynasty Vase', type: 'Pottery', era: 'Ming Dynasty', fragility: 'High', description: 'Blue and white porcelain vase.' },
+  { id: 'o7', title: 'Samurai Armor', type: 'Artifact', era: 'Edo Period', fragility: 'Medium', description: 'Traditional Japanese armor worn by samurai.' },
+  { id: 'o8', title: 'Mona Lisa', type: 'Painting', era: 'Renaissance', fragility: 'Medium', description: 'Half-length portrait painting by Leonardo da Vinci.' },
+  { id: 'o9', title: 'David (Replica)', type: 'Sculpture', era: 'Renaissance', fragility: 'Low', description: "Bronze replica of Michelangelo's David." },
+  { id: 'o10', title: 'Starry Night', type: 'Painting', era: '19th Century', fragility: 'Medium', description: 'Oil on canvas by Vincent van Gogh.' },
+  { id: 'o11', title: 'The Thinker', type: 'Sculpture', era: '19th Century', fragility: 'Low', description: 'Bronze sculpture by Auguste Rodin.' },
+  { id: 'o12', title: 'Neon Installation', type: 'Mixed Media', era: 'Contemporary', fragility: 'High', description: 'Modern artwork using neon lights.' },
+  { id: 'o13', title: 'Mayan Jade Mask', type: 'Artifact', era: 'Mesoamerica', fragility: 'Medium', description: 'Funeral mask made of jade mosaic.' },
+  { id: 'o14', title: 'Viking Broadsword', type: 'Artifact', era: 'Medieval', fragility: 'Low', description: 'Iron and steel sword from the Viking age.' },
+  { id: 'o15', title: 'Gothic Tapestry', type: 'Textile', era: 'Medieval', fragility: 'High', description: 'Woven wall hanging depicting a unicorn.' }
+];
+
+const zonesData = [
+  { id: 'z1', name: 'Zone A: Antiquities', capacity: 5 },
+  { id: 'z2', name: 'Zone B: The Classical World', capacity: 4 },
+  { id: 'z3', name: 'Zone C: Renaissance & Medieval', capacity: 6 },
+  { id: 'z4', name: 'Zone D: Modern & Contemporary', capacity: 3 }
+];
+
+// State
+let state = {
+  objects: [],
+  zones: [],
+  placements: {}, // objId -> zoneId
+  selectedId: null, // can be objId or zoneId
+  selectionType: null, // 'object', 'zone', or null
+  filters: {
+    era: 'All',
+    type: 'All',
+    fragility: 'All'
+  },
+  planningMode: true
+};
+
+// Initialization
+function init() {
+  state.objects = [...objectsData];
+  state.zones = [...zonesData];
+
+  populateFilters();
+  setupEventListeners();
+  render();
+}
+
+function populateFilters() {
+  const eras = new Set();
+  const types = new Set();
+  const fragilities = new Set();
+
+  state.objects.forEach(obj => {
+    eras.add(obj.era);
+    types.add(obj.type);
+    fragilities.add(obj.fragility);
+  });
+
+  const eraSelect = document.getElementById('filter-era');
+  const typeSelect = document.getElementById('filter-type');
+  const fragSelect = document.getElementById('filter-fragility');
+
+  Array.from(eras).sort().forEach(era => eraSelect.add(new Option(era, era)));
+  Array.from(types).sort().forEach(type => typeSelect.add(new Option(type, type)));
+  Array.from(fragilities).sort().forEach(frag => fragSelect.add(new Option(frag, frag)));
+}
+
+function setupEventListeners() {
+  document.getElementById('filter-era').addEventListener('change', (e) => { state.filters.era = e.target.value; renderAll(); });
+  document.getElementById('filter-type').addEventListener('change', (e) => { state.filters.type = e.target.value; renderAll(); });
+  document.getElementById('filter-fragility').addEventListener('change', (e) => { state.filters.fragility = e.target.value; renderAll(); });
+
+  document.getElementById('toggle-mode-btn').addEventListener('click', () => {
+    state.planningMode = !state.planningMode;
+    document.body.className = state.planningMode ? 'planning-mode' : 'gallery-mode';
+    document.getElementById('toggle-mode-btn').textContent = state.planningMode ? 'Switch to Gallery Mode' : 'Switch to Planning Mode';
+    render();
+  });
+}
+
+function getFilteredObjects() {
+  return state.objects.filter(obj => {
+    if (state.filters.era !== 'All' && obj.era !== state.filters.era) return false;
+    if (state.filters.type !== 'All' && obj.type !== state.filters.type) return false;
+    if (state.filters.fragility !== 'All' && obj.fragility !== state.filters.fragility) return false;
+    return true;
+  });
+}
+
+// Actions
+function selectItem(id, type) {
+  state.selectedId = id;
+  state.selectionType = type;
+  renderAll();
+}
+
+function placeObject(objId, zoneId) {
+  state.placements[objId] = zoneId;
+  renderAll();
+}
+
+function removeObject(objId) {
+  delete state.placements[objId];
+  renderAll();
+}
+
+function renderAll() {
+  renderCatalogue();
+  if (state.planningMode) renderFloorplan();
+  renderInspector();
+  renderChecklist();
+}
+
+function render() {
+  renderAll();
+}
+
+// Rendering
+function renderCatalogue() {
+  const container = document.getElementById('catalogue-list');
+  const filtered = getFilteredObjects();
+  document.getElementById('catalogue-count').textContent = `(${filtered.length})`;
+
+  container.innerHTML = '';
+
+  if (!state.planningMode) {
+    container.className = 'panel-content gallery-grid';
+  } else {
+    container.className = 'panel-content';
+  }
+
+  filtered.forEach(obj => {
+    const isSelected = state.selectionType === 'object' && state.selectedId === obj.id;
+    const isPlaced = !!state.placements[obj.id];
+
+    const el = document.createElement('div');
+    el.className = `object-item ${isSelected ? 'selected' : ''}`;
+    el.onclick = () => selectItem(obj.id, 'object');
+    el.tabIndex = 0;
+    el.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') selectItem(obj.id, 'object'); };
+
+    let html = `<div class="object-title">${obj.title}</div>`;
+    html += `<div class="object-meta">`;
+    html += `<span class="badge">${obj.type}</span>`;
+    html += `<span class="badge fragility-${obj.fragility}">${obj.fragility} Fragility</span>`;
+    if (isPlaced) {
+      const zone = state.zones.find(z => z.id === state.placements[obj.id]);
+      html += `<span class="badge status-Placed">Placed in ${zone ? zone.name.split(':')[0] : 'Zone'}</span>`;
+    }
+    html += `</div>`;
+
+    if (!state.planningMode) {
+      html += `<div style="margin-top:10px; font-size:12px; color:#555;">${obj.description}</div>`;
+    }
+
+    el.innerHTML = html;
+    container.appendChild(el);
+  });
+}
+
+function renderFloorplan() {
+  const container = document.getElementById('floorplan-grid');
+  container.innerHTML = '';
+
+  state.zones.forEach(zone => {
+    const isSelected = state.selectionType === 'zone' && state.selectedId === zone.id;
+    const placedObjs = state.objects.filter(o => state.placements[o.id] === zone.id);
+    const isFull = placedObjs.length >= zone.capacity;
+
+    const el = document.createElement('div');
+    el.className = `zone ${isSelected ? 'selected' : ''}`;
+    el.onclick = (e) => {
+      if (e.target === el || e.target.closest('.zone-header')) {
+        selectItem(zone.id, 'zone');
+      }
+    };
+    el.tabIndex = 0;
+    el.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') selectItem(zone.id, 'zone'); };
+
+    let html = `
+      <div class="zone-header">
+        <div>${zone.name}</div>
+        <div class="zone-capacity" style="color: ${isFull ? 'var(--danger-color)' : '#666'}">${placedObjs.length} / ${zone.capacity}</div>
+      </div>
+      <div class="zone-content">
+    `;
+
+    placedObjs.forEach(obj => {
+      const isObjSelected = state.selectionType === 'object' && state.selectedId === obj.id;
+      html += `<div class="placed-object ${isObjSelected ? 'selected' : ''}" onclick="selectItem('${obj.id}', 'object'); event.stopPropagation();" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){selectItem('${obj.id}', 'object'); event.stopPropagation();}">${obj.title}</div>`;
+    });
+
+    html += `</div>`;
+    el.innerHTML = html;
+    container.appendChild(el);
+  });
+}
+
+function renderInspector() {
+  const container = document.getElementById('inspector-content');
+
+  if (!state.selectionType || !state.selectedId) {
+    container.innerHTML = '<div class="empty-state">Select an object or zone to inspect</div>';
+    return;
+  }
+
+  if (state.selectionType === 'object') {
+    const obj = state.objects.find(o => o.id === state.selectedId);
+    if(!obj) {
+        container.innerHTML = '<div class="empty-state">Select an object or zone to inspect</div>';
+        return;
+    }
+    const placedZoneId = state.placements[obj.id];
+
+    let html = `
+      <h3 style="margin-top:0; margin-bottom: 15px;">${obj.title}</h3>
+      <div class="detail-row"><span class="detail-label">Type:</span> <span>${obj.type}</span></div>
+      <div class="detail-row"><span class="detail-label">Era:</span> <span>${obj.era}</span></div>
+      <div class="detail-row"><span class="detail-label">Fragility:</span> <span style="color: ${obj.fragility === 'High' ? 'var(--danger-color)' : 'inherit'}">${obj.fragility}</span></div>
+      <div class="detail-row"><span class="detail-label">Desc:</span> <span style="display:inline-block; width:calc(100% - 85px);">${obj.description}</span></div>
+      <div class="detail-row"><span class="detail-label">Status:</span> <span>${placedZoneId ? 'Placed' : 'Unplaced'}</span></div>
+    `;
+
+    html += `<div class="actions-bar">`;
+    if (placedZoneId) {
+      html += `<button class="btn-outline btn-danger" onclick="removeObject('${obj.id}')">Remove from Zone</button>`;
+    } else {
+      html += `<select id="assign-zone-select" style="flex:1;" aria-label="Select zone to place object">`;
+      html += `<option value="">-- Assign to Zone --</option>`;
+      state.zones.forEach(z => {
+        const currentCount = Object.values(state.placements).filter(zid => zid === z.id).length;
+        const disabled = currentCount >= z.capacity ? 'disabled' : '';
+        html += `<option value="${z.id}" ${disabled}>${z.name} (${currentCount}/${z.capacity})\</option>`;
+      });
+      html += `</select>`;
+      html += `<button onclick="assignSelectedObject()">Place</button>`;
+    }
+    html += `</div>`;
+
+    container.innerHTML = html;
+  } else if (state.selectionType === 'zone') {
+    const zone = state.zones.find(z => z.id === state.selectedId);
+    if(!zone) {
+        container.innerHTML = '<div class="empty-state">Select an object or zone to inspect</div>';
+        return;
+    }
+    const placedObjs = state.objects.filter(o => state.placements[o.id] === zone.id);
+
+    let html = `
+      <h3 style="margin-top:0; margin-bottom: 15px;">${zone.name}</h3>
+      <div class="detail-row"><span class="detail-label">Capacity:</span> ${placedObjs.length} / ${zone.capacity} objects</div>
+      <div class="progress-bar" style="margin-bottom: 20px;">
+        <div class="progress-fill ${placedObjs.length > zone.capacity ? 'over' : ''}" style="width: ${Math.min(100, (placedObjs.length/zone.capacity)*100)}%"></div>
+      </div>
+      <h4 style="margin-bottom: 10px; margin-top:0;">Placed Objects:</h4>
+    `;
+
+    if (placedObjs.length === 0) {
+      html += `<div class="empty-state" style="margin-top: 0; text-align: left;">No objects placed in this zone.</div>`;
+    } else {
+      placedObjs.forEach(obj => {
+        html += `<div class="detail-row" style="display:flex; justify-content:space-between; align-items:center;">
+          <span>${obj.title}</span>
+          <button class="btn-outline btn-danger" style="padding: 2px 6px; font-size:11px;" onclick="removeObject('${obj.id}')">Remove</button>
+        </div>`;
+      });
+    }
+
+    container.innerHTML = html;
+  }
+}
+
+// Expose to window for inline handlers
+window.removeObject = removeObject;
+window.selectItem = selectItem;
+window.assignSelectedObject = () => {
+  const select = document.getElementById('assign-zone-select');
+  if (select && select.value) {
+    placeObject(state.selectedId, select.value);
+  }
+};
+
+function renderChecklist() {
+  const container = document.getElementById('checklist-content');
+
+  // Use filtered objects for summary if filters are applied?
+  // "Filters affect the catalogue and summary counts without losing existing placements."
+  const filteredObjects = getFilteredObjects();
+  const totalFiltered = filteredObjects.length;
+  const filteredPlacedCount = filteredObjects.filter(o => state.placements[o.id]).length;
+
+  const highFragilityPlaced = filteredObjects.filter(o => state.placements[o.id] && o.fragility === 'High').length;
+
+  let html = `
+    <div class="checklist-summary">
+      <div style="font-weight:bold; margin-bottom:5px;">Visible Objects Placement</div>
+      <div style="font-size:12px; color:#666;">${filteredPlacedCount} of ${totalFiltered} shown objects placed</div>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width: ${totalFiltered === 0 ? 0 : (filteredPlacedCount/totalFiltered)*100}%"></div>
+      </div>
+    </div>
+
+    <div style="font-weight:bold; margin-bottom:10px; margin-top:20px;">Preparation Tasks</div>
+
+    <div class="checklist-item">
+      <span>High Fragility Mounts Required</span>
+      <span style="font-weight:bold; color: ${highFragilityPlaced > 0 ? 'var(--warning-color)' : '#666'}">${highFragilityPlaced}</span>
+    </div>
+  `;
+
+  // Zone capacity checks (global, not just filtered)
+  state.zones.forEach(zone => {
+    const count = Object.values(state.placements).filter(zid => zid === zone.id).length;
+    if (count > zone.capacity) {
+       html += `<div class="checklist-item" style="color: var(--danger-color)">
+        <span>⚠️ ${zone.name.split(':')[0]} over capacity</span>
+        <span>${count}/${zone.capacity}</span>
+      </div>`;
+    }
+  });
+
+  // Selected object specific tasks
+  if (state.selectionType === 'object') {
+    const obj = state.objects.find(o => o.id === state.selectedId);
+    if(obj) {
+        html += `<div style="font-weight:bold; margin-bottom:10px; margin-top:20px;">Object Specific Prep</div>`;
+        html += `<div class="checklist-item"><span>Condition Report</span> <span style="color: #666">Pending</span></div>`;
+        if (obj.fragility === 'High') {
+          html += `<div class="checklist-item"><span>Custom Mount Design</span> <span style="color: var(--warning-color)">Required</span></div>`;
+        }
+        if (obj.type === 'Textile' || obj.type === 'Painting' || obj.type === 'Mixed Media') {
+          html += `<div class="checklist-item"><span>Lighting Review (Lux limits)</span> <span style="color: var(--warning-color)">Required</span></div>`;
+        }
+    }
+  }
+
+  container.innerHTML = html;
+}
+
+// Boot
+init();
+
+</script>
+</body>
+</html>
