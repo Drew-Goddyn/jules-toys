@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biome Forge</title>
+    <style>
+        :root {
+            --bg: #1e1e24;
+            --panel: #2b2b36;
+            --text: #e0e0e0;
+            --accent: #4a90e2;
+            --accent-hover: #357abd;
+            --border: #444;
+            --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            margin: 0;
+            padding: 20px;
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font);
+            display: grid;
+            grid-template-columns: 300px 1fr 300px;
+            gap: 20px;
+            height: 100vh;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        h1, h2, h3 { margin: 0 0 10px 0; font-weight: 600; }
+        h1 { font-size: 1.5rem; color: var(--accent); }
+        h2 { font-size: 1.2rem; border-bottom: 1px solid var(--border); padding-bottom: 5px; margin-top: 15px;}
+        .panel {
+            background: var(--panel);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        .left-panel { grid-column: 1; }
+        .center-panel {
+            grid-column: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .right-panel { grid-column: 3; }
+
+        canvas {
+            background: #000;
+            cursor: crosshair;
+            border: 1px solid var(--border);
+            max-width: 100%;
+            border-radius: 4px;
+            image-rendering: pixelated;
+        }
+
+        .control-group { margin-bottom: 15px; }
+        .control-group label { display: block; margin-bottom: 5px; font-size: 0.9rem; }
+        .control-group input[type="range"],
+        .control-group input[type="number"],
+        .control-group input[type="text"] {
+            width: 100%;
+            box-sizing: border-box;
+            background: #111;
+            color: #fff;
+            border: 1px solid var(--border);
+            padding: 5px;
+            border-radius: 4px;
+        }
+        button {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            width: 100%;
+            margin-top: 10px;
+        }
+        button:hover { background: var(--accent-hover); }
+        button:focus { outline: 2px solid #fff; }
+
+        .inspector-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9rem; }
+        .inspector-val { font-family: monospace; color: var(--accent); }
+
+        .legend { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem;}
+        .legend-item { display: flex; align-items: center; gap: 8px; }
+        .legend-color { width: 16px; height: 16px; border-radius: 3px; border: 1px solid #000; }
+
+        .metrics { font-size: 0.85rem; }
+        .metrics-item { display: flex; justify-content: space-between; margin-bottom: 2px;}
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            background: #111;
+            color: #fff;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 5px;
+            box-sizing: border-box;
+            font-family: monospace;
+            font-size: 0.8rem;
+            resize: vertical;
+        }
+
+        @media (max-width: 900px) {
+            body { grid-template-columns: 1fr; height: auto; overflow: auto; }
+            .left-panel, .center-panel, .right-panel { grid-column: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="panel left-panel">
+        <h1>Biome Forge</h1>
+        <p style="font-size: 0.8rem; margin-top:0; color: #aaa;">Generative Terrain Sandbox</p>
+
+        <h2>Parameters</h2>
+        <div class="control-group">
+            <label for="seed">Seed</label>
+            <input type="number" id="seed" value="1337" aria-label="Seed">
+        </div>
+        <div class="control-group">
+            <label for="scale">Scale / Zoom: <span id="scaleVal">50</span></label>
+            <input type="range" id="scale" min="10" max="200" value="50" aria-label="Scale">
+        </div>
+        <div class="control-group">
+            <label for="elevOffset">Elevation Offset: <span id="elevOffsetVal">0</span></label>
+            <input type="range" id="elevOffset" min="-50" max="50" value="0" aria-label="Elevation Offset">
+        </div>
+        <div class="control-group">
+            <label for="moistOffset">Moisture Offset: <span id="moistOffsetVal">0</span></label>
+            <input type="range" id="moistOffset" min="-50" max="50" value="0" aria-label="Moisture Offset">
+        </div>
+        <button id="generateBtn" aria-label="Randomize Seed">Randomize Seed</button>
+
+        <h2>Legend</h2>
+        <div class="legend" id="legend"></div>
+    </div>
+
+    <div class="center-panel">
+        <canvas id="worldCanvas" width="512" height="512" aria-label="Generated Map Canvas" tabindex="0"></canvas>
+    </div>
+
+    <div class="panel right-panel">
+        <h2>Inspector</h2>
+        <div class="inspector-row"><span>X:</span><span class="inspector-val" id="inspX">-</span></div>
+        <div class="inspector-row"><span>Y:</span><span class="inspector-val" id="inspY">-</span></div>
+        <div class="inspector-row"><span>Elevation:</span><span class="inspector-val" id="inspElev">-</span></div>
+        <div class="inspector-row"><span>Moisture:</span><span class="inspector-val" id="inspMoist">-</span></div>
+        <div class="inspector-row"><span>Biome:</span><span class="inspector-val" id="inspBiome">-</span></div>
+
+        <h2>Metrics</h2>
+        <div class="metrics" id="metrics"></div>
+
+        <h2>Export</h2>
+        <textarea id="exportText" readonly aria-label="Export JSON"></textarea>
+        <button id="copyBtn" aria-label="Copy JSON">Copy JSON</button>
+    </div>
+
+<script>
+function mulberry32(a) {
+    return function() {
+      var t = a += 0x6D2B79F5;
+      t = Math.imul(t ^ t >>> 15, t | 1);
+      t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    }
+}
+
+class ValueNoise {
+    constructor(seed) {
+        this.rng = mulberry32(seed);
+        this.table = new Float32Array(256 * 256);
+        for(let i=0; i<this.table.length; i++){
+            this.table[i] = this.rng();
+        }
+    }
+
+    noise(x, y) {
+        let ix = Math.floor(x) & 255;
+        let iy = Math.floor(y) & 255;
+        let fx = x - Math.floor(x);
+        let fy = y - Math.floor(y);
+
+        let tx = fx * fx * (3 - 2 * fx);
+        let ty = fy * fy * (3 - 2 * fy);
+
+        let v00 = this.table[ix + iy * 256];
+        let v10 = this.table[((ix + 1) & 255) + iy * 256];
+        let v01 = this.table[ix + ((iy + 1) & 255) * 256];
+        let v11 = this.table[((ix + 1) & 255) + ((iy + 1) & 255) * 256];
+
+        let nx0 = v00 * (1 - tx) + v10 * tx;
+        let nx1 = v01 * (1 - tx) + v11 * tx;
+
+        return nx0 * (1 - ty) + nx1 * ty;
+    }
+
+    fbm(x, y, octaves) {
+        let v = 0;
+        let a = 0.5;
+        let shift = 100.0;
+        let sumA = 0;
+        for (let i = 0; i < octaves; i++) {
+            v += a * this.noise(x, y);
+            sumA += a;
+            x = x * 2.0 + shift;
+            y = y * 2.0 + shift;
+            a *= 0.5;
+        }
+        return v / sumA;
+    }
+}
+
+function hexToRgb(hex) {
+    let bigint = parseInt(hex.slice(1), 16);
+    return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
+}
+
+const biomes = [
+    { id: 'deep_ocean', name: 'Deep Ocean', color: '#10366b' },
+    { id: 'shallow_ocean', name: 'Shallow Ocean', color: '#1e609e' },
+    { id: 'beach', name: 'Beach', color: '#d4c08c' },
+    { id: 'scorched', name: 'Scorched', color: '#5a5a5a' },
+    { id: 'snow', name: 'Snow', color: '#ffffff' },
+    { id: 'bare', name: 'Bare', color: '#9e9a93' },
+    { id: 'tundra', name: 'Tundra', color: '#9fb09c' },
+    { id: 'taiga', name: 'Taiga', color: '#4a6b47' },
+    { id: 'desert', name: 'Desert', color: '#d4b86a' },
+    { id: 'grassland', name: 'Grassland', color: '#74a84d' },
+    { id: 'forest', name: 'Forest', color: '#307335' }
+];
+
+biomes.forEach(b => b.rgb = hexToRgb(b.color));
+
+function getBiome(e, m) {
+    if (e < 0.3) return biomes[0];
+    if (e < 0.45) return biomes[1];
+    if (e < 0.5) return biomes[2];
+
+    if (e > 0.8) {
+        if (m < 0.5) return biomes[3];
+        return biomes[4];
+    }
+
+    if (e > 0.65) {
+        if (m < 0.3) return biomes[5];
+        if (m < 0.6) return biomes[6];
+        return biomes[7];
+    }
+
+    if (m < 0.3) return biomes[8];
+    if (m < 0.6) return biomes[9];
+    return biomes[10];
+}
+
+const canvas = document.getElementById('worldCanvas');
+const ctx = canvas.getContext('2d', { alpha: false });
+const width = canvas.width;
+const height = canvas.height;
+let worldData = new Array(width * height);
+let currentStats = {};
+
+function generate() {
+    const seed = parseInt(document.getElementById('seed').value) || 0;
+    const scale = parseInt(document.getElementById('scale').value);
+    const elevOffset = parseInt(document.getElementById('elevOffset').value) / 100;
+    const moistOffset = parseInt(document.getElementById('moistOffset').value) / 100;
+
+    document.getElementById('scaleVal').innerText = scale;
+    document.getElementById('elevOffsetVal').innerText = document.getElementById('elevOffset').value;
+    document.getElementById('moistOffsetVal').innerText = document.getElementById('moistOffset').value;
+
+    const elevNoise = new ValueNoise(seed);
+    const moistNoise = new ValueNoise(seed + 12345);
+
+    const imgData = ctx.createImageData(width, height);
+    const data = imgData.data;
+
+    currentStats = {};
+    biomes.forEach(b => currentStats[b.id] = 0);
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            let nx = x / scale;
+            let ny = y / scale;
+
+            let e = elevNoise.fbm(nx, ny, 6) + elevOffset;
+            let m = moistNoise.fbm(nx, ny, 6) + moistOffset;
+
+            e = Math.max(0, Math.min(1, e));
+            m = Math.max(0, Math.min(1, m));
+
+            let biome = getBiome(e, m);
+
+            const idx = (y * width + x);
+            worldData[idx] = { e: e, m: m, biome: biome };
+
+            currentStats[biome.id]++;
+
+            const pIdx = idx * 4;
+            data[pIdx] = biome.rgb[0];
+            data[pIdx+1] = biome.rgb[1];
+            data[pIdx+2] = biome.rgb[2];
+            data[pIdx+3] = 255;
+        }
+    }
+    ctx.putImageData(imgData, 0, 0);
+    updateMetrics();
+    updateExport();
+}
+
+function updateMetrics() {
+    const metricsDiv = document.getElementById('metrics');
+    metricsDiv.innerHTML = '';
+    const total = width * height;
+
+    const sortedStats = Object.entries(currentStats).sort((a, b) => b[1] - a[1]);
+
+    sortedStats.forEach(([id, count]) => {
+        if(count === 0) return;
+        const b = biomes.find(b => b.id === id);
+        const pct = ((count / total) * 100).toFixed(1);
+        metricsDiv.innerHTML += `
+            <div class="metrics-item">
+                <span style="color: ${b.color}; font-weight: bold;">${b.name}</span>
+                <span>${pct}%</span>
+            </div>
+        `;
+    });
+}
+
+function updateExport() {
+    const config = {
+        seed: parseInt(document.getElementById('seed').value) || 0,
+        scale: parseInt(document.getElementById('scale').value),
+        elevOffset: parseInt(document.getElementById('elevOffset').value) / 100,
+        moistOffset: parseInt(document.getElementById('moistOffset').value) / 100,
+        stats: currentStats
+    };
+    document.getElementById('exportText').value = JSON.stringify(config, null, 2);
+}
+
+// Interaction
+canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = Math.floor((e.clientX - rect.left) * scaleX);
+    const y = Math.floor((e.clientY - rect.top) * scaleY);
+
+    if(x >= 0 && x < width && y >= 0 && y < height) {
+        const cell = worldData[y * width + x];
+        if(cell) {
+            document.getElementById('inspX').innerText = x;
+            document.getElementById('inspY').innerText = y;
+            document.getElementById('inspElev').innerText = cell.e.toFixed(3);
+            document.getElementById('inspMoist').innerText = cell.m.toFixed(3);
+            document.getElementById('inspBiome').innerText = cell.biome.name;
+            document.getElementById('inspBiome').style.color = cell.biome.color;
+        }
+    }
+});
+
+// Controls
+['seed', 'scale', 'elevOffset', 'moistOffset'].forEach(id => {
+    document.getElementById(id).addEventListener('input', generate);
+});
+
+document.getElementById('generateBtn').addEventListener('click', () => {
+    document.getElementById('seed').value = Math.floor(Math.random() * 1000000);
+    generate();
+});
+
+document.getElementById('copyBtn').addEventListener('click', () => {
+    const text = document.getElementById('exportText');
+    text.select();
+    document.execCommand('copy');
+    const btn = document.getElementById('copyBtn');
+    btn.innerText = 'Copied!';
+    setTimeout(() => btn.innerText = 'Copy JSON', 2000);
+});
+
+// Legend
+const legendDiv = document.getElementById('legend');
+biomes.forEach(b => {
+    legendDiv.innerHTML += `
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: ${b.color};"></div>
+            <span>${b.name}</span>
+        </div>
+    `;
+});
+
+// Init
+generate();
+</script>
+</body>
+</html>
