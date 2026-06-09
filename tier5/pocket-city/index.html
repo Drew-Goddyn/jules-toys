@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pocket City Weather Bureau</title>
+<style>
+  :root {
+    --bg-color: #e0f7fa;
+    --text-color: #333;
+    --panel-bg: #ffffff;
+    --border-color: #b2ebf2;
+    --accent-color: #00838f;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f5f5f5;
+    color: var(--text-color);
+    display: flex;
+    justify-content: center;
+  }
+
+  .app-container {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    grid-template-rows: auto 1fr auto;
+    gap: 20px;
+    max-width: 1200px;
+    width: 100%;
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  }
+
+  header {
+    grid-column: 1 / -1;
+    text-align: center;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 10px;
+  }
+
+  h1 {
+    margin: 0;
+    color: var(--accent-color);
+  }
+
+  .controls {
+    background: var(--bg-color);
+    padding: 20px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .control-group {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  }
+
+  .control-group h3 {
+    margin-top: 0;
+    font-size: 1.1em;
+    color: var(--accent-color);
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+    margin-bottom: 10px;
+  }
+
+  label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    align-items: center;
+    font-size: 0.9em;
+  }
+
+  input[type="range"] {
+    width: 60%;
+  }
+
+  .city-display {
+    position: relative;
+    background: #87CEEB; /* default clear sky */
+    border-radius: 8px;
+    overflow: hidden;
+    min-height: 400px;
+    display: flex;
+    flex-direction: column;
+    transition: background 1s ease;
+  }
+
+  .sky {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ground {
+    height: 150px;
+    background: #8BC34A; /* default grass */
+    position: relative;
+    display: flex;
+    flex-wrap: wrap-reverse;
+    align-content: flex-start;
+    padding: 10px;
+    transition: background 1s ease;
+  }
+
+  .event-log {
+    grid-column: 1 / -1;
+    background: #333;
+    color: #0f0;
+    padding: 15px;
+    border-radius: 8px;
+    font-family: monospace;
+    height: 150px;
+    overflow-y: auto;
+  }
+
+  .log-entry {
+    margin: 5px 0;
+    border-bottom: 1px dashed #555;
+    padding-bottom: 5px;
+  }
+
+  /* Weather Effects */
+  .weather-effect {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 10;
+  }
+
+  .drop, .flake {
+    position: absolute;
+    animation: fall linear infinite;
+  }
+
+  .drop { font-size: 1.2em; content: '💧'; }
+  .flake { font-size: 1.2em; content: '❄️'; color: white; }
+
+  @keyframes fall {
+    to { transform: translateY(400px); }
+  }
+
+  @keyframes flash {
+    0%, 95%, 100% { background: transparent; }
+    96%, 98% { background: rgba(255,255,255,0.8); }
+  }
+
+  .storm-flash {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    animation: flash 5s infinite;
+    z-index: 5;
+  }
+
+  /* Sun / Moon */
+  .celestial {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    font-size: 4em;
+    transition: all 1s ease;
+  }
+
+  /* Zoning Elements */
+  .zone-item {
+    font-size: 2em;
+    margin: -5px 2px;
+    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 2;
+  }
+
+  @keyframes popIn {
+    from { transform: scale(0); }
+    to { transform: scale(1); }
+  }
+
+  /* Transit */
+  .transit-layer {
+    position: absolute;
+    bottom: 20px;
+    left: 0;
+    right: 0;
+    height: 40px;
+    pointer-events: none;
+    z-index: 15;
+  }
+
+  .vehicle {
+    position: absolute;
+    font-size: 2.5em;
+    white-space: nowrap;
+  }
+
+  .bus {
+    bottom: 0;
+    animation: driveRight 8s linear infinite;
+  }
+
+  .train {
+    bottom: -15px;
+    animation: driveLeft 6s linear infinite;
+  }
+
+  @keyframes driveRight {
+    from { left: -100px; }
+    to { left: 100%; }
+  }
+
+  @keyframes driveLeft {
+    from { right: -100px; }
+    to { right: 100%; }
+  }
+
+  /* Festival */
+  .festival-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 12;
+    overflow: hidden;
+  }
+
+  .lantern {
+    position: absolute;
+    font-size: 2em;
+    animation: floatUp 10s linear infinite;
+    bottom: -50px;
+  }
+
+  .music-note {
+    position: absolute;
+    font-size: 1.5em;
+    animation: floatUpSway 4s ease-in-out infinite;
+    bottom: 20px;
+  }
+
+  @keyframes floatUp {
+    to { transform: translateY(-500px); }
+  }
+
+  @keyframes floatUpSway {
+    0% { transform: translateY(0) translateX(0) rotate(0deg); opacity: 1; }
+    50% { transform: translateY(-100px) translateX(20px) rotate(20deg); }
+    100% { transform: translateY(-200px) translateX(-20px) rotate(-20deg); opacity: 0; }
+  }
+
+</style>
+</head>
+<body>
+
+<div class="app-container">
+  <header>
+    <h1>🏙️ Pocket City Weather Bureau</h1>
+    <p>Tune the city's destiny. Watch it unfold.</p>
+  </header>
+
+  <div class="controls">
+    <div class="control-group">
+      <h3>🏗️ Zoning</h3>
+      <label>Residential <span><span id="res-val">50</span>%</span></label>
+      <input type="range" id="res-zone" min="0" max="100" value="50">
+
+      <label>Commercial <span><span id="com-val">30</span>%</span></label>
+      <input type="range" id="com-zone" min="0" max="100" value="30">
+
+      <label>Industrial <span><span id="ind-val">10</span>%</span></label>
+      <input type="range" id="ind-zone" min="0" max="100" value="10">
+
+      <label>Parks <span><span id="prk-val">20</span>%</span></label>
+      <input type="range" id="prk-zone" min="0" max="100" value="20">
+    </div>
+
+    <div class="control-group">
+      <h3>🌤️ Weather</h3>
+      <label><input type="radio" name="weather" value="clear" checked> Clear Sky</label>
+      <label><input type="radio" name="weather" value="rain"> Heavy Rain</label>
+      <label><input type="radio" name="weather" value="snow"> Blizzard</label>
+      <label><input type="radio" name="weather" value="storm"> Thunderstorm</label>
+    </div>
+
+    <div class="control-group">
+      <h3>🚌 Transit</h3>
+      <label><input type="checkbox" id="bus-toggle"> City Buses</label>
+      <label><input type="checkbox" id="train-toggle"> Express Train</label>
+    </div>
+
+    <div class="control-group">
+      <h3>🎪 Festival</h3>
+      <select id="festival-select" style="width: 100%; padding: 5px;">
+        <option value="none">No Event</option>
+        <option value="lantern">🏮 Lantern Festival</option>
+        <option value="music">🎵 Music Festival</option>
+        <option value="food">🍔 Street Food Fest</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="city-display" id="city-view">
+    <div class="sky" id="sky-view">
+      <div class="celestial" id="celestial-body">☀️</div>
+      <div class="weather-effect" id="weather-layer"></div>
+    </div>
+    <div class="ground" id="ground-view"></div>
+    <div class="transit-layer" id="transit-layer"></div>
+    <div class="festival-layer" id="festival-layer"></div>
+  </div>
+
+  <div class="event-log" id="event-log">
+    <div class="log-entry">> Welcome to the Pocket City Bureau. System online.</div>
+  </div>
+</div>
+
+<script>
+  // DOM Elements
+  const resSlider = document.getElementById('res-zone');
+  const comSlider = document.getElementById('com-zone');
+  const indSlider = document.getElementById('ind-zone');
+  const prkSlider = document.getElementById('prk-zone');
+
+  const weatherRadios = document.getElementsByName('weather');
+  const busToggle = document.getElementById('bus-toggle');
+  const trainToggle = document.getElementById('train-toggle');
+  const festivalSelect = document.getElementById('festival-select');
+
+  const cityView = document.getElementById('city-view');
+  const groundView = document.getElementById('ground-view');
+  const skyView = document.getElementById('sky-view');
+  const weatherLayer = document.getElementById('weather-layer');
+  const celestialBody = document.getElementById('celestial-body');
+  const transitLayer = document.getElementById('transit-layer');
+  const festivalLayer = document.getElementById('festival-layer');
+  const eventLog = document.getElementById('event-log');
+
+  // Emojis
+  const emojis = {
+    res: ['🏠', '🏡', '🏘️'],
+    com: ['🏪', '🏬', '🏢', '🏦'],
+    ind: ['🏭'],
+    prk: ['🌳', '🌲', '⛲', '⛺']
+  };
+
+  // State
+  let state = {
+    res: 50, com: 30, ind: 10, prk: 20,
+    weather: 'clear',
+    bus: false, train: false,
+    festival: 'none'
+  };
+
+  // Initialization
+  function init() {
+    // Attach listeners
+    resSlider.addEventListener('input', (e) => updateZoning('res', e.target.value));
+    comSlider.addEventListener('input', (e) => updateZoning('com', e.target.value));
+    indSlider.addEventListener('input', (e) => updateZoning('ind', e.target.value));
+    prkSlider.addEventListener('input', (e) => updateZoning('prk', e.target.value));
+
+    weatherRadios.forEach(r => r.addEventListener('change', (e) => updateWeather(e.target.value)));
+    busToggle.addEventListener('change', (e) => updateTransit('bus', e.target.checked));
+    trainToggle.addEventListener('change', (e) => updateTransit('train', e.target.checked));
+    festivalSelect.addEventListener('change', (e) => updateFestival(e.target.value));
+
+    // Initial render
+    renderCity();
+    renderWeather();
+    renderTransit();
+    renderFestival();
+  }
+
+  // Logging
+  function logEvent(msg) {
+    const time = new Date().toLocaleTimeString();
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.textContent = `[${time}] > ${msg}`;
+    eventLog.prepend(entry);
+
+    // Keep only last 10 entries
+    if(eventLog.children.length > 10) {
+      eventLog.removeChild(eventLog.lastChild);
+    }
+  }
+
+  // Update logic
+  function updateZoning(type, val) {
+    state[type] = parseInt(val);
+    document.getElementById(`${type}-val`).textContent = val;
+    renderCity();
+
+    const names = {res: 'Residential', com: 'Commercial', ind: 'Industrial', prk: 'Park'};
+    logEvent(`Zoning updated: ${names[type]} zone adjusted to ${val}%.`);
+    checkInteractions();
+  }
+
+  function updateWeather(w) {
+    state.weather = w;
+    renderWeather();
+    logEvent(`Weather pattern changed to: ${w.toUpperCase()}.`);
+    checkInteractions();
+  }
+
+  function updateTransit(type, active) {
+    state[type] = active;
+    renderTransit();
+    logEvent(`${type === 'bus' ? 'City Bus' : 'Express Train'} network ${active ? 'activated' : 'deactivated'}.`);
+    checkInteractions();
+  }
+
+  function updateFestival(fest) {
+    state.festival = fest;
+    renderFestival();
+    if(fest === 'none') {
+      logEvent(`Festivals have concluded. Normal city operations resumed.`);
+    } else {
+      const names = {lantern: 'Lantern', music: 'Music', food: 'Street Food'};
+      logEvent(`The ${names[fest]} Festival has officially begun!`);
+    }
+    checkInteractions();
+  }
+
+  // Rendering logic
+  function renderCity() {
+    groundView.innerHTML = '';
+
+    // Calculate relative proportions
+    const total = state.res + state.com + state.ind + state.prk;
+    if (total === 0) return;
+
+    // We'll create exactly 40 slots for buildings to keep it performant and tidy
+    const slots = 40;
+
+    const counts = {
+      res: Math.round((state.res / total) * slots),
+      com: Math.round((state.com / total) * slots),
+      ind: Math.round((state.ind / total) * slots),
+      prk: Math.round((state.prk / total) * slots)
+    };
+
+    let items = [];
+    for(let type in counts) {
+      for(let i=0; i<counts[type]; i++) {
+        const charList = emojis[type];
+        const char = charList[Math.floor(Math.random() * charList.length)];
+        items.push(char);
+      }
+    }
+
+    // Shuffle items to make it look organic
+    items.sort(() => Math.random() - 0.5);
+
+    items.forEach((char, i) => {
+      const el = document.createElement('div');
+      el.className = 'zone-item';
+      el.textContent = char;
+      // Slight random margin for organic look
+      el.style.marginLeft = `${Math.random() * 5 - 2}px`;
+      el.style.marginRight = `${Math.random() * 5 - 2}px`;
+      groundView.appendChild(el);
+    });
+  }
+
+  function renderWeather() {
+    weatherLayer.innerHTML = '';
+    cityView.style.background = '';
+    groundView.style.background = '';
+    celestialBody.textContent = '';
+
+    const flash = document.querySelector('.storm-flash');
+    if(flash) flash.remove();
+
+    if(state.weather === 'clear') {
+      cityView.style.background = '#87CEEB';
+      groundView.style.background = '#8BC34A';
+      celestialBody.textContent = '☀️';
+    }
+    else if (state.weather === 'rain') {
+      cityView.style.background = '#78909C';
+      groundView.style.background = '#558B2F';
+      celestialBody.textContent = '☁️';
+      createParticles('💧', 50, 'drop', 1.5);
+    }
+    else if (state.weather === 'snow') {
+      cityView.style.background = '#CFD8DC';
+      groundView.style.background = '#ECEFF1';
+      celestialBody.textContent = '🌨️';
+      createParticles('❄️', 60, 'flake', 3);
+    }
+    else if (state.weather === 'storm') {
+      cityView.style.background = '#263238';
+      groundView.style.background = '#33691E';
+      celestialBody.textContent = '🌩️';
+      createParticles('💧', 80, 'drop', 1);
+
+      const f = document.createElement('div');
+      f.className = 'storm-flash';
+      skyView.appendChild(f);
+    }
+  }
+
+  function createParticles(char, count, className, speedFactor) {
+    for(let i=0; i<count; i++) {
+      const p = document.createElement('div');
+      p.className = className;
+      p.textContent = char;
+      p.style.left = `${Math.random() * 100}%`;
+      p.style.animationDuration = `${Math.random() * speedFactor + speedFactor}s`;
+      p.style.animationDelay = `${Math.random() * 2}s`;
+      p.style.opacity = Math.random() * 0.5 + 0.5;
+      weatherLayer.appendChild(p);
+    }
+  }
+
+  function renderTransit() {
+    transitLayer.innerHTML = '';
+    if(state.bus) {
+      const bus = document.createElement('div');
+      bus.className = 'vehicle bus';
+      bus.textContent = '🚌';
+      transitLayer.appendChild(bus);
+    }
+    if(state.train) {
+      const train = document.createElement('div');
+      train.className = 'vehicle train';
+      train.textContent = '🚆🚞🚞';
+      transitLayer.appendChild(train);
+    }
+  }
+
+  function renderFestival() {
+    festivalLayer.innerHTML = '';
+
+    if(state.festival === 'none') return;
+
+    if(state.festival === 'lantern') {
+      for(let i=0; i<15; i++) {
+        const el = document.createElement('div');
+        el.className = 'lantern';
+        el.textContent = '🏮';
+        el.style.left = `${Math.random() * 100}%`;
+        el.style.animationDuration = `${Math.random() * 5 + 5}s`;
+        el.style.animationDelay = `${Math.random() * 5}s`;
+        festivalLayer.appendChild(el);
+      }
+    }
+    else if(state.festival === 'music') {
+      const notes = ['🎵', '🎶', '🎷', '🎸'];
+      for(let i=0; i<20; i++) {
+        const el = document.createElement('div');
+        el.className = 'music-note';
+        el.textContent = notes[Math.floor(Math.random() * notes.length)];
+        el.style.left = `${Math.random() * 100}%`;
+        el.style.animationDuration = `${Math.random() * 2 + 2}s`;
+        el.style.animationDelay = `${Math.random() * 3}s`;
+        festivalLayer.appendChild(el);
+      }
+    }
+    else if(state.festival === 'food') {
+      // Add food stalls statically on the ground layer dynamically via DOM manipulation
+      // but to keep it simple, we'll float food items up
+      const foods = ['🍔', '🌮', '🍿', '🍧', '🍕'];
+      for(let i=0; i<15; i++) {
+        const el = document.createElement('div');
+        el.className = 'music-note'; // reuse animation
+        el.textContent = foods[Math.floor(Math.random() * foods.length)];
+        el.style.left = `${Math.random() * 100}%`;
+        el.style.animationDuration = `${Math.random() * 3 + 3}s`;
+        el.style.animationDelay = `${Math.random() * 2}s`;
+        festivalLayer.appendChild(el);
+      }
+    }
+  }
+
+  // Cross-feature interactions & fun logs
+  function checkInteractions() {
+    // Rain + Festival
+    if((state.weather === 'rain' || state.weather === 'storm') && state.festival !== 'none') {
+      if(Math.random() > 0.5) {
+        logEvent(`WARNING: ${state.weather.toUpperCase()} is ruining the ${state.festival} festival! Attendance is dropping.`);
+      }
+    }
+
+    // High Industry + Clear Sky
+    if(state.ind > 70 && state.weather === 'clear') {
+      logEvent(`ALERT: High smog levels detected due to heavy industrial zoning.`);
+      // Tweak background slightly
+      cityView.style.background = '#B0BEC5';
+      celestialBody.textContent = '😷';
+    }
+
+    // High Parks + Good Weather
+    if(state.prk > 50 && state.weather === 'clear') {
+      logEvent(`Citizens are enjoying the abundant parkland in the beautiful weather.`);
+    }
+
+    // Snow + Transit
+    if(state.weather === 'snow' && (state.bus || state.train)) {
+      logEvent(`Transit Advisory: Expect delays on ${state.bus ? 'bus' : ''} ${state.train ? 'and train' : ''} lines due to blizzard conditions.`);
+    }
+
+    // Festival + Transit
+    if(state.festival !== 'none' && !state.bus && !state.train) {
+      logEvent(`TRAFFIC JAM: The ${state.festival} festival is overcrowded! The mayor advises activating transit networks.`);
+    }
+  }
+
+  // Start
+  init();
+</script>
+</body>
+</html>
