@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Midnight Orchard Yield Map</title>
+<style>
+  body {
+    background-color: #0d1117;
+    color: #c9d1d9;
+    font-family: system-ui, -apple-system, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+  }
+  .map-container {
+    background-color: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  }
+  svg {
+    display: block;
+  }
+</style>
+</head>
+<body>
+
+<div class="map-container">
+<svg width="800" height="600" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Background pattern -->
+    <pattern id="grid" width="80" height="70" patternUnits="userSpaceOnUse">
+      <rect width="80" height="70" fill="none" />
+      <path d="M 80 0 L 0 0 0 70" fill="none" stroke="#21262d" stroke-width="1" />
+    </pattern>
+
+    <!-- Gradients for Yield Intensity -->
+    <radialGradient id="yield-low" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#1f6feb" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#1f6feb" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="yield-med" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#2ea043" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#2ea043" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="yield-high" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#d29922" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#d29922" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="yield-peak" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#f85149" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#f85149" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Tree Symbol -->
+    <g id="tree">
+      <!-- Trunk -->
+      <path d="M -2,15 L 2,15 L 3,5 L -3,5 Z" fill="#8b4513" />
+      <!-- Canopy -->
+      <path d="M -15,5 C -20,-5 -10,-15 0,-18 C 10,-15 20,-5 15,5 C 20,15 10,20 0,18 C -10,20 -20,15 -15,5 Z" fill="#0d1117" stroke="#8b949e" stroke-width="1.5" />
+      <!-- Small details (apples/fruit) -->
+      <circle cx="-5" cy="-2" r="1.5" fill="#8b949e" opacity="0.6"/>
+      <circle cx="6" cy="1" r="1.5" fill="#8b949e" opacity="0.6"/>
+      <circle cx="2" cy="-9" r="1.5" fill="#8b949e" opacity="0.6"/>
+    </g>
+
+    <!-- Drop Shadow for UI Elements -->
+    <filter id="drop-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.7"/>
+    </filter>
+
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0,0 L 10,5 L 0,10 Z" fill="#c9d1d9"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="600" fill="#0d1117" rx="4" />
+  <rect x="20" y="85" width="720" height="420" fill="url(#grid)" />
+
+  <!-- Title -->
+  <text x="30" y="45" fill="#e6edf3" font-size="24" font-weight="bold" font-family="sans-serif">Midnight Orchard Yield Map</text>
+  <text x="30" y="65" fill="#8b949e" font-size="14" font-family="sans-serif">Plot 7A - Harvest Season '24</text>
+
+  <!-- Grid of Trees and Yields -->
+  <g transform="translate(60, 120)">
+    <!-- Row 1 -->
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(0, 0)" />
+    <use href="#tree" x="0" y="0" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(80, 0)" />
+    <use href="#tree" x="80" y="0" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-med)" transform="translate(160, 0)" />
+    <use href="#tree" x="160" y="0" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-med)" transform="translate(240, 0)" />
+    <use href="#tree" x="240" y="0" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(320, 0)" />
+    <use href="#tree" x="320" y="0" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(400, 0)" />
+    <use href="#tree" x="400" y="0" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(480, 0)" />
+    <use href="#tree" x="480" y="0" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(560, 0)" />
+    <use href="#tree" x="560" y="0" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(640, 0)" />
+    <use href="#tree" x="640" y="0" />
+
+    <!-- Row 2 -->
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(0, 70)" />
+    <use href="#tree" x="0" y="70" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-med)" transform="translate(80, 70)" />
+    <use href="#tree" x="80" y="70" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-high)" transform="translate(160, 70)" />
+    <use href="#tree" x="160" y="70" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-high)" transform="translate(240, 70)" />
+    <use href="#tree" x="240" y="70" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-med)" transform="translate(320, 70)" />
+    <use href="#tree" x="320" y="70" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(400, 70)" />
+    <use href="#tree" x="400" y="70" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(480, 70)" />
+    <use href="#tree" x="480" y="70" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(560, 70)" />
+    <use href="#tree" x="560" y="70" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(640, 70)" />
+    <use href="#tree" x="640" y="70" />
+
+    <!-- Row 3 -->
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(0, 140)" />
+    <use href="#tree" x="0" y="140" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-med)" transform="translate(80, 140)" />
+    <use href="#tree" x="80" y="140" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-high)" transform="translate(160, 140)" />
+    <use href="#tree" x="160" y="140" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-peak)" transform="translate(240, 140)" />
+    <use href="#tree" x="240" y="140" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-high)" transform="translate(320, 140)" />
+    <use href="#tree" x="320" y="140" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-med)" transform="translate(400, 140)" />
+    <use href="#tree" x="400" y="140" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(480, 140)" />
+    <use href="#tree" x="480" y="140" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-med)" transform="translate(560, 140)" />
+    <use href="#tree" x="560" y="140" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(640, 140)" />
+    <use href="#tree" x="640" y="140" />
+
+    <!-- Row 4 -->
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(0, 210)" />
+    <use href="#tree" x="0" y="210" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(80, 210)" />
+    <use href="#tree" x="80" y="210" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-med)" transform="translate(160, 210)" />
+    <use href="#tree" x="160" y="210" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-high)" transform="translate(240, 210)" />
+    <use href="#tree" x="240" y="210" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-high)" transform="translate(320, 210)" />
+    <use href="#tree" x="320" y="210" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-med)" transform="translate(400, 210)" />
+    <use href="#tree" x="400" y="210" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-peak)" transform="translate(480, 210)" />
+    <use href="#tree" x="480" y="210" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-high)" transform="translate(560, 210)" />
+    <use href="#tree" x="560" y="210" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-med)" transform="translate(640, 210)" />
+    <use href="#tree" x="640" y="210" />
+
+    <!-- Row 5 -->
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(0, 280)" />
+    <use href="#tree" x="0" y="280" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(80, 280)" />
+    <use href="#tree" x="80" y="280" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(160, 280)" />
+    <use href="#tree" x="160" y="280" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-med)" transform="translate(240, 280)" />
+    <use href="#tree" x="240" y="280" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-med)" transform="translate(320, 280)" />
+    <use href="#tree" x="320" y="280" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(400, 280)" />
+    <use href="#tree" x="400" y="280" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-med)" transform="translate(480, 280)" />
+    <use href="#tree" x="480" y="280" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-med)" transform="translate(560, 280)" />
+    <use href="#tree" x="560" y="280" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(640, 280)" />
+    <use href="#tree" x="640" y="280" />
+
+    <!-- Row 6 -->
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(0, 350)" />
+    <use href="#tree" x="0" y="350" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(80, 350)" />
+    <use href="#tree" x="80" y="350" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(160, 350)" />
+    <use href="#tree" x="160" y="350" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(240, 350)" />
+    <use href="#tree" x="240" y="350" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(320, 350)" />
+    <use href="#tree" x="320" y="350" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(400, 350)" />
+    <use href="#tree" x="400" y="350" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(480, 350)" />
+    <use href="#tree" x="480" y="350" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(560, 350)" />
+    <use href="#tree" x="560" y="350" />
+    <rect x="-30" y="-30" width="60" height="60" fill="url(#yield-low)" transform="translate(640, 350)" />
+    <use href="#tree" x="640" y="350" />
+  </g>
+
+  <!-- Row and Column Labels -->
+  <g fill="#8b949e" font-family="sans-serif" font-size="12" text-anchor="middle">
+    <!-- Columns -->
+    <text x="60" y="105">C1</text>
+    <text x="140" y="105">C2</text>
+    <text x="220" y="105">C3</text>
+    <text x="300" y="105">C4</text>
+    <text x="380" y="105">C5</text>
+    <text x="460" y="105">C6</text>
+    <text x="540" y="105">C7</text>
+    <text x="620" y="105">C8</text>
+    <text x="700" y="105">C9</text>
+
+    <!-- Rows -->
+    <text x="30" y="125">R1</text>
+    <text x="30" y="195">R2</text>
+    <text x="30" y="265">R3</text>
+    <text x="30" y="335">R4</text>
+    <text x="30" y="405">R5</text>
+    <text x="30" y="475">R6</text>
+  </g>
+
+  <!-- Legend -->
+  <g transform="translate(620, 20)" filter="url(#drop-shadow)">
+    <rect width="150" height="120" fill="#161b22" stroke="#30363d" stroke-width="1" rx="4"/>
+    <text x="10" y="20" fill="#c9d1d9" font-family="sans-serif" font-size="12" font-weight="bold">Yield Intensity</text>
+
+    <circle cx="20" cy="45" r="8" fill="#1f6feb" opacity="0.6"/>
+    <text x="40" y="49" fill="#8b949e" font-family="sans-serif" font-size="11">Low</text>
+
+    <circle cx="20" cy="70" r="8" fill="#2ea043" opacity="0.7"/>
+    <text x="40" y="74" fill="#8b949e" font-family="sans-serif" font-size="11">Medium</text>
+
+    <circle cx="20" cy="95" r="8" fill="#d29922" opacity="0.8"/>
+    <text x="40" y="99" fill="#8b949e" font-family="sans-serif" font-size="11">High</text>
+  </g>
+
+  <g transform="translate(620, 150)" filter="url(#drop-shadow)">
+    <rect width="150" height="40" fill="#161b22" stroke="#30363d" stroke-width="1" rx="4"/>
+    <circle cx="20" cy="20" r="8" fill="#f85149" opacity="0.9"/>
+    <text x="40" y="24" fill="#8b949e" font-family="sans-serif" font-size="11">Peak Anomaly</text>
+  </g>
+
+  <!-- Annotations / Callout 1 (Cluster at C4, R3) -->
+  <!-- Center of C4, R3 is x: 60+240=300, y: 120+140=260 -->
+  <g>
+    <path d="M 420 120 Q 360 120 310 250" fill="none" stroke="#c9d1d9" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <rect x="420" y="95" width="160" height="45" fill="#161b22" stroke="#8b949e" stroke-width="1" rx="3" filter="url(#drop-shadow)"/>
+    <text x="430" y="115" fill="#c9d1d9" font-family="sans-serif" font-size="11" font-weight="bold">Irrigation Leak Zone</text>
+    <text x="430" y="130" fill="#8b949e" font-family="sans-serif" font-size="10">Unexpectedly high yield</text>
+  </g>
+
+  <!-- Annotations / Callout 2 (Peak at C7, R4) -->
+  <!-- Center of C7, R4 is x: 60+480=540, y: 120+210=330 -->
+  <g>
+    <path d="M 430 440 Q 480 440 535 345" fill="none" stroke="#c9d1d9" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <rect x="290" y="420" width="140" height="45" fill="#161b22" stroke="#f85149" stroke-width="1" rx="3" filter="url(#drop-shadow)"/>
+    <text x="300" y="440" fill="#f85149" font-family="sans-serif" font-size="11" font-weight="bold">Soil Enrichment Test</text>
+    <text x="300" y="455" fill="#8b949e" font-family="sans-serif" font-size="10">Peak productivity recorded</text>
+  </g>
+
+</svg>
+</div>
+
+</body>
+</html>
