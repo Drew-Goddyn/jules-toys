@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Percussive Maintenance</title>
+<style>
+  body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: #1a1a2e;
+    font-family: 'Courier New', Courier, monospace;
+    color: #fff;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  .container {
+    text-align: center;
+    position: relative;
+    width: 80%;
+    max-width: 600px;
+    z-index: 2;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    margin-bottom: 2rem;
+    color: #e94560;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+
+  .progress-wrapper {
+    position: relative;
+    width: 100%;
+    height: 40px;
+    background-color: #0f3460;
+    border-radius: 20px;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.5), 0 0 10px rgba(233, 69, 96, 0.2);
+    border: 3px solid #16213e;
+    overflow: visible; /* For hit effects */
+  }
+
+  .progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #e94560, #ff6b6b);
+    border-radius: 17px;
+    transition: width 0.1s linear;
+    position: relative;
+  }
+
+  .progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 100%);
+    border-radius: 17px;
+  }
+
+  .status-text {
+    margin-top: 1.5rem;
+    font-size: 1.2rem;
+    font-weight: bold;
+    min-height: 1.5rem;
+  }
+
+  /* Shaking animation when stuck */
+  @keyframes shake {
+    0% { transform: translate(1px, 1px) rotate(0deg); }
+    10% { transform: translate(-1px, -2px) rotate(-1deg); }
+    20% { transform: translate(-3px, 0px) rotate(1deg); }
+    30% { transform: translate(3px, 2px) rotate(0deg); }
+    40% { transform: translate(1px, -1px) rotate(1deg); }
+    50% { transform: translate(-1px, 2px) rotate(-1deg); }
+    60% { transform: translate(-3px, 1px) rotate(0deg); }
+    70% { transform: translate(3px, 1px) rotate(-1deg); }
+    80% { transform: translate(-1px, -1px) rotate(1deg); }
+    90% { transform: translate(1px, 2px) rotate(0deg); }
+    100% { transform: translate(1px, -2px) rotate(-1deg); }
+  }
+
+  .stuck {
+    animation: shake 0.5s;
+    animation-iteration-count: infinite;
+  }
+
+  .jammed-bar {
+    border-right: 4px solid #ffeb3b;
+    box-shadow: 2px 0 15px #ffeb3b;
+  }
+
+  /* Hammer cursors */
+  .hammer-cursor {
+    cursor: url("data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔨</text></svg>") 10 90, auto !important;
+  }
+
+  .hammer-cursor-active {
+    cursor: url("data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22 transform=%22rotate(-30 50 50)%22>🔨</text></svg>") 10 90, auto !important;
+  }
+
+  /* Hit effects */
+  .comic-text {
+    position: absolute;
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: #ffeb3b;
+    text-shadow: 3px 3px 0px #e94560, -3px -3px 0px #e94560, 3px -3px 0px #e94560, -3px 3px 0px #e94560, 5px 5px 10px rgba(0,0,0,0.5);
+    transform: translate(-50%, -50%) rotate(calc(-20deg + 40deg * var(--rand)));
+    pointer-events: none;
+    animation: popOut 0.5s forwards ease-out;
+    z-index: 10;
+  }
+
+  @keyframes popOut {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5) rotate(calc(-20deg + 40deg * var(--rand))); }
+    20% { opacity: 1; transform: translate(-50%, -50%) scale(1.2) rotate(calc(-20deg + 40deg * var(--rand))); }
+    80% { opacity: 1; transform: translate(-50%, -70%) scale(1) rotate(calc(-20deg + 40deg * var(--rand))); }
+    100% { opacity: 0; transform: translate(-50%, -90%) scale(0.8) rotate(calc(-20deg + 40deg * var(--rand))); }
+  }
+
+  .spark {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #fff;
+    box-shadow: 0 0 5px #ffeb3b, 0 0 15px #ffeb3b;
+    pointer-events: none;
+    animation: fly 0.6s forwards cubic-bezier(0.1, 0.8, 0.3, 1);
+    z-index: 9;
+  }
+
+  @keyframes fly {
+    0% { transform: translate(0, 0) scale(1); opacity: 1; }
+    100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+  }
+
+  .complete-flash {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: #fff;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 100;
+    transition: opacity 0.3s;
+  }
+
+  .completed .complete-flash {
+    animation: flash 1s forwards;
+  }
+
+  @keyframes flash {
+    0% { opacity: 0; }
+    10% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  .instructions {
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    color: #888;
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+
+  .instructions.visible {
+    opacity: 1;
+  }
+
+  /* Grid background for retro feel */
+  .bg-grid {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-size: 40px 40px;
+    background-image: linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px),
+                      linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px);
+    z-index: 1;
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="complete-flash"></div>
+
+<div class="container">
+  <h1>Downloading Data</h1>
+  <div class="progress-wrapper" id="progressWrapper">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+  <div class="status-text" id="statusText">0% Complete</div>
+  <div class="instructions" id="instructions">Click to apply percussive maintenance!</div>
+</div>
+
+<script>
+  const progressBar = document.getElementById('progressBar');
+  const progressWrapper = document.getElementById('progressWrapper');
+  const statusText = document.getElementById('statusText');
+  const instructions = document.getElementById('instructions');
+  const words = ["BAM!", "WHACK!", "CLUNK!", "THUD!", "SMASH!", "KAPOW!"];
+
+  let progress = 0;
+  let state = 'loading'; // loading, stuck, complete
+  let hitsRequired = 6;
+  let hits = 0;
+
+  function updateProgress() {
+    if (state !== 'loading') return;
+
+    // Slow down as it gets closer to 99
+    let increment = 1;
+    if (progress > 50) increment = 0.5;
+    if (progress > 80) increment = 0.2;
+    if (progress > 95) increment = 0.1;
+
+    progress += increment;
+
+    if (progress >= 99) {
+      progress = 99;
+      state = 'stuck';
+      stuckMode();
+    } else {
+      progressBar.style.width = `${progress}%`;
+      statusText.textContent = `${Math.floor(progress)}% Complete`;
+
+      // Random pause to simulate real loading
+      let timeout = 20 + Math.random() * 50;
+      if (Math.random() > 0.9) timeout += 300; // random hang
+
+      setTimeout(updateProgress, timeout);
+    }
+  }
+
+  function stuckMode() {
+    progressBar.style.width = '99%';
+    progressBar.classList.add('jammed-bar');
+    progressWrapper.classList.add('stuck');
+    statusText.innerHTML = `<span style="color:#ffeb3b">99%... ERROR: Bytes physically jammed.</span>`;
+
+    document.body.classList.add('hammer-cursor');
+
+    setTimeout(() => {
+      instructions.classList.add('visible');
+    }, 1500);
+  }
+
+  document.body.addEventListener('mousedown', (e) => {
+    if (state !== 'stuck') return;
+
+    // Animate cursor
+    document.body.classList.remove('hammer-cursor');
+    document.body.classList.add('hammer-cursor-active');
+
+    setTimeout(() => {
+      if (state === 'stuck') {
+        document.body.classList.remove('hammer-cursor-active');
+        document.body.classList.add('hammer-cursor');
+      }
+    }, 150);
+
+    // Only count hits if near the wrapper
+    const rect = progressWrapper.getBoundingClientRect();
+    const isNear = e.clientY >= rect.top - 100 && e.clientY <= rect.bottom + 100 &&
+                   e.clientX >= rect.left - 100 && e.clientX <= rect.right + 100;
+
+    if (isNear) {
+      hits++;
+      createHitEffect(e.clientX, e.clientY);
+
+      // Jiggle the progress bar slightly to show impact
+      progress += 0.15;
+      progressBar.style.width = `${Math.min(99.9, progress)}%`;
+
+      if (hits >= hitsRequired) {
+        unstick();
+      } else {
+        const remaining = hitsRequired - hits;
+        const msg = remaining === 1 ? "1 more time!" : `${remaining} more times!`;
+        statusText.innerHTML = `<span style="color:#ffeb3b">99%... It's budging! Hit it ${msg}</span>`;
+
+        // Shake intensity could increase or just keep standard
+      }
+    }
+  });
+
+  function createHitEffect(x, y) {
+    // Create Comic Text
+    const text = document.createElement('div');
+    text.className = 'comic-text';
+    text.textContent = words[Math.floor(Math.random() * words.length)];
+    text.style.left = `${x}px`;
+    text.style.top = `${y}px`;
+    text.style.setProperty('--rand', Math.random());
+    document.body.appendChild(text);
+
+    setTimeout(() => text.remove(), 600);
+
+    // Create Sparks
+    for (let i = 0; i < 10; i++) {
+      const spark = document.createElement('div');
+      spark.className = 'spark';
+      spark.style.left = `${x}px`;
+      spark.style.top = `${y}px`;
+
+      const angle = Math.random() * Math.PI * 2;
+      const velocity = 80 + Math.random() * 150;
+      const tx = Math.cos(angle) * velocity;
+      const ty = Math.sin(angle) * velocity;
+
+      spark.style.setProperty('--tx', `${tx}px`);
+      spark.style.setProperty('--ty', `${ty}px`);
+
+      document.body.appendChild(spark);
+      setTimeout(() => spark.remove(), 600);
+    }
+
+    // Flash background slightly
+    const oldBg = document.body.style.backgroundColor;
+    document.body.style.backgroundColor = '#2a1a3e';
+    setTimeout(() => {
+      document.body.style.backgroundColor = oldBg || '#1a1a2e';
+    }, 50);
+  }
+
+  function unstick() {
+    state = 'complete';
+    progressWrapper.classList.remove('stuck');
+    progressBar.classList.remove('jammed-bar');
+    document.body.classList.remove('hammer-cursor');
+    document.body.classList.remove('hammer-cursor-active');
+    instructions.classList.remove('visible');
+
+    progressBar.style.transition = 'width 0.4s ease-out';
+    progressBar.style.width = '100%';
+
+    document.body.classList.add('completed');
+
+    setTimeout(() => {
+      statusText.innerHTML = `<span style="color:#4caf50">100% Download Complete! Thanks for the fix!</span>`;
+      progressBar.style.background = 'linear-gradient(90deg, #4caf50, #81c784)';
+    }, 400);
+  }
+
+  // Start the progress
+  setTimeout(updateProgress, 500);
+
+</script>
+</body>
+</html>
