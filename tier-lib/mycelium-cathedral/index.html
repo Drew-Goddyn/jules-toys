@@ -358,75 +358,45 @@
         child.geometry.dispose();
       }
 
-      // Find strong triangles to create vaults
+      // Raise nave-like panels/vaults from strong links
       let membraneCount = 0;
-      const strongLinks = simLinks.filter(l => l.strength > 0.6 && l.source.health > 20 && l.target.health > 20);
-      const adjList = new Map();
+      // Weaken thresholds slightly to allow more architecture to form
+      const strongLinks = simLinks.filter(l => l.strength >= 0.5 && l.source.health > 15 && l.target.health > 15);
 
-      strongLinks.forEach(l => {
-        const s = l.source.id;
-        const t = l.target.id;
-        if(!adjList.has(s)) adjList.set(s, new Set());
-        if(!adjList.has(t)) adjList.set(t, new Set());
-        adjList.get(s).add(t);
-        adjList.get(t).add(s);
-      });
+      strongLinks.forEach(link => {
+        if (link.source.x !== undefined && link.target.x !== undefined) {
+          membraneCount++;
 
-      const seenTriangles = new Set();
+          // Find center of the link
+          const cx = (link.source.x + link.target.x) / 2;
+          const cy = (link.source.y + link.target.y) / 2;
+          const cz = (link.source.z + link.target.z) / 2;
 
-      // Very naive triangle finding for architecture
-      for (const [u, neighbors] of adjList.entries()) {
-        const nArr = Array.from(neighbors);
-        for (let i = 0; i < nArr.length; i++) {
-          for (let j = i + 1; j < nArr.length; j++) {
-            const v = nArr[i];
-            const w = nArr[j];
-            if (adjList.get(v).has(w)) {
-              // Found triangle u, v, w
-              const tri = [u, v, w].sort().join(',');
-              if (!seenTriangles.has(tri)) {
-                seenTriangles.add(tri);
-                membraneCount++;
-
-                const nodeU = simNodes.find(n => n.id === u);
-                const nodeV = simNodes.find(n => n.id === v);
-                const nodeW = simNodes.find(n => n.id === w);
-
-                if (nodeU && nodeV && nodeW && nodeU.x !== undefined) {
-                  // Raise a center point for the vault
-                  const cx = (nodeU.x + nodeV.x + nodeW.x) / 3;
-                  const cy = (nodeU.y + nodeV.y + nodeW.y) / 3;
-                  const cz = (nodeU.z + nodeV.z + nodeW.z) / 3;
-
-                  // offset center towards origin (or outward depending on Cathedral vibe)
-                  const vaultCenter = new THREE.Vector3(cx, cy, cz);
-                  vaultCenter.multiplyScalar(1.2); // stretch outwards
-
-                  const geom = new THREE.BufferGeometry();
-                  const vertices = new Float32Array([
-                    nodeU.x, nodeU.y, nodeU.z,
-                    nodeV.x, nodeV.y, nodeV.z,
-                    vaultCenter.x, vaultCenter.y, vaultCenter.z,
-
-                    nodeV.x, nodeV.y, nodeV.z,
-                    nodeW.x, nodeW.y, nodeW.z,
-                    vaultCenter.x, vaultCenter.y, vaultCenter.z,
-
-                    nodeW.x, nodeW.y, nodeW.z,
-                    nodeU.x, nodeU.y, nodeU.z,
-                    vaultCenter.x, vaultCenter.y, vaultCenter.z
-                  ]);
-
-                  geom.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-                  geom.computeVertexNormals();
-                  const mesh = new THREE.Mesh(geom, membraneMat);
-                  membranesGroup.add(mesh);
-                }
-              }
-            }
+          // Create an apex point raised outward from center
+          // Multiply by a factor to pull it outwards like a vault rib
+          const vaultApex = new THREE.Vector3(cx, cy, cz);
+          if (vaultApex.lengthSq() < 0.1) {
+            vaultApex.set(0, 5, 0); // fallback if right at origin
+          } else {
+            vaultApex.multiplyScalar(1.4);
+            // Add a little upward lift to simulate arches
+            vaultApex.y += 2;
           }
+
+          const geom = new THREE.BufferGeometry();
+          const vertices = new Float32Array([
+            link.source.x, link.source.y, link.source.z,
+            link.target.x, link.target.y, link.target.z,
+            vaultApex.x, vaultApex.y, vaultApex.z
+          ]);
+
+          geom.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+          geom.computeVertexNormals();
+
+          const mesh = new THREE.Mesh(geom, membraneMat);
+          membranesGroup.add(mesh);
         }
-      }
+      });
       state.membranes = membraneCount;
       document.getElementById('membrane-val').textContent = membraneCount;
     }
