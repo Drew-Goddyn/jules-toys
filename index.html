@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jules Toys Gallery</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #111318;
+      --muted: #5f6876;
+      --quiet: #7f8794;
+      --page: #f4f6f8;
+      --surface: #ffffff;
+      --surface-strong: #f9fafb;
+      --line: #d8dee8;
+      --line-strong: #b8c1ce;
+      --accent: #0f766e;
+      --accent-strong: #115e59;
+      --amber: #b45309;
+      --shadow: 0 18px 46px rgb(17 19 24 / 0.12);
+      --radius: 8px;
+      --gap: 1rem;
+      --max: 1440px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background:
+        linear-gradient(90deg, rgb(15 118 110 / 0.07) 0 1px, transparent 1px 100%) 0 0 / 4.5rem 4.5rem,
+        linear-gradient(180deg, #fbfcfd 0%, var(--page) 36rem, #edf1f5 100%);
+      color: var(--ink);
+      line-height: 1.5;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button,
+    select,
+    input,
+    a {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    :focus-visible {
+      outline: 3px solid rgb(15 118 110 / 0.42);
+      outline-offset: 3px;
+    }
+
+    .shell {
+      width: min(100% - 2rem, var(--max));
+      margin: 0 auto;
+    }
+
+    .site-header {
+      padding: 1.25rem 0 0;
+      border-bottom: 1px solid var(--line);
+      background: rgb(244 246 248 / 0.88);
+      backdrop-filter: blur(16px);
+    }
+
+    .masthead {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 1rem;
+      align-items: start;
+      padding-bottom: 1rem;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2.15rem, 1.75rem + 1.5vw, 4.4rem);
+      line-height: 0.96;
+      letter-spacing: 0;
+      text-wrap: balance;
+      max-width: 12ch;
+    }
+
+    .eyebrow,
+    .section-kicker,
+    .card-kicker,
+    .meta-label {
+      margin: 0 0 0.45rem;
+      color: var(--muted);
+      font-size: 0.74rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .lede {
+      margin: 0.85rem 0 0;
+      max-width: 62ch;
+      color: #394150;
+      font-size: 1rem;
+      text-wrap: pretty;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(7rem, 1fr));
+      gap: 0.65rem;
+      min-width: min(34rem, 100%);
+    }
+
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 0.9rem;
+      box-shadow: 0 1px 0 rgb(17 19 24 / 0.04);
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 1.45rem;
+      line-height: 1;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 0.35rem;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: minmax(16rem, 1fr) auto auto auto;
+      gap: 0.75rem;
+      align-items: end;
+      padding: 0.85rem 0 1rem;
+    }
+
+    .field {
+      display: grid;
+      gap: 0.35rem;
+    }
+
+    label {
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 750;
+    }
+
+    input[type="search"],
+    select {
+      min-block-size: 2.75rem;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--ink);
+      padding: 0.65rem 0.8rem;
+    }
+
+    .tier-filter {
+      display: flex;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      max-width: 34rem;
+    }
+
+    .error-panel {
+      border: 1px solid #f4a7a7;
+      border-radius: var(--radius);
+      background: #fff5f5;
+      color: #7f1d1d;
+      padding: 1rem;
+      margin-top: 1rem;
+    }
+
+    .error-panel[hidden] {
+      display: none;
+    }
+
+    .tier-button,
+    .ghost-button,
+    .detail-button {
+      min-block-size: 2.55rem;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--ink);
+      padding: 0.58rem 0.78rem;
+      font-weight: 780;
+      cursor: pointer;
+      transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+    }
+
+    .tier-button:hover,
+    .ghost-button:hover,
+    .detail-button:hover {
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    .tier-button[aria-pressed="true"] {
+      background: var(--ink);
+      border-color: var(--ink);
+      color: #fff;
+    }
+
+    main {
+      padding: 1.25rem 0 4rem;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(19rem, 0.65fr);
+      gap: 1rem;
+      align-items: stretch;
+      margin-bottom: 1.25rem;
+    }
+
+    .feature-panel,
+    .ladder-panel,
+    .archive-panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: 0 1px 0 rgb(17 19 24 / 0.04);
+      overflow: clip;
+    }
+
+    .feature-panel {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(18rem, 0.65fr);
+      min-height: 29rem;
+    }
+
+    .feature-media {
+      min-height: 24rem;
+      background: #171a20;
+      border-right: 1px solid var(--line);
+    }
+
+    .feature-media img {
+      width: 100%;
+      height: 100%;
+      min-height: 24rem;
+      object-fit: cover;
+      display: block;
+    }
+
+    .feature-copy {
+      padding: 1.1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+      justify-content: space-between;
+    }
+
+    .feature-copy h2,
+    .section-heading h2,
+    .dialog-copy h2 {
+      margin: 0;
+      font-size: clamp(1.45rem, 1.2rem + 0.75vw, 2.25rem);
+      line-height: 1.05;
+      letter-spacing: 0;
+      text-wrap: balance;
+    }
+
+    .feature-copy p,
+    .dialog-copy p {
+      margin: 0;
+      color: #394150;
+      text-wrap: pretty;
+    }
+
+    .feature-actions,
+    .card-actions,
+    .dialog-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      align-items: center;
+    }
+
+    .open-link,
+    .primary-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-block-size: 2.55rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--accent-strong);
+      background: var(--accent);
+      color: #fff;
+      padding: 0.58rem 0.8rem;
+      text-decoration: none;
+      font-weight: 800;
+    }
+
+    .open-link:hover,
+    .primary-link:hover {
+      background: var(--accent-strong);
+    }
+
+    .ladder-panel {
+      padding: 1rem;
+      display: grid;
+      gap: 0.75rem;
+      align-content: start;
+    }
+
+    .ladder {
+      display: grid;
+      gap: 0.42rem;
+    }
+
+    .ladder-row {
+      display: grid;
+      grid-template-columns: 3.25rem minmax(0, 1fr) 2rem;
+      align-items: center;
+      gap: 0.6rem;
+      min-height: 2.35rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface-strong);
+      padding: 0.4rem 0.55rem;
+    }
+
+    .ladder-row strong {
+      font-size: 0.82rem;
+    }
+
+    .ladder-row span {
+      color: var(--muted);
+      font-size: 0.78rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .ladder-row em {
+      font-style: normal;
+      color: var(--ink);
+      font-weight: 800;
+      text-align: right;
+    }
+
+    .bar {
+      position: relative;
+      height: 0.42rem;
+      background: #e7ebf0;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: calc(var(--count) / 3 * 100%);
+      background: var(--accent);
+      border-radius: inherit;
+    }
+
+    .section-heading {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: end;
+      margin: 1.6rem 0 0.85rem;
+    }
+
+    .section-heading p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1rem;
+      align-items: stretch;
+    }
+
+    .toy-card {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 100%;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: 0 1px 0 rgb(17 19 24 / 0.04);
+      overflow: hidden;
+      container-type: inline-size;
+      content-visibility: auto;
+      contain-intrinsic-block-size: auto 32rem;
+    }
+
+    .toy-card[hidden],
+    .empty-state[hidden] {
+      display: none;
+    }
+
+    .toy-shot {
+      aspect-ratio: 16 / 10;
+      background: #1c2028;
+      border-bottom: 1px solid var(--line);
+      overflow: hidden;
+    }
+
+    .toy-shot img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 260ms ease;
+    }
+
+    .toy-card:hover .toy-shot img {
+      transform: scale(1.025);
+    }
+
+    .toy-body {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      gap: 0.7rem;
+      padding: 0.9rem;
+    }
+
+    .card-topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .tier-pill {
+      display: inline-flex;
+      align-items: center;
+      min-block-size: 1.7rem;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #f4f6f8;
+      color: #293241;
+      padding: 0.2rem 0.55rem;
+      font-size: 0.78rem;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .kind {
+      color: var(--muted);
+      font-size: 0.82rem;
+      text-align: right;
+      line-height: 1.3;
+    }
+
+    .toy-card h3 {
+      margin: 0;
+      font-size: 1.1rem;
+      line-height: 1.15;
+      letter-spacing: 0;
+      text-wrap: balance;
+    }
+
+    .toy-card p {
+      margin: 0;
+      color: #394150;
+      font-size: 0.92rem;
+      text-wrap: pretty;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: auto;
+      padding: 0;
+      list-style: none;
+    }
+
+    .tag {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: #44505f;
+      background: var(--surface-strong);
+      padding: 0.17rem 0.45rem;
+      font-size: 0.76rem;
+      font-weight: 700;
+    }
+
+    .card-actions {
+      padding-top: 0.1rem;
+    }
+
+    .detail-button {
+      background: #f7f8fa;
+    }
+
+    .empty-state {
+      grid-column: 1 / -1;
+      border: 1px dashed var(--line-strong);
+      border-radius: var(--radius);
+      background: rgb(255 255 255 / 0.72);
+      padding: 2rem;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .empty-state .ghost-button {
+      margin-top: 1rem;
+    }
+
+    dialog {
+      width: min(64rem, calc(100% - 2rem));
+      max-height: min(48rem, calc(100dvh - 2rem));
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 0;
+      overflow: auto;
+    }
+
+    dialog::backdrop {
+      background: rgb(17 19 24 / 0.56);
+      backdrop-filter: blur(4px);
+    }
+
+    .dialog-shell {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(18rem, 0.75fr);
+      gap: 0;
+      background: var(--surface);
+    }
+
+    .dialog-media {
+      min-height: 26rem;
+      background: #171a20;
+      border-right: 1px solid var(--line);
+    }
+
+    .dialog-media img {
+      width: 100%;
+      height: 100%;
+      min-height: 26rem;
+      object-fit: cover;
+      display: block;
+    }
+
+    .dialog-copy {
+      padding: 1rem;
+      display: grid;
+      gap: 0.9rem;
+      align-content: start;
+    }
+
+    .dialog-close {
+      justify-self: end;
+      min-inline-size: 2.4rem;
+      min-block-size: 2.4rem;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: var(--surface-strong);
+      color: var(--ink);
+      cursor: pointer;
+      font-weight: 900;
+    }
+
+    .meta-list {
+      display: grid;
+      grid-template-columns: max-content minmax(0, 1fr);
+      gap: 0.5rem 0.75rem;
+      margin: 0;
+    }
+
+    .meta-list dt {
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .meta-list dd {
+      margin: 0;
+      min-width: 0;
+      overflow-wrap: anywhere;
+      color: #28313e;
+    }
+
+    .site-footer {
+      border-top: 1px solid var(--line);
+      padding: 1.4rem 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    @container (max-width: 26rem) {
+      .card-topline {
+        align-items: start;
+        flex-direction: column;
+      }
+
+      .kind {
+        text-align: left;
+      }
+    }
+
+    @media (max-width: 1100px) {
+      .masthead,
+      .hero-grid,
+      .feature-panel {
+        grid-template-columns: 1fr;
+      }
+
+      .stats {
+        min-width: 0;
+      }
+
+      .feature-media,
+      .dialog-media {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .gallery {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 760px) {
+      .shell {
+        width: min(100% - 1rem, var(--max));
+      }
+
+      .site-header {
+        position: static;
+      }
+
+      .masthead {
+        gap: 0.7rem;
+        padding-bottom: 0.75rem;
+      }
+
+      .controls,
+      .gallery,
+      .dialog-shell {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 2.35rem;
+      }
+
+      .lede {
+        margin-top: 0.65rem;
+        font-size: 0.92rem;
+      }
+
+      .stats {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.4rem;
+      }
+
+      .stat {
+        padding: 0.58rem;
+      }
+
+      .stat strong {
+        font-size: 1.05rem;
+      }
+
+      .stat span {
+        font-size: 0.68rem;
+      }
+
+      .controls {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.5rem;
+      }
+
+      .controls .field:first-child,
+      .tier-filter {
+        grid-column: 1 / -1;
+      }
+
+      .tier-filter {
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 0.25rem;
+      }
+
+      .tier-button {
+        flex: 0 0 auto;
+      }
+
+      .section-heading {
+        align-items: start;
+        flex-direction: column;
+      }
+
+      .feature-panel {
+        min-height: 0;
+      }
+
+      .feature-media,
+      .feature-media img {
+        min-height: 17rem;
+      }
+
+      .dialog-media,
+      .dialog-media img {
+        min-height: 18rem;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      *,
+      *::before,
+      *::after {
+        transition-duration: 0s !important;
+        animation-duration: 0s !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="shell">
+      <div class="masthead">
+        <div>
+          <p class="eyebrow">Jules realization probe archive</p>
+          <h1>Jules Toys Gallery</h1>
+          <p class="lede">A public, static showcase of rendered one-shot HTML experiments, organized by the ambition ladder and kept close to the evidence: screenshots, paths, and factual behavior summaries.</p>
+        </div>
+        <dl class="stats" aria-label="Gallery stats">
+          <div class="stat">
+            <dt class="meta-label">Artifacts</dt>
+            <dd><strong id="statTotal">0</strong><span>committed toys</span></dd>
+          </div>
+          <div class="stat">
+            <dt class="meta-label">Ladder</dt>
+            <dd><strong>T1-T8</strong><span>ambition tiers</span></dd>
+          </div>
+          <div class="stat">
+            <dt class="meta-label">Runtime</dt>
+            <dd><strong>0</strong><span>build steps</span></dd>
+          </div>
+        </dl>
+      </div>
+      <search class="controls">
+        <div class="field">
+          <label for="searchInput">Search gallery</label>
+          <input id="searchInput" type="search" autocomplete="off" placeholder="terrain, dispatch, sequencer, T8">
+        </div>
+        <div class="field">
+          <label for="sortSelect">Sort</label>
+          <select id="sortSelect">
+            <option value="tier-desc">Tier high to low</option>
+            <option value="tier-asc">Tier low to high</option>
+            <option value="title">Title</option>
+          </select>
+        </div>
+        <button class="ghost-button" type="button" id="resetFilters">Reset</button>
+        <div class="tier-filter" role="group" aria-label="Tier filter" id="tierFilter"></div>
+      </search>
+      <div class="error-panel" id="dataError" hidden></div>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="hero-grid" aria-labelledby="featuredTitle">
+      <article class="feature-panel" id="featuredPanel"></article>
+      <aside class="ladder-panel" aria-labelledby="ladderTitle">
+        <div>
+          <p class="section-kicker">Tier ladder</p>
+          <h2 id="ladderTitle">Rendered evidence by tier</h2>
+        </div>
+        <div class="ladder" id="tierLadder"></div>
+      </aside>
+    </section>
+
+    <section aria-labelledby="galleryTitle">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Archive</p>
+          <h2 id="galleryTitle">Experiment index</h2>
+        </div>
+        <p id="resultCount" aria-live="polite">0 artifacts</p>
+      </div>
+      <div class="gallery" id="galleryGrid"></div>
+      <div class="empty-state" id="emptyState" hidden>
+        <p>No matching artifacts.</p>
+        <button class="ghost-button" type="button" id="emptyReset">Reset filters</button>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="detailDialog" aria-labelledby="dialogTitle">
+    <div class="dialog-shell">
+      <div class="dialog-media">
+        <img id="dialogImage" alt="" width="1600" height="1000">
+      </div>
+      <div class="dialog-copy">
+        <button class="dialog-close" type="button" aria-label="Close details" id="dialogClose">X</button>
+        <div>
+          <p class="card-kicker" id="dialogKicker"></p>
+          <h2 id="dialogTitle"></h2>
+        </div>
+        <p id="dialogSummary"></p>
+        <dl class="meta-list">
+          <dt>Path</dt>
+          <dd id="dialogPath"></dd>
+          <dt>Kind</dt>
+          <dd id="dialogKind"></dd>
+          <dt>Tags</dt>
+          <dd id="dialogTags"></dd>
+        </dl>
+        <div class="dialog-actions">
+          <a class="primary-link" id="dialogOpen" href="">Open toy</a>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <footer class="site-footer">
+    <div class="shell">Static GitHub Pages gallery for Drew-Goddyn/jules-toys.</div>
+  </footer>
+
+  <script src="gallery-data.js"></script>
+  <script>
+    const tiers = ["all", 1, 2, 3, 4, 5, 6, 7, 8];
+    const requiredFields = ["tier", "title", "slug", "path", "screenshot", "kind", "tags", "oneLine"];
+    const dataError = document.querySelector("#dataError");
+    const rawItems = Array.isArray(window.galleryItems) ? window.galleryItems : [];
+    const invalidItems = rawItems.filter((item) => {
+      return !item || requiredFields.some((field) => item[field] === undefined || item[field] === null) || !Array.isArray(item.tags);
+    });
+    if (!rawItems.length || invalidItems.length) {
+      dataError.hidden = false;
+      dataError.textContent = invalidItems.length
+        ? `Gallery data has ${invalidItems.length} invalid item${invalidItems.length === 1 ? "" : "s"}.`
+        : "Gallery data is missing or empty.";
+    }
+    const items = invalidItems.length ? [] : [...rawItems];
+    const searchInput = document.querySelector("#searchInput");
+    const sortSelect = document.querySelector("#sortSelect");
+    const resetFilters = document.querySelector("#resetFilters");
+    const tierFilter = document.querySelector("#tierFilter");
+    const galleryGrid = document.querySelector("#galleryGrid");
+    const resultCount = document.querySelector("#resultCount");
+    const emptyState = document.querySelector("#emptyState");
+    const emptyReset = document.querySelector("#emptyReset");
+    const featuredPanel = document.querySelector("#featuredPanel");
+    const tierLadder = document.querySelector("#tierLadder");
+    const dialog = document.querySelector("#detailDialog");
+    let activeTier = "all";
+
+    function tierName(tier) {
+      return `T${tier}`;
+    }
+
+    function searchBlob(item) {
+      return [
+        item.tier,
+        tierName(item.tier),
+        item.title,
+        item.slug,
+        item.kind,
+        item.path,
+        item.oneLine,
+        ...item.tags
+      ].join(" ").toLowerCase();
+    }
+
+    function setTierButtonState() {
+      tierFilter.querySelectorAll("button").forEach((button) => {
+        button.setAttribute("aria-pressed", String(button.dataset.tier === String(activeTier)));
+      });
+    }
+
+    function renderTierButtons() {
+      tierFilter.replaceChildren(...tiers.map((tier) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "tier-button";
+        button.dataset.tier = String(tier);
+        button.textContent = tier === "all" ? "All" : tierName(tier);
+        button.addEventListener("click", () => {
+          activeTier = tier;
+          setTierButtonState();
+          renderGallery();
+        });
+        return button;
+      }));
+      setTierButtonState();
+    }
+
+    function getFilteredItems() {
+      const query = searchInput.value.trim().toLowerCase();
+      return items
+        .filter((item) => activeTier === "all" || item.tier === Number(activeTier))
+        .filter((item) => !query || searchBlob(item).includes(query))
+        .sort((a, b) => {
+          if (sortSelect.value === "tier-asc") return a.tier - b.tier || a.title.localeCompare(b.title);
+          if (sortSelect.value === "title") return a.title.localeCompare(b.title);
+          return b.tier - a.tier || a.title.localeCompare(b.title);
+        });
+    }
+
+    function tagList(tags) {
+      return tags.map((tag) => `<li class="tag">${tag}</li>`).join("");
+    }
+
+    function cardTemplate(item, index) {
+      const article = document.createElement("article");
+      article.className = "toy-card";
+      article.innerHTML = `
+        <div class="toy-shot">
+          <img src="${item.screenshot}" alt="Screenshot of ${item.title}" width="1600" height="1000" ${index > 2 ? 'loading="lazy"' : 'fetchpriority="high"'}>
+        </div>
+        <div class="toy-body">
+          <div class="card-topline">
+            <span class="tier-pill">${tierName(item.tier)}</span>
+            <span class="kind">${item.kind}</span>
+          </div>
+          <h3>${item.title}</h3>
+          <p>${item.oneLine}</p>
+          <ul class="tags" aria-label="Tags for ${item.title}">${tagList(item.tags)}</ul>
+          <div class="card-actions">
+            <a class="open-link" href="${item.path}">Open toy</a>
+            <button class="detail-button" type="button">Details</button>
+          </div>
+        </div>
+      `;
+      article.querySelector("button").addEventListener("click", () => openDetails(item));
+      return article;
+    }
+
+    function renderGallery() {
+      const visible = getFilteredItems();
+      galleryGrid.replaceChildren(...visible.map(cardTemplate));
+      resultCount.textContent = `${visible.length} ${visible.length === 1 ? "artifact" : "artifacts"}`;
+      emptyState.hidden = visible.length > 0 || items.length === 0;
+    }
+
+    function renderFeatured() {
+      const item = items.find((candidate) => candidate.slug === "biome-forge") || items.at(-1);
+      if (!item) {
+        featuredPanel.innerHTML = "<div class=\"feature-copy\"><h2>No gallery data</h2><p>The gallery data file did not load.</p></div>";
+        return;
+      }
+      featuredPanel.innerHTML = `
+        <div class="feature-media">
+          <img src="${item.screenshot}" alt="Screenshot of ${item.title}" width="1600" height="1000" fetchpriority="high">
+        </div>
+        <div class="feature-copy">
+          <div>
+            <p class="section-kicker" id="featuredTitle">Featured apex artifact</p>
+            <h2>${item.title}</h2>
+          </div>
+          <p>${item.oneLine}</p>
+          <dl class="meta-list">
+            <dt>Tier</dt>
+            <dd>${tierName(item.tier)}</dd>
+            <dt>Kind</dt>
+            <dd>${item.kind}</dd>
+            <dt>Path</dt>
+            <dd>${item.path}</dd>
+          </dl>
+          <ul class="tags" aria-label="Tags for featured artifact">${tagList(item.tags)}</ul>
+          <div class="feature-actions">
+            <a class="primary-link" href="${item.path}">Open toy</a>
+            <button class="detail-button" type="button" id="featuredDetails">Details</button>
+          </div>
+        </div>
+      `;
+      document.querySelector("#featuredDetails").addEventListener("click", () => openDetails(item));
+    }
+
+    function renderLadder() {
+      const counts = new Map(items.map((item) => [item.tier, 0]));
+      items.forEach((item) => counts.set(item.tier, (counts.get(item.tier) || 0) + 1));
+      const labels = {
+        1: "Single static artifact",
+        2: "Static composition",
+        3: "Motion or interaction",
+        4: "Stateful control",
+        5: "Multi-feature widget",
+        6: "Cohesive mini-app",
+        7: "Real logic/mechanics",
+        8: "Apex cohesion + logic"
+      };
+      tierLadder.replaceChildren(...[8, 7, 6, 5, 4, 3, 2, 1].map((tier) => {
+        const row = document.createElement("button");
+        row.type = "button";
+        row.className = "ladder-row";
+        row.style.setProperty("--count", counts.get(tier) || 0);
+        row.innerHTML = `
+          <strong>${tierName(tier)}</strong>
+          <span>${labels[tier]}</span>
+          <em>${counts.get(tier) || 0}</em>
+          <span class="bar" aria-hidden="true"></span>
+        `;
+        row.addEventListener("click", () => {
+          activeTier = tier;
+          setTierButtonState();
+          renderGallery();
+          document.querySelector("#galleryTitle").scrollIntoView({ block: "start" });
+        });
+        return row;
+      }));
+    }
+
+    function openDetails(item) {
+      document.querySelector("#dialogImage").src = item.screenshot;
+      document.querySelector("#dialogImage").alt = `Screenshot of ${item.title}`;
+      document.querySelector("#dialogKicker").textContent = `${tierName(item.tier)} / ${item.kind}`;
+      document.querySelector("#dialogTitle").textContent = item.title;
+      document.querySelector("#dialogSummary").textContent = item.oneLine;
+      document.querySelector("#dialogPath").textContent = item.path;
+      document.querySelector("#dialogKind").textContent = item.kind;
+      document.querySelector("#dialogTags").textContent = item.tags.join(", ");
+      document.querySelector("#dialogOpen").href = item.path;
+      if (typeof dialog.showModal === "function") {
+        dialog.showModal();
+      } else {
+        dialog.setAttribute("open", "");
+      }
+    }
+
+    document.querySelector("#dialogClose").addEventListener("click", () => dialog.close());
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) dialog.close();
+    });
+    searchInput.addEventListener("input", renderGallery);
+    function resetGallery() {
+      activeTier = "all";
+      searchInput.value = "";
+      sortSelect.value = "tier-desc";
+      setTierButtonState();
+      renderGallery();
+    }
+
+    resetFilters.addEventListener("click", resetGallery);
+    emptyReset.addEventListener("click", resetGallery);
+    sortSelect.addEventListener("change", renderGallery);
+
+    document.querySelector("#statTotal").textContent = items.length;
+    renderTierButtons();
+    renderFeatured();
+    renderLadder();
+    renderGallery();
+  </script>
+</body>
+</html>
