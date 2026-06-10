@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ant Colony Command</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: #1a1a1a;
+            color: #eee;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #app {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        #simulation-container {
+            flex-grow: 1;
+            position: relative;
+            background-color: #2a2a2a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        canvas {
+            background-color: #3b3a32;
+            cursor: crosshair;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        #control-panel {
+            width: 350px;
+            background-color: #222;
+            border-left: 2px solid #333;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: #ddd;
+            text-align: center;
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            background-color: #1a1a1a;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #aaa;
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        .tools-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .tools-section h2 {
+            font-size: 1rem;
+            margin: 0;
+            color: #aaa;
+            text-transform: uppercase;
+        }
+
+        .tool-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .radio-button {
+            display: none;
+        }
+
+        .radio-label {
+            background-color: #333;
+            padding: 10px;
+            text-align: center;
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .radio-button:checked + .radio-label {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .radio-label:hover {
+            background-color: #444;
+        }
+
+        .actions-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        button {
+            background-color: #444;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-size: 0.9rem;
+        }
+
+        button:hover {
+            background-color: #555;
+        }
+
+        button.danger {
+            background-color: #cc4444;
+        }
+
+        button.danger:hover {
+            background-color: #dd5555;
+        }
+
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .slider-container label {
+            font-size: 0.9rem;
+            color: #aaa;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        input[type="range"] {
+            width: 100%;
+        }
+
+        #event-log {
+            flex-grow: 1;
+            background-color: #111;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 10px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: #00ff00;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-height: 100px;
+        }
+
+        .log-entry {
+            border-bottom: 1px solid #222;
+            padding-bottom: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="simulation-container">
+            <canvas id="sim-canvas" width="800" height="600"></canvas>
+        </div>
+        <div id="control-panel">
+            <h1>Ant Colony Command</h1>
+
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-label">Population</span>
+                    <span class="stat-value" id="stat-pop">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Food</span>
+                    <span class="stat-value" id="stat-food">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Score</span>
+                    <span class="stat-value" id="stat-score">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Wave</span>
+                    <span class="stat-value" id="stat-wave">1</span>
+                </div>
+            </div>
+
+            <div class="tools-section">
+                <h2>Tools (Click Canvas)</h2>
+                <div class="tool-options">
+                    <input type="radio" id="tool-food" name="tool" value="food" class="radio-button" checked>
+                    <label for="tool-food" class="radio-label">Place Food</label>
+
+                    <input type="radio" id="tool-obstacle" name="tool" value="obstacle" class="radio-button">
+                    <label for="tool-obstacle" class="radio-label">Add Obstacle</label>
+
+                    <input type="radio" id="tool-remove" name="tool" value="remove" class="radio-button">
+                    <label for="tool-remove" class="radio-label">Remove</label>
+
+                    <input type="radio" id="tool-beacon" name="tool" value="beacon" class="radio-button">
+                    <label for="tool-beacon" class="radio-label">Drop Beacon</label>
+                </div>
+            </div>
+
+            <div class="actions-section">
+                <button id="btn-rain">Trigger Rain</button>
+                <button id="btn-attack" class="danger">Trigger Attack</button>
+                <button id="btn-add-ants">Add 10 Ants</button>
+                <button id="btn-pause">Pause</button>
+                <button id="btn-reset" style="grid-column: span 2;">Reset Simulation</button>
+            </div>
+
+            <div class="slider-container">
+                <label>
+                    <span>Simulation Speed</span>
+                    <span id="speed-value">1.0x</span>
+                </label>
+                <input type="range" id="slider-speed" min="0.1" max="3" step="0.1" value="1">
+            </div>
+
+            <div id="event-log">
+                <div class="log-entry">System initialized.</div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const canvas = document.getElementById('sim-canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Simulation State
+        let ants = [];
+        let pheromones = []; // { x, y, type: 'toHome'|'toFood', strength: 1.0, life: 1000 }
+        let foods = []; // { x, y, amount: 50, radius: 10 }
+        let obstacles = []; // { x, y, radius: 20 }
+        let beacons = []; // { x, y, strength: 1.0, life: 2000 }
+        let predators = []; // {x, y, dx, dy, life}
+        let rainDrops = [];
+
+        const nest = { x: 400, y: 300, radius: 25, storedFood: 0 };
+
+        let simSpeed = 1.0;
+        let isPaused = false;
+        let lastTime = 0;
+        let score = 0;
+        let wave = 1;
+
+        const ANT_SPEED = 60; // px per sec
+        const ANT_TURN_SPEED = Math.PI * 2; // rad per sec
+        const SENSOR_DIST = 25;
+        const SENSOR_ANGLE = Math.PI / 4;
+        const PHEROMONE_DECAY_RATE = 0.05; // per sec
+
+        class Ant {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.angle = Math.random() * Math.PI * 2;
+                this.state = 'search'; // 'search' or 'return'
+                this.hasFood = false;
+                this.lastPheromoneDrop = 0;
+                this.energy = 100;
+            }
+
+            update(dt) {
+                // Sensors
+                let senseType = this.state === 'search' ? 'toFood' : 'toHome';
+
+                let front = this.sense(0, senseType);
+                let left = this.sense(-SENSOR_ANGLE, senseType);
+                let right = this.sense(SENSOR_ANGLE, senseType);
+
+                // Add beacon pull if searching
+                if (this.state === 'search' && beacons.length > 0) {
+                    let b = beacons[0];
+                    let distToBeacon = Math.hypot(b.x - this.x, b.y - this.y);
+                    if (distToBeacon < 200) {
+                        let angleToBeacon = Math.atan2(b.y - this.y, b.x - this.x);
+                        let diff = angleToBeacon - this.angle;
+                        diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+                        this.angle += diff * ANT_TURN_SPEED * dt * 0.5;
+                    }
+                }
+
+                // Steer based on pheromones
+                if (front > left && front > right) {
+                    // Go straight
+                    this.angle += (Math.random() - 0.5) * 0.5; // slight wander
+                } else if (left > right) {
+                    this.angle -= ANT_TURN_SPEED * dt * 0.5;
+                } else if (right > left) {
+                    this.angle += ANT_TURN_SPEED * dt * 0.5;
+                } else {
+                    // Wander randomly if no pheromones
+                    this.angle += (Math.random() - 0.5) * 2.0 * dt;
+                }
+
+                // Avoid obstacles
+                for (let obs of obstacles) {
+                    let dist = Math.hypot(obs.x - this.x, obs.y - this.y);
+                    if (dist < obs.radius + SENSOR_DIST) {
+                        let angleToObs = Math.atan2(obs.y - this.y, obs.x - this.x);
+                        let diff = angleToObs - this.angle;
+                        diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+                        if (Math.abs(diff) < Math.PI/2) {
+                            this.angle -= Math.sign(diff) * ANT_TURN_SPEED * dt;
+                        }
+                    }
+                }
+
+                // Move
+                this.x += Math.cos(this.angle) * ANT_SPEED * dt;
+                this.y += Math.sin(this.angle) * ANT_SPEED * dt;
+
+                // Boundary bounce
+                if (this.x < 5) { this.x = 5; this.angle = Math.PI - this.angle; }
+                if (this.x > canvas.width - 5) { this.x = canvas.width - 5; this.angle = Math.PI - this.angle; }
+                if (this.y < 5) { this.y = 5; this.angle = -this.angle; }
+                if (this.y > canvas.height - 5) { this.y = canvas.height - 5; this.angle = -this.angle; }
+
+                // Drop Pheromone
+                this.lastPheromoneDrop -= dt;
+                if (this.lastPheromoneDrop <= 0) {
+                    pheromones.push({
+                        x: this.x,
+                        y: this.y,
+                        type: this.state === 'search' ? 'toHome' : 'toFood',
+                        strength: 1.0
+                    });
+                    this.lastPheromoneDrop = 0.2; // drop every 0.2s
+                }
+
+                // State logic
+                if (this.state === 'search') {
+                    for (let i = 0; i < foods.length; i++) {
+                        let f = foods[i];
+                        if (Math.hypot(f.x - this.x, f.y - this.y) < f.radius + 5) {
+                            this.hasFood = true;
+                            this.state = 'return';
+                            this.angle += Math.PI; // Turn around
+                            f.amount--;
+                            if (f.amount <= 0) foods.splice(i, 1);
+                            break;
+                        }
+                    }
+                } else if (this.state === 'return') {
+                    if (Math.hypot(nest.x - this.x, nest.y - this.y) < nest.radius + 5) {
+                        this.hasFood = false;
+                        this.state = 'search';
+                        this.angle += Math.PI; // Turn around
+                        nest.storedFood++;
+                        score += 10;
+                        updateStatsUI();
+                        checkMilestones();
+                    }
+                }
+            }
+
+            sense(angleOffset, type) {
+                let sX = this.x + Math.cos(this.angle + angleOffset) * SENSOR_DIST;
+                let sY = this.y + Math.sin(this.angle + angleOffset) * SENSOR_DIST;
+                let sum = 0;
+
+                // Add base pull towards home if returning
+                if (type === 'toHome') {
+                    let dToNest = Math.hypot(nest.x - sX, nest.y - sY);
+                    sum += 100 / (dToNest + 1); // gradient towards nest
+                }
+
+                // Add base pull towards food if searching (stronger if close)
+                if (type === 'toFood') {
+                    for(let f of foods) {
+                        let dToFood = Math.hypot(f.x - sX, f.y - sY);
+                        sum += 50 / (dToFood + 1);
+                    }
+                }
+
+                for (let p of pheromones) {
+                    if (p.type === type) {
+                        let dist = Math.hypot(p.x - sX, p.y - sY);
+                        if (dist < 20) {
+                            sum += p.strength;
+                        }
+                    }
+                }
+                return sum;
+            }
+        }
+
+        function spawnAnts(count) {
+            for (let i = 0; i < count; i++) {
+                ants.push(new Ant(nest.x + (Math.random()-0.5)*10, nest.y + (Math.random()-0.5)*10));
+            }
+            updateStatsUI();
+        }
+
+        let reqAnimFrameId;
+
+        function init() {
+            ants = [];
+            pheromones = [];
+            foods = [];
+            obstacles = [];
+            beacons = [];
+            predators = [];
+            nest.storedFood = 0;
+            score = 0;
+            wave = 1;
+            spawnAnts(20);
+
+            // Initial food
+            foods.push({x: 100, y: 100, amount: 100, radius: 15});
+            foods.push({x: 700, y: 500, amount: 100, radius: 15});
+
+            // Initial obstacle
+            obstacles.push({x: 400, y: 150, radius: 30});
+
+            lastTime = performance.now();
+            if (reqAnimFrameId) {
+                cancelAnimationFrame(reqAnimFrameId);
+            }
+            reqAnimFrameId = requestAnimationFrame(loop);
+        }
+
+        function loop(timestamp) {
+            let dt = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+
+            if (!isPaused) {
+                // Cap dt to prevent huge jumps if tab is backgrounded
+                if (dt > 0.1) dt = 0.1;
+                dt *= simSpeed;
+
+                updateSim(dt);
+            }
+            drawSim();
+
+            reqAnimFrameId = requestAnimationFrame(loop);
+        }
+
+        function updateSim(dt) {
+            // Update Ants
+            for (let i = ants.length - 1; i >= 0; i--) {
+                let ant = ants[i];
+                ant.update(dt);
+
+                // Predators kill ants
+                for(let pred of predators) {
+                    if(Math.hypot(pred.x - ant.x, pred.y - ant.y) < 15) {
+                        ants.splice(i, 1);
+                        break;
+                    }
+                }
+            }
+
+            // Update Pheromones
+            for (let i = pheromones.length - 1; i >= 0; i--) {
+                pheromones[i].strength -= PHEROMONE_DECAY_RATE * dt;
+                if (pheromones[i].strength <= 0) {
+                    pheromones.splice(i, 1);
+                }
+            }
+
+            // Update Beacons
+            for (let i = beacons.length - 1; i >= 0; i--) {
+                beacons[i].life -= dt;
+                if (beacons[i].life <= 0) beacons.splice(i, 1);
+            }
+
+            // Update Predators
+            for(let i = predators.length - 1; i>=0; i--) {
+                let p = predators[i];
+                p.x += p.dx * dt;
+                p.y += p.dy * dt;
+                p.life -= dt;
+                if(p.life <= 0 || p.x < -50 || p.x > canvas.width+50 || p.y < -50 || p.y > canvas.height+50) {
+                    predators.splice(i, 1);
+                }
+            }
+
+            // Update Raindrops
+            for(let i=rainDrops.length-1; i>=0; i--) {
+                let r = rainDrops[i];
+                r.y += 300 * dt; // fast fall
+                if(r.y > canvas.height) {
+                    // Splat removes pheromones
+                    for(let j = pheromones.length-1; j>=0; j--) {
+                        if(Math.hypot(pheromones[j].x - r.x, pheromones[j].y - r.y) < 30) {
+                            pheromones.splice(j, 1);
+                        }
+                    }
+                    rainDrops.splice(i, 1);
+                }
+            }
+            updateStatsUI();
+        }
+
+        function drawSim() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Pheromones
+            for (let p of pheromones) {
+                ctx.fillStyle = p.type === 'toHome' ? `rgba(0, 150, 255, ${p.strength * 0.5})` : `rgba(255, 100, 0, ${p.strength * 0.5})`;
+                ctx.fillRect(p.x, p.y, 2, 2);
+            }
+
+            // Draw Nest
+            ctx.beginPath();
+            ctx.arc(nest.x, nest.y, nest.radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#6b4c3a';
+            ctx.fill();
+            ctx.strokeStyle = '#4a3224';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            // Nest entrance
+            ctx.beginPath();
+            ctx.arc(nest.x, nest.y, 8, 0, Math.PI * 2);
+            ctx.fillStyle = '#111';
+            ctx.fill();
+
+            // Draw Foods
+            for (let f of foods) {
+                ctx.beginPath();
+                ctx.arc(f.x, f.y, f.radius * (f.amount/100 + 0.2), 0, Math.PI * 2);
+                ctx.fillStyle = '#8BC34A';
+                ctx.fill();
+            }
+
+            // Draw Obstacles
+            for (let obs of obstacles) {
+                ctx.beginPath();
+                ctx.arc(obs.x, obs.y, obs.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#555';
+                ctx.fill();
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            // Draw Beacons
+            for (let b of beacons) {
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, 10, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 0, ${b.life/10})`;
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, 30 + Math.sin(performance.now()/100)*5, 0, Math.PI*2);
+                ctx.strokeStyle = `rgba(255, 255, 0, 0.5)`;
+                ctx.stroke();
+            }
+
+            // Draw Ants
+            for (let ant of ants) {
+                ctx.save();
+                ctx.translate(ant.x, ant.y);
+                ctx.rotate(ant.angle);
+
+                // Body
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(-3, -1.5, 6, 3);
+
+                // Head
+                ctx.fillStyle = '#ddd';
+                ctx.fillRect(3, -2, 3, 4);
+
+                // Food
+                if (ant.hasFood) {
+                    ctx.fillStyle = '#8BC34A';
+                    ctx.beginPath();
+                    ctx.arc(5, 0, 2, 0, Math.PI*2);
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            }
+
+            // Draw Predators
+            for(let p of predators) {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 12, 0, Math.PI*2);
+                ctx.fillStyle = '#E91E63';
+                ctx.fill();
+            }
+
+            // Draw Rain
+            ctx.strokeStyle = 'rgba(150, 200, 255, 0.6)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for(let r of rainDrops) {
+                ctx.moveTo(r.x, r.y);
+                ctx.lineTo(r.x, r.y - 15);
+            }
+            ctx.stroke();
+        }
+
+        function updateStatsUI() {
+            document.getElementById('stat-pop').textContent = ants.length;
+            document.getElementById('stat-food').textContent = nest.storedFood;
+            document.getElementById('stat-score').textContent = score;
+            document.getElementById('stat-wave').textContent = wave;
+        }
+
+        function checkMilestones() {
+            let oldWave = wave;
+            if (nest.storedFood >= 100) wave = 4;
+            else if (nest.storedFood >= 50) wave = 3;
+            else if (nest.storedFood >= 20) wave = 2;
+
+            if (wave > oldWave) {
+                logEvent(`Wave ${wave} reached! Food: ${nest.storedFood}`);
+                spawnAnts(10 * wave);
+                score += 50 * wave;
+                playSound(400 + wave * 100, 'sine', 0.5);
+            }
+        }
+
+        // Web Audio API
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+        let userInteracted = false;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playSound(freq, type, dur) {
+            if (!userInteracted || !audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + dur);
+        }
+
+        function logEvent(msg) {
+            const log = document.getElementById('event-log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            let time = new Date().toLocaleTimeString();
+            entry.textContent = `[${time}] ${msg}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // UI Interactions
+        document.body.addEventListener('click', () => {
+            userInteracted = true;
+            initAudio();
+        }, { once: true });
+
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            // Calculate scale based on object-fit/responsive sizing
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+
+            const tool = document.querySelector('input[name="tool"]:checked').value;
+
+            if (tool === 'food') {
+                foods.push({ x, y, amount: 50, radius: 10 });
+                logEvent(`Placed food at (${Math.round(x)}, ${Math.round(y)})`);
+                playSound(600, 'sine', 0.1);
+            } else if (tool === 'obstacle') {
+                obstacles.push({ x, y, radius: 20 });
+                logEvent(`Placed obstacle at (${Math.round(x)}, ${Math.round(y)})`);
+                playSound(200, 'square', 0.1);
+            } else if (tool === 'remove') {
+                let removed = false;
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    if (Math.hypot(obstacles[i].x - x, obstacles[i].y - y) < obstacles[i].radius) {
+                        obstacles.splice(i, 1);
+                        removed = true;
+                    }
+                }
+                for (let i = foods.length - 1; i >= 0; i--) {
+                    if (Math.hypot(foods[i].x - x, foods[i].y - y) < foods[i].radius) {
+                        foods.splice(i, 1);
+                        removed = true;
+                    }
+                }
+                if (removed) {
+                    logEvent('Removed object.');
+                    playSound(300, 'sawtooth', 0.1);
+                }
+            } else if (tool === 'beacon') {
+                beacons = [{ x, y, life: 10 }];
+                logEvent('Dropped pheromone beacon.');
+                playSound(800, 'sine', 0.3);
+            }
+        });
+
+        document.getElementById('btn-rain').addEventListener('click', () => {
+            logEvent('Heavy rain! Pheromones washed away.');
+            playSound(100, 'sawtooth', 1.0); // Simple buzz
+
+            for(let i=0; i<100; i++) {
+                rainDrops.push({
+                    x: Math.random() * canvas.width,
+                    y: -Math.random() * canvas.height
+                });
+            }
+        });
+
+        document.getElementById('btn-attack').addEventListener('click', () => {
+            logEvent('Predator attack!');
+            playSound(150, 'sawtooth', 0.5);
+            for(let i=0; i<3; i++) {
+                predators.push({
+                    x: Math.random() < 0.5 ? -20 : canvas.width + 20,
+                    y: Math.random() * canvas.height,
+                    dx: (Math.random() - 0.5) * 100,
+                    dy: (Math.random() - 0.5) * 100,
+                    life: 10
+                });
+            }
+        });
+
+        document.getElementById('btn-add-ants').addEventListener('click', () => {
+            spawnAnts(10);
+            logEvent('Added 10 ants.');
+            playSound(500, 'triangle', 0.1);
+        });
+
+        document.getElementById('btn-pause').addEventListener('click', (e) => {
+            isPaused = !isPaused;
+            e.target.textContent = isPaused ? 'Resume' : 'Pause';
+            logEvent(isPaused ? 'Simulation paused.' : 'Simulation resumed.');
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            logEvent('Simulation reset.');
+            playSound(200, 'sine', 0.5);
+            init();
+        });
+
+        document.getElementById('slider-speed').addEventListener('input', (e) => {
+            simSpeed = parseFloat(e.target.value);
+            document.getElementById('speed-value').textContent = simSpeed.toFixed(1) + 'x';
+        });
+
+        init();
+    </script>
+</body>
+</html>
