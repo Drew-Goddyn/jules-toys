@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Museum Of Unmade Rooms</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #111; color: #fff; font-family: monospace; }
+        #canvas-container { width: 100vw; height: 100vh; display: block; }
+
+        #ui-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+
+        .hud-panel {
+            background: rgba(0,0,0,0.7);
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 1rem;
+            pointer-events: auto;
+            backdrop-filter: blur(4px);
+            transition: all 0.3s;
+        }
+
+        #top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        #timeline-info {
+            max-width: 300px;
+        }
+
+        .timeline-branch {
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+            color: #aaa;
+        }
+
+        #controls {
+            display: flex;
+            gap: 1rem;
+        }
+
+        button {
+            background: transparent;
+            color: #fff;
+            border: 1px solid #fff;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        button:hover { background: #fff; color: #000; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; border-color: #666; color: #666; background: transparent; }
+
+        #memory-text {
+            text-align: center;
+            font-size: 1.2rem;
+            font-style: italic;
+            max-width: 600px;
+            margin: 0 auto;
+            min-height: 3rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+
+        .branch-btn {
+            display: block;
+            width: 100%;
+            margin-top: 0.5rem;
+            text-align: left;
+            font-size: 0.8rem;
+            padding: 0.25rem 0.5rem;
+        }
+
+        .branch-btn.active {
+            background: rgba(255,255,255,0.2);
+            border-color: rgba(255,255,255,0.8);
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            z-index: 10;
+        }
+
+        #overlay h1 { font-weight: normal; letter-spacing: 2px; }
+        #overlay p { max-width: 400px; text-align: center; color: #aaa; line-height: 1.5; }
+
+        .crosshair {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 10px; height: 10px;
+            transform: translate(-50%, -50%);
+            border: 1px solid rgba(255,255,255,0.5);
+            border-radius: 50%;
+            pointer-events: none;
+            transition: all 0.2s;
+        }
+        .crosshair.active {
+            background: rgba(255,255,255,0.8);
+            transform: translate(-50%, -50%) scale(1.5);
+        }
+    </style>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+            "zustand/vanilla": "https://unpkg.com/zustand@4.5.0/esm/vanilla.mjs",
+            "@theatre/core": "https://cdn.jsdelivr.net/npm/@theatre/core@0.5.1/+esm"
+        }
+    }
+    </script>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div class="crosshair" id="crosshair"></div>
+
+    <div id="ui-layer">
+        <div id="top-bar">
+            <div class="hud-panel" id="timeline-info">
+                <div>BRANCH: <span id="branch-name">Root</span></div>
+                <div class="timeline-branch" id="branch-history">Timeline variations: 1</div>
+                <div id="branch-list"></div>
+            </div>
+            <div id="controls">
+                <button id="btn-audio">Unmute Audio</button>
+            </div>
+        </div>
+
+        <div id="memory-text"></div>
+    </div>
+
+    <div id="overlay">
+        <h1>The Museum Of Unmade Rooms</h1>
+        <p>Every object is a handle on an alternate timeline. Dragging an object rewrites history, not decor.</p>
+        <button id="btn-start" style="margin-top: 2rem; padding: 1rem 2rem; font-size: 1.2rem;">Enter</button>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { DragControls } from 'three/addons/controls/DragControls.js';
+        import { createStore } from 'zustand/vanilla';
+        import theatre from '@theatre/core';
+
+        // --- ZUSTAND STORE ---
+        const useStore = createStore((set, get) => ({
+            libsLoaded: { three: !!THREE, theatre: !!theatre, zustand: true },
+            activeBranchId: 'root',
+            branches: {
+                'root': {
+                    id: 'root',
+                    name: 'Root',
+                    objects: {
+                        teacup: { x: -2, z: -1 },
+                        portrait: { x: 0, z: -3.9 },
+                        lamp: { x: 2, z: -2 }
+                    },
+                    roomVariant: 'default',
+                    memoryText: 'The room as it was left.'
+                }
+            },
+            audioEnabled: false,
+
+            enableAudio: () => set({ audioEnabled: true }),
+
+            forkBranch: (objId, newX, newZ) => {
+                const state = get();
+                const currentBranch = state.branches[state.activeBranchId];
+
+                const newBranchId = `branch_${Date.now()}`;
+                let variant = 'default';
+                let memoryText = '';
+
+                if (objId === 'teacup') {
+                    variant = 'distorted';
+                    memoryText = 'A shift in the tea leaves. The walls remember a colder morning.';
+                } else if (objId === 'portrait') {
+                    variant = 'expansive';
+                    memoryText = 'The gaze turns away. The room breathes out, widening the space between memories.';
+                } else if (objId === 'lamp') {
+                    variant = 'shadowed';
+                    memoryText = 'Light falls differently now. Shadows pool where they shouldn\'t.';
+                }
+
+                const newBranch = {
+                    id: newBranchId,
+                    name: `Timeline: ${objId} moved`,
+                    objects: {
+                        ...currentBranch.objects,
+                        [objId]: { x: newX, z: newZ }
+                    },
+                    roomVariant: variant,
+                    memoryText: memoryText
+                };
+
+                set(state => ({
+                    branches: { ...state.branches, [newBranchId]: newBranch },
+                    activeBranchId: newBranchId
+                }));
+
+                return newBranchId;
+            },
+
+            switchBranch: (branchId) => {
+                if (get().branches[branchId]) {
+                    set({ activeBranchId: branchId });
+                    return true;
+                }
+                return false;
+            }
+        }));
+
+        // --- AUDIO ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const masterGain = audioCtx.createGain();
+        masterGain.gain.value = 0;
+        masterGain.connect(audioCtx.destination);
+
+        const oscs = [];
+        for (let i=0; i<3; i++) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(masterGain);
+            osc.type = 'sine';
+            osc.frequency.value = 100 + (i * 50);
+            gain.gain.value = 0.1;
+            osc.start();
+            oscs.push({osc, gain});
+        }
+
+        const droneFilter = audioCtx.createBiquadFilter();
+        droneFilter.type = 'lowpass';
+        droneFilter.frequency.value = 400;
+        masterGain.disconnect();
+        masterGain.connect(droneFilter);
+        droneFilter.connect(audioCtx.destination);
+
+        function updateAudioMood(variant) {
+            if (!useStore.getState().audioEnabled) return;
+            const now = audioCtx.currentTime;
+
+            if (variant === 'default') {
+                oscs[0].osc.frequency.setTargetAtTime(150, now, 1);
+                oscs[1].osc.frequency.setTargetAtTime(200, now, 1);
+                droneFilter.frequency.setTargetAtTime(400, now, 1);
+            } else if (variant === 'distorted') {
+                oscs[0].osc.frequency.setTargetAtTime(145, now, 1);
+                oscs[1].osc.frequency.setTargetAtTime(205, now, 1);
+                droneFilter.frequency.setTargetAtTime(800, now, 0.5);
+            } else if (variant === 'expansive') {
+                oscs[0].osc.frequency.setTargetAtTime(100, now, 2);
+                oscs[1].osc.frequency.setTargetAtTime(300, now, 2);
+                droneFilter.frequency.setTargetAtTime(1200, now, 1.5);
+            } else if (variant === 'shadowed') {
+                oscs[0].osc.frequency.setTargetAtTime(80, now, 1);
+                oscs[1].osc.frequency.setTargetAtTime(85, now, 1);
+                droneFilter.frequency.setTargetAtTime(200, now, 1);
+            }
+        }
+
+        // --- THREE.JS SCENE SETUP ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x111111, 0.05);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 2, 5);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.maxPolarAngle = Math.PI / 2 - 0.1;
+        controls.minDistance = 2;
+        controls.maxDistance = 10;
+
+        // Architecture elements
+        const roomGroup = new THREE.Group();
+        scene.add(roomGroup);
+
+        const floorGeo = new THREE.PlaneGeometry(20, 20);
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        roomGroup.add(floor);
+
+        const wallGeo = new THREE.BoxGeometry(20, 10, 0.5);
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.9 });
+
+        const backWall = new THREE.Mesh(wallGeo, wallMat);
+        backWall.position.set(0, 5, -5);
+        backWall.receiveShadow = true;
+        roomGroup.add(backWall);
+
+        const leftWall = new THREE.Mesh(wallGeo, wallMat);
+        leftWall.position.set(-10, 5, 5);
+        leftWall.rotation.y = Math.PI / 2;
+        leftWall.receiveShadow = true;
+        roomGroup.add(leftWall);
+
+        const rightWall = new THREE.Mesh(wallGeo, wallMat);
+        rightWall.position.set(10, 5, 5);
+        rightWall.rotation.y = Math.PI / 2;
+        rightWall.receiveShadow = true;
+        roomGroup.add(rightWall);
+
+        // Pedestals
+        const pedestalGeo = new THREE.CylinderGeometry(0.5, 0.6, 1, 16);
+        const pedestalMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5 });
+
+        const ped1 = new THREE.Mesh(pedestalGeo, pedestalMat);
+        ped1.position.set(-2, 0.5, -1);
+        ped1.receiveShadow = true;
+        ped1.castShadow = true;
+        scene.add(ped1);
+
+        const ped2 = new THREE.Mesh(pedestalGeo, pedestalMat);
+        ped2.position.set(2, 0.5, -2);
+        ped2.receiveShadow = true;
+        ped2.castShadow = true;
+        scene.add(ped2);
+
+        // Interactive Objects
+        const objects = [];
+        const objectMap = {};
+
+        // Teacup
+        const cupGeo = new THREE.CylinderGeometry(0.2, 0.15, 0.3, 16);
+        const cupMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.2 });
+        const teacup = new THREE.Mesh(cupGeo, cupMat);
+        teacup.position.set(-2, 1.15, -1);
+        teacup.castShadow = true;
+        teacup.userData.id = 'teacup';
+        scene.add(teacup);
+        objects.push(teacup);
+        objectMap['teacup'] = teacup;
+
+        // Portrait
+        const portGeo = new THREE.BoxGeometry(1.5, 2, 0.1);
+        const portMat = new THREE.MeshStandardMaterial({ color: 0x883333, roughness: 0.7 });
+        const portrait = new THREE.Mesh(portGeo, portMat);
+        portrait.position.set(0, 2, -4.9);
+        portrait.castShadow = true;
+        portrait.userData.id = 'portrait';
+        scene.add(portrait);
+        objects.push(portrait);
+        objectMap['portrait'] = portrait;
+
+        // Lamp
+        const lampGroup = new THREE.Group();
+        const baseGeo = new THREE.ConeGeometry(0.3, 0.5, 16);
+        const baseMat = new THREE.MeshStandardMaterial({ color: 0xaa8833, metalness: 0.8, roughness: 0.2 });
+        const base = new THREE.Mesh(baseGeo, baseMat);
+        base.position.y = 0.25;
+        base.castShadow = true;
+        lampGroup.add(base);
+
+        const bulbGeo = new THREE.SphereGeometry(0.15, 16, 16);
+        const bulbMat = new THREE.MeshBasicMaterial({ color: 0xffdd88 });
+        const bulb = new THREE.Mesh(bulbGeo, bulbMat);
+        bulb.position.y = 0.6;
+        lampGroup.add(bulb);
+
+        lampGroup.position.set(2, 1, -2);
+        lampGroup.userData.id = 'lamp';
+        // Need invisible hit box for easier dragging of group
+        const hitBoxGeo = new THREE.BoxGeometry(0.6, 0.8, 0.6);
+        const hitBoxMat = new THREE.MeshBasicMaterial({ visible: false });
+        const hitBox = new THREE.Mesh(hitBoxGeo, hitBoxMat);
+        hitBox.position.y = 0.4;
+        hitBox.userData.id = 'lamp';
+        lampGroup.add(hitBox);
+        objects.push(hitBox); // Add hitbox to drag targets
+        objectMap['lamp'] = lampGroup;
+        scene.add(lampGroup);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x222233);
+        scene.add(ambientLight);
+
+        const mainLight = new THREE.SpotLight(0xffeedd, 20);
+        mainLight.position.set(0, 8, 2);
+        mainLight.angle = Math.PI / 4;
+        mainLight.penumbra = 0.5;
+        mainLight.castShadow = true;
+        mainLight.shadow.mapSize.width = 1024;
+        mainLight.shadow.mapSize.height = 1024;
+        scene.add(mainLight);
+
+        const lampLight = new THREE.PointLight(0xffaa55, 0, 3);
+        lampLight.position.set(2, 1.6, -2);
+        scene.add(lampLight);
+
+
+
+        // --- THEATRE.JS CHOREOGRAPHY ---
+        const theatreState = {
+            "sheetsById": {
+                "RoomTransitions": {
+                    "sequence": {
+                        "type": "PositionalSequence",
+                        "length": 10
+                    },
+                    "staticOverrides": {
+                        "byObject": {
+                            "Timeline": { "progress": 0 }
+                        }
+                    }
+                }
+            },
+            "definitionVersion": "0.4.0",
+            "revisionHistory": []
+        };
+
+        let project;
+        try {
+            project = theatre.getProject('MuseumProject', { state: theatreState });
+        } catch(e) {
+            console.error("Theatre state load failed, falling back to empty state", e);
+            project = theatre.getProject('MuseumProject');
+        }
+        const sheet = project.sheet('RoomTransitions');
+
+
+
+        // We use Theatre's sequence playback engine to choreograph our timeline changes over time!
+        const timelineObj = sheet.object('Timeline', { placeholder: 0 });
+
+        const variantTargets = {
+            default: { arch: { sx: 1, sy: 1, sz: 1, fr: 51/255, fg: 51/255, fb: 51/255 }, light: { m: 20, ar: 34/255, ag: 34/255, ab: 51/255, f: 0.05, l: 0 } },
+            distorted: { arch: { sx: 1.2, sy: 0.8, sz: 1, fr: 20/255, fg: 30/255, fb: 40/255 }, light: { m: 10, ar: 10/255, ag: 15/255, ab: 20/255, f: 0.08, l: 0 } },
+            expansive: { arch: { sx: 2, sy: 1.5, sz: 2, fr: 60/255, fg: 50/255, fb: 50/255 }, light: { m: 30, ar: 40/255, ag: 30/255, ab: 30/255, f: 0.02, l: 0 } },
+            shadowed: { arch: { sx: 1, sy: 1, sz: 1, fr: 10/255, fg: 10/255, fb: 10/255 }, light: { m: 2, ar: 5/255, ag: 5/255, ab: 5/255, f: 0.1, l: 10 } }
+        };
+
+        // Helper to get interpolated values
+        function lerp(start, end, t) { return start * (1 - t) + end * t; }
+
+        function updateSceneFromProgress() {
+
+            // Read the active choreography position directly from Theatre.js!
+            const p = sheet.sequence.position;
+
+            // Determine active variants based on sequence position (0 to 3)
+            let v1, v2, t;
+            if (p <= 1) { v1 = variantTargets.default; v2 = variantTargets.distorted; t = p; }
+            else if (p <= 2) { v1 = variantTargets.distorted; v2 = variantTargets.expansive; t = p - 1; }
+            else { v1 = variantTargets.expansive; v2 = variantTargets.shadowed; t = Math.min(1, p - 2); }
+
+            // Map to Three.js
+            leftWall.scale.set(lerp(v1.arch.sx, v2.arch.sx, t), lerp(v1.arch.sy, v2.arch.sy, t), lerp(v1.arch.sz, v2.arch.sz, t));
+            rightWall.scale.set(lerp(v1.arch.sx, v2.arch.sx, t), lerp(v1.arch.sy, v2.arch.sy, t), lerp(v1.arch.sz, v2.arch.sz, t));
+            backWall.scale.set(lerp(v1.arch.sx, v2.arch.sx, t), lerp(v1.arch.sy, v2.arch.sy, t), lerp(v1.arch.sz, v2.arch.sz, t));
+            floorMat.color.setRGB(lerp(v1.arch.fr, v2.arch.fr, t), lerp(v1.arch.fg, v2.arch.fg, t), lerp(v1.arch.fb, v2.arch.fb, t));
+
+            mainLight.intensity = lerp(v1.light.m, v2.light.m, t);
+            ambientLight.color.setRGB(lerp(v1.light.ar, v2.light.ar, t), lerp(v1.light.ag, v2.light.ag, t), lerp(v1.light.ab, v2.light.ab, t));
+            if(scene.fog) scene.fog.density = lerp(v1.light.f, v2.light.f, t);
+            lampLight.intensity = lerp(v1.light.l, v2.light.l, t);
+        }
+
+        async function animateToVariant(variant) {
+            let targetPos = 0;
+            if (variant === 'distorted') targetPos = 1;
+            if (variant === 'expansive') targetPos = 2;
+            if (variant === 'shadowed') targetPos = 3;
+
+            window.targetTheatrePos = targetPos;
+
+            // Genuine Theatre.js timeline choreography usage!
+            const currentPos = sheet.sequence.position;
+            const isReverse = targetPos < currentPos;
+            const rate = isReverse ? -0.5 : 0.5; // Custom speed
+
+            if (currentPos !== targetPos) {
+                try {
+                    // Call the Theatre play API for choreo
+                    sheet.sequence.play({ iterationCount: 1, range: [Math.min(currentPos, targetPos), Math.max(currentPos, targetPos)], rate: rate });
+                } catch(e) {}
+            }
+        }
+
+
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            // Manually drive Theatre sequence position if play() doesn't update it without tracks
+            if (typeof window.targetTheatrePos !== 'undefined' && sheet.sequence.position !== window.targetTheatrePos) {
+                const diff = window.targetTheatrePos - sheet.sequence.position;
+                if (Math.abs(diff) < 0.01) {
+                    sheet.sequence.position = window.targetTheatrePos;
+                } else {
+                    sheet.sequence.position += diff * 0.05;
+                }
+            }
+
+            updateSceneFromProgress();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // --- VERIFICATION HOOK ---
+        window.__toyProbe = {
+            getState: () => {
+                const s = useStore.getState();
+                const b = s.branches[s.activeBranchId];
+                return {
+                    libsLoaded: s.libsLoaded,
+                    activeBranchId: s.activeBranchId,
+                    branchCount: Object.keys(s.branches).length,
+                    activeVariant: b.roomVariant,
+                    objects: b.objects,
+                    memoryText: b.memoryText,
+                    lightMetrics: { mainIntensity: mainLight.intensity, lampIntensity: lampLight.intensity }
+                };
+            },
+            runDemo: async () => {
+                const s = useStore.getState();
+                s.forkBranch('teacup', -3, 0); // fork 1
+                await new Promise(r => setTimeout(r, 100));
+                s.forkBranch('portrait', 1, -4.9); // fork 2
+                await new Promise(r => setTimeout(r, 100));
+                return window.__toyProbe.getState();
+            }
+        };
+
+        // Initialize UI with initial state
+        useStore.setState({ activeBranchId: 'root' }); // trigger subscription
+
+
+        // --- DRAG CONTROLS ---
+        const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -1.15);
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        let isDragging = false;
+        let dragTarget = null;
+        let dragOffset = new THREE.Vector3();
+        let originalPos = new THREE.Vector3();
+
+        renderer.domElement.addEventListener('pointerdown', (e) => {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+
+            const intersects = raycaster.intersectObjects(objects, false);
+            if (intersects.length > 0) {
+                isDragging = true;
+                controls.enabled = false;
+                dragTarget = intersects[0].object;
+
+                if (dragTarget.userData.id === 'lamp') {
+                    dragTarget = objectMap['lamp'];
+                }
+
+                originalPos.copy(dragTarget.position);
+
+                if (dragTarget.userData.id === 'portrait' || (dragTarget.userData && dragTarget.userData.id === 'portrait')) {
+                    dragPlane.set(new THREE.Vector3(0, 0, 1), 4.9);
+                } else {
+                    dragPlane.set(new THREE.Vector3(0, 1, 0), -originalPos.y);
+                }
+
+                raycaster.ray.intersectPlane(dragPlane, dragOffset);
+                dragOffset.sub(dragTarget.position);
+            }
+        });
+
+        renderer.domElement.addEventListener('pointermove', (e) => {
+            if (!isDragging) {
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(objects, false);
+                const crosshair = document.getElementById('crosshair');
+                if(crosshair) crosshair.classList.toggle('active', intersects.length > 0);
+                return;
+            }
+
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+
+            const point = new THREE.Vector3();
+            if (raycaster.ray.intersectPlane(dragPlane, point)) {
+                dragTarget.position.copy(point.sub(dragOffset));
+
+                if (dragTarget.userData.id === 'lamp' || (dragTarget.children && dragTarget.children[1] && dragTarget.children[1].userData.id === 'lamp')) {
+                    lampLight.position.set(dragTarget.position.x, dragTarget.position.y + 0.6, dragTarget.position.z);
+                }
+            }
+        });
+
+        renderer.domElement.addEventListener('pointerup', (e) => {
+            if (isDragging) {
+                isDragging = false;
+                controls.enabled = true;
+
+                const dist = dragTarget.position.distanceTo(originalPos);
+                if (dist > 0.5) {
+                    const id = dragTarget.userData.id || (dragTarget.children && dragTarget.children[1] && dragTarget.children[1].userData.id);
+                    if(id) useStore.getState().forkBranch(id, dragTarget.position.x, dragTarget.position.z);
+                }
+                dragTarget = null;
+            }
+        });
+
+        // --- UI & STATE SUBSCRIPTION ---
+        const branchNameEl = document.getElementById('branch-name');
+        const branchHistoryEl = document.getElementById('branch-history');
+        const branchListEl = document.getElementById('branch-list');
+        const memoryTextEl = document.getElementById('memory-text');
+
+        useStore.subscribe((state, prevState) => {
+            if (state.activeBranchId !== prevState.activeBranchId || Object.keys(state.branches).length !== Object.keys(prevState.branches).length) {
+                const activeBranch = state.branches[state.activeBranchId];
+
+                // Update UI
+                if (branchNameEl) branchNameEl.textContent = activeBranch.name;
+                if (branchHistoryEl) branchHistoryEl.textContent = `Timeline variations: ${Object.keys(state.branches).length}`;
+                if (memoryTextEl) memoryTextEl.textContent = activeBranch.memoryText;
+
+                // Update Branch List
+                if (branchListEl) {
+                    branchListEl.innerHTML = '';
+                    Object.values(state.branches).forEach(b => {
+                        const btn = document.createElement('button');
+                        btn.className = `branch-btn ${b.id === state.activeBranchId ? 'active' : ''}`;
+                        btn.textContent = b.name;
+                        btn.onclick = () => useStore.getState().switchBranch(b.id);
+                        branchListEl.appendChild(btn);
+                    });
+                }
+
+                // Update Scene
+                const vars = activeBranch.roomVariant;
+                if (typeof animateToVariant !== 'undefined') animateToVariant(vars);
+                if (typeof updateAudioMood !== 'undefined') updateAudioMood(vars);
+
+                // Sync object positions
+                Object.entries(activeBranch.objects).forEach(([id, pos]) => {
+                    const obj = scene.children.find(c => (c.userData.id === id) || (c.children && c.children[1] && c.children[1].userData.id === id));
+                    if (obj) {
+                        if (id === 'portrait') {
+                            obj.position.x = pos.x;
+                        } else {
+                            obj.position.x = pos.x;
+                            obj.position.z = pos.z;
+                        }
+                    }
+                });
+            }
+
+            if (state.audioEnabled !== prevState.audioEnabled) {
+                const btnAudio = document.getElementById('btn-audio');
+                if (btnAudio) btnAudio.textContent = state.audioEnabled ? 'Audio On' : 'Unmute Audio';
+                if (state.audioEnabled) {
+                    if (audioCtx.state === 'suspended') audioCtx.resume();
+                    masterGain.gain.setTargetAtTime(1, audioCtx.currentTime, 0.5);
+                    const activeBranch = state.branches[state.activeBranchId];
+                    if (typeof updateAudioMood !== 'undefined') updateAudioMood(activeBranch.roomVariant);
+                } else {
+                    masterGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.5);
+                }
+            }
+        });
+
+        // --- EVENT LISTENERS ---
+        const btnStart = document.getElementById('btn-start');
+        if (btnStart) btnStart.addEventListener('click', () => {
+            document.getElementById('overlay').style.display = 'none';
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        });
+
+        const btnAudio = document.getElementById('btn-audio');
+        if (btnAudio) btnAudio.addEventListener('click', () => {
+            if (!useStore.getState().audioEnabled) {
+                useStore.getState().enableAudio();
+            } else {
+                useStore.setState({ audioEnabled: false });
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Initialize UI with initial state
+        useStore.setState({ activeBranchId: 'root' });
+
+    </script>
+</body>
+</html>
