@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Provenance Ledger | jules-toys</title>
+    <style>
+        :root {
+            --bg-color: #f5f5f5;
+            --text-color: #222;
+            --border-color: #ccc;
+            --accent-color: #555;
+            --font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.5;
+            margin: 0;
+            padding: 2rem;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        header {
+            margin-bottom: 2rem;
+            border-bottom: 2px solid var(--text-color);
+            padding-bottom: 1rem;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .subtitle {
+            font-size: 0.85rem;
+            color: var(--accent-color);
+            margin-top: 0.5rem;
+        }
+
+        .controls {
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        input[type="text"] {
+            font-family: var(--font-family);
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            background: #fff;
+            color: var(--text-color);
+            width: 300px;
+        }
+
+        .view-toggle {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        button {
+            font-family: var(--font-family);
+            background: #fff;
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+        }
+
+        button.active {
+            background: var(--text-color);
+            color: var(--bg-color);
+        }
+
+        /* Ledger View */
+        .ledger-view {
+            display: block; /* default */
+        }
+
+        .gallery-view {
+            display: none;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            background: #fff;
+            border: 1px solid var(--border-color);
+        }
+
+        th, td {
+            text-align: left;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: #eee;
+            font-weight: normal;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.05em;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        td a {
+            color: var(--text-color);
+            text-decoration: none;
+            border-bottom: 1px dotted var(--text-color);
+        }
+
+        td a:hover {
+            background: var(--text-color);
+            color: #fff;
+        }
+
+        /* Gallery View */
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-img-placeholder {
+            height: 180px;
+            background: #eee;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent-color);
+            font-size: 0.8rem;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .card-img-placeholder img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
+            display: none; /* Show when actual image is there */
+        }
+
+        .card-img-placeholder.has-image img {
+            display: block;
+        }
+
+        .card-img-placeholder.has-image span {
+            display: none;
+        }
+
+        .card-content {
+            padding: 1rem;
+        }
+
+        .card-title {
+            font-weight: bold;
+            margin: 0 0 0.5rem 0;
+            font-size: 1rem;
+        }
+
+        .card-title a {
+            color: var(--text-color);
+            text-decoration: none;
+        }
+
+        .card-title a:hover {
+            text-decoration: underline;
+        }
+
+        .card-meta {
+            font-size: 0.8rem;
+            color: var(--accent-color);
+            margin-bottom: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .card-summary {
+            font-size: 0.85rem;
+            margin: 0;
+        }
+
+        .tier-badge {
+            display: inline-block;
+            padding: 0.1rem 0.4rem;
+            background: #e0e0e0;
+            border-radius: 2px;
+            font-size: 0.75rem;
+        }
+
+        .empty-state {
+            padding: 2rem;
+            text-align: center;
+            color: var(--accent-color);
+            background: #fff;
+            border: 1px solid var(--border-color);
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Provenance Ledger</h1>
+        <div class="subtitle">Artifact Evidence Gallery // jules-toys repository</div>
+    </header>
+
+    <div class="controls">
+        <input type="text" id="searchInput" placeholder="Filter by name, tier, or summary...">
+        <div class="view-toggle">
+            <button id="btnLedger" class="active">Ledger View</button>
+            <button id="btnGallery">Card View</button>
+        </div>
+    </div>
+
+    <main>
+        <div id="ledgerView" class="ledger-view">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID / Path</th>
+                        <th>Tier</th>
+                        <th>Artifact Name</th>
+                        <th>Behavior Summary</th>
+                    </tr>
+                </thead>
+                <tbody id="ledgerBody">
+                    <!-- Populated by JS -->
+                </tbody>
+            </table>
+            <div id="ledgerEmpty" class="empty-state" style="display: none;">No artifacts match the filter.</div>
+        </div>
+
+        <div id="galleryView" class="gallery-view">
+            <div class="gallery-grid" id="galleryGrid">
+                <!-- Populated by JS -->
+            </div>
+            <div id="galleryEmpty" class="empty-state" style="display: none;">No artifacts match the filter.</div>
+        </div>
+    </main>
+
+    <script>
+        const inventory = [
+            { tier: "T1", id: "forecast-tile", name: "Forecast Tile", summary: "A single tile showing a weather forecast." },
+            { tier: "T1", id: "passport-stamp", name: "Passport Stamp", summary: "Digital passport stamping interaction." },
+            { tier: "T1", id: "signal-card", name: "Signal Card", summary: "Displays signal strength or status." },
+
+            { tier: "T2", id: "migration-river", name: "Migration River", summary: "Visualizes data flow or movement." },
+            { tier: "T2", id: "orchard-map", name: "Orchard Map", summary: "Map interface for an orchard layout." },
+            { tier: "T2", id: "subway-cutaway", name: "Subway Cutaway", summary: "Cross-section view of a subway station." },
+
+            { tier: "T3", id: "lunar-postcards", name: "Lunar Postcards", summary: "Interactive postcards from the moon." },
+            { tier: "T3", id: "traffic-ballet", name: "Traffic Ballet", summary: "Simulation of traffic patterns." },
+            { tier: "T3", id: "weather-console", name: "Weather Console", summary: "Detailed weather monitoring interface." },
+
+            { tier: "T4", id: "recipe-risk", name: "Recipe Risk", summary: "Evaluates risk factors in recipes." },
+            { tier: "T4", id: "sequencer-map", name: "Sequencer Map", summary: "Map-based sequencing tool." },
+
+            { tier: "T5", id: "dream-vending", name: "Dream Vending", summary: "Vending machine interface for dreams." },
+            { tier: "T5", id: "emotion-post-office", name: "Emotion Post Office", summary: "Routing emotions via post." },
+            { tier: "T5", id: "pocket-city", name: "Pocket City", summary: "Miniature city simulation." },
+
+            { tier: "T6", id: "catalogue-studio", name: "Catalogue Studio", summary: "Studio for managing a catalogue." },
+            { tier: "T6", id: "incident-atlas", name: "Incident Atlas", summary: "Atlas marking various incidents." },
+            { tier: "T6", id: "kitchen-command", name: "Kitchen Command", summary: "Command center for kitchen operations." },
+
+            { tier: "T7", id: "market-algorithm", name: "Market Algorithm", summary: "Visualizes market algorithmic behavior." },
+            { tier: "T7", id: "rail-signal", name: "Rail Signal", summary: "Railway signaling interface." },
+            { tier: "T7", id: "reef-particles", name: "Reef Particles", summary: "Particle simulation of a coral reef." },
+
+            { tier: "T8", id: "biome-forge", name: "Biome Forge", summary: "Tool for generating biomes." },
+            { tier: "T8", id: "orbital-foundry", name: "Orbital Foundry", summary: "Space-based foundry interface." },
+            { tier: "T8", id: "salvage-run", name: "Salvage Run", summary: "Interface for tracking salvage operations." }
+        ];
+
+        // Ensure links are constructed correctly
+        inventory.forEach(item => {
+            const tierNum = item.tier.replace('T', 'tier');
+            item.path = `../../${tierNum}/${item.id}/index.html`;
+            item.imgPath = `../../${tierNum}/${item.id}/screenshot.png`;
+        });
+
+        const ledgerBody = document.getElementById('ledgerBody');
+        const galleryGrid = document.getElementById('galleryGrid');
+        const searchInput = document.getElementById('searchInput');
+        const btnLedger = document.getElementById('btnLedger');
+        const btnGallery = document.getElementById('btnGallery');
+        const ledgerView = document.getElementById('ledgerView');
+        const galleryView = document.getElementById('galleryView');
+        const ledgerEmpty = document.getElementById('ledgerEmpty');
+        const galleryEmpty = document.getElementById('galleryEmpty');
+
+        function renderLedger(items) {
+            ledgerBody.innerHTML = '';
+            if (items.length === 0) {
+                ledgerEmpty.style.display = 'block';
+                document.querySelector('#ledgerView table').style.display = 'none';
+                return;
+            }
+
+            ledgerEmpty.style.display = 'none';
+            document.querySelector('#ledgerView table').style.display = 'table';
+
+            items.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><a href="${item.path}" target="_blank">${item.id}</a></td>
+                    <td><span class="tier-badge">${item.tier}</span></td>
+                    <td>${item.name}</td>
+                    <td>${item.summary}</td>
+                `;
+                ledgerBody.appendChild(tr);
+            });
+        }
+
+        function renderGallery(items) {
+            galleryGrid.innerHTML = '';
+            if (items.length === 0) {
+                galleryEmpty.style.display = 'block';
+                return;
+            }
+
+            galleryEmpty.style.display = 'none';
+
+            items.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div class="card-img-placeholder has-image">
+                        <span>No image</span>
+                        <img src="${item.imgPath}" alt="${item.name} screenshot" onerror="this.parentElement.classList.remove('has-image');" loading="lazy">
+                    </div>
+                    <div class="card-content">
+                        <div class="card-meta">
+                            <span>${item.tier}</span>
+                            <span>${item.id}</span>
+                        </div>
+                        <h2 class="card-title"><a href="${item.path}" target="_blank">${item.name}</a></h2>
+                        <p class="card-summary">${item.summary}</p>
+                    </div>
+                `;
+                galleryGrid.appendChild(card);
+            });
+        }
+
+        function filterItems() {
+            const query = searchInput.value.toLowerCase();
+            const filtered = inventory.filter(item =>
+                item.name.toLowerCase().includes(query) ||
+                item.tier.toLowerCase().includes(query) ||
+                item.summary.toLowerCase().includes(query) ||
+                item.id.toLowerCase().includes(query)
+            );
+
+            renderLedger(filtered);
+            renderGallery(filtered);
+        }
+
+        // Event Listeners
+        searchInput.addEventListener('input', filterItems);
+
+        btnLedger.addEventListener('click', () => {
+            btnLedger.classList.add('active');
+            btnGallery.classList.remove('active');
+            ledgerView.style.display = 'block';
+            galleryView.style.display = 'none';
+        });
+
+        btnGallery.addEventListener('click', () => {
+            btnGallery.classList.add('active');
+            btnLedger.classList.remove('active');
+            ledgerView.style.display = 'none';
+            galleryView.style.display = 'block';
+        });
+
+        // Initial Render
+        renderLedger(inventory);
+        renderGallery(inventory);
+    </script>
+</body>
+</html>
