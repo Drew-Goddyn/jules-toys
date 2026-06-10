@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Constraint Creature Garden</title>
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: #f0f4f8;
+    color: #333;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+  header {
+    background-color: #2c3e50;
+    color: #ecf0f1;
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 10;
+  }
+  h1 {
+    margin: 0;
+    font-size: 1.2rem;
+  }
+  .controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  button {
+    background-color: #34495e;
+    color: white;
+    border: 1px solid #7f8c8d;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s;
+  }
+  button:hover {
+    background-color: #4a6278;
+  }
+  button.active {
+    background-color: #27ae60;
+    border-color: #2ecc71;
+  }
+  .slider-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.9rem;
+  }
+  input[type="range"] {
+    width: 100px;
+  }
+  .main-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+  }
+  #canvas-container {
+    flex: 1;
+    position: relative;
+    background-color: #e2e8f0;
+  }
+  #side-panel {
+    width: 300px;
+    background-color: white;
+    border-left: 1px solid #cbd5e1;
+    display: flex;
+    flex-direction: column;
+    z-index: 5;
+    box-shadow: -2px 0 5px rgba(0,0,0,0.05);
+  }
+  .panel-section {
+    padding: 15px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .panel-section h2 {
+    margin-top: 0;
+    font-size: 1rem;
+    color: #2c3e50;
+    margin-bottom: 10px;
+  }
+  .metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    font-size: 0.9rem;
+  }
+  .metric-box {
+    background-color: #f8fafc;
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+    text-align: center;
+  }
+  .metric-value {
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: #2563eb;
+    display: block;
+    margin-top: 5px;
+  }
+  #d3-container {
+    flex: 1;
+    padding: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  #d3-container svg {
+    width: 100%;
+    height: 100%;
+  }
+  .tooltip {
+    position: absolute;
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 5px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 100;
+  }
+  @media (max-width: 768px) {
+    .main-content {
+      flex-direction: column;
+    }
+    #side-panel {
+      width: 100%;
+      height: 250px;
+      border-left: none;
+      border-top: 1px solid #cbd5e1;
+      flex-direction: row;
+    }
+    .panel-section {
+      flex: 1;
+      border-bottom: none;
+      border-right: 1px solid #e2e8f0;
+    }
+    #d3-container {
+      flex: 2;
+    }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Constraint Creature Garden</h1>
+  <div class="controls">
+    <button id="btn-food">Add Food</button>
+    <button id="btn-obstacle">Add Obstacle</button>
+    <button id="btn-attractor">Add Attractor</button>
+    <button id="btn-repulsor">Add Repulsor</button>
+    <div class="slider-container">
+      <label for="mutation-slider" title="Mutation Pressure">Mutate: <span id="mutation-val">5</span></label>
+      <input type="range" id="mutation-slider" min="1" max="10" value="5">
+    </div>
+    <button id="btn-event" style="background-color: #8e44ad; border-color: #9b59b6;">Trigger Event</button>
+    <button id="btn-pause">Pause</button>
+    <button id="btn-reset" style="background-color: #c0392b; border-color: #e74c3c;">Reset</button>
+  </div>
+</header>
+
+<div class="main-content">
+  <div id="canvas-container"></div>
+  <div id="side-panel">
+    <div class="panel-section">
+      <h2>Metrics</h2>
+      <div class="metrics">
+        <div class="metric-box">Pop.<span class="metric-value" id="m-pop">0</span></div>
+        <div class="metric-box">Avg Eng.<span class="metric-value" id="m-eng">0</span></div>
+        <div class="metric-box">Food<span class="metric-value" id="m-food">0</span></div>
+        <div class="metric-box">Gen.<span class="metric-value" id="m-gen">0</span></div>
+      </div>
+    </div>
+    <div id="d3-container">
+      <h2 style="font-size: 1rem; color: #2c3e50; margin-top: 0; margin-bottom: 5px; margin-left: 5px;">Lineage Chart</h2>
+      <!-- D3 will render here -->
+    </div>
+  </div>
+</div>
+<div id="tooltip" class="tooltip"></div>
+
+<script type="module">
+  import Matter from 'https://cdn.jsdelivr.net/npm/matter-js@0.19.0/+esm';
+  import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm';
+
+  // --- Constants & State ---
+  const CREATURE_RADIUS_MIN = 6;
+  const CREATURE_RADIUS_MAX = 15;
+  const STARTING_ENERGY = 100;
+  const REPRODUCE_ENERGY = 200;
+  const FOOD_ENERGY = 40;
+  const BASE_SPEED = 0.001;
+  const ATTR_REP_RADIUS = 80;
+  const ATTR_REP_FORCE = 0.0005;
+
+  let state = {
+    paused: false,
+    placementMode: 'food', // food, obstacle, attractor, repulsor
+    mutationPressure: 0.5,
+    creatures: [],
+    foods: [],
+    fields: [],
+    lineages: [], // for D3
+    nextId: 1,
+    generationMap: new Map(), // rootId -> generation count
+    time: 0,
+    eventName: 'Rain' // alternates Rain/Drought
+  };
+
+  // --- UI Elements ---
+  const els = {
+    container: document.getElementById('canvas-container'),
+    btnFood: document.getElementById('btn-food'),
+    btnObstacle: document.getElementById('btn-obstacle'),
+    btnAttractor: document.getElementById('btn-attractor'),
+    btnRepulsor: document.getElementById('btn-repulsor'),
+    mutationSlider: document.getElementById('mutation-slider'),
+    mutationVal: document.getElementById('mutation-val'),
+    btnEvent: document.getElementById('btn-event'),
+    btnPause: document.getElementById('btn-pause'),
+    btnReset: document.getElementById('btn-reset'),
+    mPop: document.getElementById('m-pop'),
+    mEng: document.getElementById('m-eng'),
+    mFood: document.getElementById('m-food'),
+    mGen: document.getElementById('m-gen'),
+    d3Container: document.getElementById('d3-container')
+  };
+
+  // Set initial active button
+  els.btnFood.classList.add('active');
+
+  // --- Matter.js Setup ---
+  const Engine = Matter.Engine,
+        Render = Matter.Render,
+        Runner = Matter.Runner,
+        Bodies = Matter.Bodies,
+        Body = Matter.Body,
+        Composite = Matter.Composite,
+        Constraint = Matter.Constraint,
+        Vector = Matter.Vector,
+        Events = Matter.Events;
+
+  const engine = Engine.create({ gravity: { x: 0, y: 0 } });
+
+  // Create renderer
+  let width = els.container.clientWidth;
+  let height = els.container.clientHeight;
+
+  const render = Render.create({
+    element: els.container,
+    engine: engine,
+    options: {
+      width,
+      height,
+      wireframes: false,
+      background: 'transparent'
+    }
+  });
+
+  Render.run(render);
+  const runner = Runner.create();
+  Runner.run(runner, engine);
+
+  // Boundaries
+  let walls = [];
+  function createWalls() {
+    if (walls.length > 0) {
+        Composite.remove(engine.world, walls);
+    }
+    const wallOptions = { isStatic: true, render: { visible: false } };
+    walls = [
+      Bodies.rectangle(width / 2, -25, width, 50, wallOptions),
+      Bodies.rectangle(width / 2, height + 25, width, 50, wallOptions),
+      Bodies.rectangle(-25, height / 2, 50, height, wallOptions),
+      Bodies.rectangle(width + 25, height / 2, 50, height, wallOptions)
+    ];
+    Composite.add(engine.world, walls);
+  }
+  createWalls();
+
+  // Resize handler
+  window.addEventListener('resize', () => {
+    width = els.container.clientWidth;
+    height = els.container.clientHeight;
+    render.canvas.width = width;
+    render.canvas.height = height;
+    render.options.width = width;
+    render.options.height = height;
+    createWalls();
+    updateD3();
+  });
+
+  // --- Color Palettes ---
+  const d3Color = d3.scaleSequential(d3.interpolateSinebow).domain([0, 10]);
+
+  // --- Factory Functions ---
+
+  function createFood(x, y) {
+    const food = Bodies.circle(x, y, 5, {
+      isSensor: true, // Creatures pass through, but we detect collision
+      label: 'food',
+      render: { fillStyle: '#2ecc71', strokeStyle: '#27ae60', lineWidth: 1 }
+    });
+    food.energy = FOOD_ENERGY;
+    state.foods.push(food);
+    Composite.add(engine.world, food);
+  }
+
+  function createObstacle(x, y) {
+    const size = 30 + Math.random() * 40;
+    const obstacle = Bodies.rectangle(x, y, size, size, {
+      isStatic: true,
+      label: 'obstacle',
+      render: { fillStyle: '#7f8c8d', strokeStyle: '#34495e', lineWidth: 2 }
+    });
+    Composite.add(engine.world, obstacle);
+  }
+
+  function createField(x, y, type) {
+    const isAttractor = type === 'attractor';
+    const field = Bodies.circle(x, y, ATTR_REP_RADIUS, {
+      isStatic: true,
+      isSensor: true,
+      label: type,
+      render: {
+        fillStyle: isAttractor ? 'rgba(52, 152, 219, 0.2)' : 'rgba(231, 76, 60, 0.2)',
+        strokeStyle: isAttractor ? '#3498db' : '#e74c3c',
+        lineWidth: 1
+      }
+    });
+    field.fieldType = type;
+    state.fields.push(field);
+    Composite.add(engine.world, field);
+  }
+
+  function spawnCreature(x, y, parentTraits = null) {
+    let traits;
+    if (parentTraits) {
+      // Mutate
+      const mp = state.mutationPressure * 0.1; // 0.1 to 1.0 range
+      traits = {
+        size: Math.max(CREATURE_RADIUS_MIN, Math.min(CREATURE_RADIUS_MAX, parentTraits.size * (1 + (Math.random() - 0.5) * mp))),
+        speed: Math.max(BASE_SPEED * 0.5, Math.min(BASE_SPEED * 2, parentTraits.speed * (1 + (Math.random() - 0.5) * mp))),
+        colorIndex: (parentTraits.colorIndex + (Math.random() - 0.5) * mp * 2 + 10) % 10,
+        generation: parentTraits.generation + 1,
+        rootId: parentTraits.rootId
+      };
+    } else {
+      // Random
+      traits = {
+        size: CREATURE_RADIUS_MIN + Math.random() * (CREATURE_RADIUS_MAX - CREATURE_RADIUS_MIN),
+        speed: BASE_SPEED * (0.8 + Math.random() * 0.4),
+        colorIndex: Math.random() * 10,
+        generation: 1,
+        rootId: state.nextId++
+      };
+      state.generationMap.set(traits.rootId, 1);
+
+      // Init lineage for D3
+      state.lineages.push({
+        id: traits.rootId,
+        gen: 1,
+        color: d3Color(traits.colorIndex),
+        pop: 1,
+        avgEng: STARTING_ENERGY
+      });
+    }
+
+    if (parentTraits) {
+       let currentMaxGen = state.generationMap.get(traits.rootId) || 0;
+       if (traits.generation > currentMaxGen) {
+           state.generationMap.set(traits.rootId, traits.generation);
+       }
+
+       let lineageNode = state.lineages.find(l => l.id === traits.rootId);
+       if(lineageNode) {
+           lineageNode.gen = state.generationMap.get(traits.rootId);
+       } else {
+            state.lineages.push({
+                id: traits.rootId,
+                gen: traits.generation,
+                color: d3Color(traits.colorIndex),
+                pop: 1,
+                avgEng: STARTING_ENERGY
+            });
+       }
+    }
+
+    const color = d3Color(traits.colorIndex);
+    const headSize = traits.size;
+    const tailSize = traits.size * 0.7;
+
+    const head = Bodies.circle(x, y, headSize, {
+      frictionAir: 0.05,
+      restitution: 0.8,
+      label: 'creature_head',
+      render: { fillStyle: color, strokeStyle: '#000', lineWidth: 1 }
+    });
+
+    const tail = Bodies.circle(x - headSize * 2, y, tailSize, {
+      frictionAir: 0.1,
+      restitution: 0.8,
+      label: 'creature_tail',
+      render: { fillStyle: d3.color(color).darker().toString(), strokeStyle: '#000', lineWidth: 1 }
+    });
+
+    const spring = Constraint.create({
+      bodyA: head,
+      bodyB: tail,
+      stiffness: 0.2,
+      damping: 0.1,
+      length: headSize * 2,
+      render: { strokeStyle: '#333', lineWidth: 2 }
+    });
+
+    const composite = Composite.create({ bodies: [head, tail], constraints: [spring] });
+
+    const creature = {
+      composite,
+      head,
+      tail,
+      traits,
+      energy: STARTING_ENERGY,
+      targetFood: null,
+      age: 0
+    };
+
+    head.creatureRef = creature;
+    tail.creatureRef = creature;
+
+    state.creatures.push(creature);
+    Composite.add(engine.world, composite);
+
+    updateLineageStats();
+  }
+
+  function initSimulation() {
+    // Clear world
+    Composite.clear(engine.world);
+    Engine.clear(engine);
+    state.creatures = [];
+    state.foods = [];
+    state.fields = [];
+    state.lineages = [];
+    state.generationMap.clear();
+    state.time = 0;
+
+    createWalls();
+
+    // Spawn initial creatures
+    for (let i = 0; i < 5; i++) {
+      spawnCreature(width * 0.2 + Math.random() * width * 0.6, height * 0.2 + Math.random() * height * 0.6);
+    }
+
+    // Spawn initial food
+    for (let i = 0; i < 20; i++) {
+      createFood(Math.random() * width, Math.random() * height);
+    }
+
+    updateMetrics();
+    updateD3();
+  }
+
+  // --- Simulation Loop ---
+
+  function distance(v1, v2) {
+    const dx = v1.x - v2.x;
+    const dy = v1.y - v2.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  Events.on(engine, 'beforeUpdate', () => {
+    if (state.paused) return;
+
+    state.time++;
+
+    // Natural food spawn
+    if (state.time % 100 === 0 && state.foods.length < 100) {
+      createFood(Math.random() * width, Math.random() * height);
+    }
+
+    // Process creatures
+    for (let i = state.creatures.length - 1; i >= 0; i--) {
+      const c = state.creatures[i];
+      c.age++;
+      c.energy -= 0.1 + (c.traits.size * 0.005); // Energy cost based on size
+
+      if (c.energy <= 0) {
+        // Die
+        Composite.remove(engine.world, c.composite);
+        state.creatures.splice(i, 1);
+
+        // Drop food on death
+        if (Math.random() > 0.5) {
+            createFood(c.head.position.x, c.head.position.y);
+        }
+        continue;
+      }
+
+      if (c.energy > REPRODUCE_ENERGY) {
+        // Reproduce
+        c.energy -= STARTING_ENERGY * 1.2; // Cost to reproduce
+        spawnCreature(c.tail.position.x + 20, c.tail.position.y, c.traits);
+      }
+
+      // Movement Logic
+      const headPos = c.head.position;
+      let forceX = 0;
+      let forceY = 0;
+
+      // 1. Find nearest food if not full
+      if (c.energy < REPRODUCE_ENERGY * 0.8 && state.foods.length > 0) {
+          let nearest = null;
+          let minDist = Infinity;
+          for (let f of state.foods) {
+              const d = distance(headPos, f.position);
+              if (d < minDist) {
+                  minDist = d;
+                  nearest = f;
+              }
+          }
+          if (nearest && minDist < 300) {
+              const dirX = nearest.position.x - headPos.x;
+              const dirY = nearest.position.y - headPos.y;
+              const len = Math.sqrt(dirX*dirX + dirY*dirY);
+              forceX += (dirX / len) * c.traits.speed;
+              forceY += (dirY / len) * c.traits.speed;
+          }
+      } else {
+          // Wander
+          forceX += (Math.random() - 0.5) * c.traits.speed * 0.5;
+          forceY += (Math.random() - 0.5) * c.traits.speed * 0.5;
+      }
+
+      // 2. Apply Fields
+      for (let field of state.fields) {
+          const dx = headPos.x - field.position.x;
+          const dy = headPos.y - field.position.y;
+          const dist = Math.sqrt(dx*dx + dy*dy);
+          if (dist < ATTR_REP_RADIUS * 1.5) {
+              // Inverse square law approx
+              const strength = (1 - (dist / (ATTR_REP_RADIUS * 1.5))) * ATTR_REP_FORCE;
+              if (field.fieldType === 'attractor') {
+                  forceX -= (dx / dist) * strength;
+                  forceY -= (dy / dist) * strength;
+              } else {
+                  forceX += (dx / dist) * strength;
+                  forceY += (dy / dist) * strength;
+              }
+          }
+      }
+
+      // Apply movement
+      Body.applyForce(c.head, headPos, { x: forceX, y: forceY });
+
+      // Wiggle tail slightly
+      if (state.time % 10 === 0) {
+         Body.applyForce(c.tail, c.tail.position, {
+             x: (Math.random() - 0.5) * c.traits.speed * 0.2,
+             y: (Math.random() - 0.5) * c.traits.speed * 0.2
+         });
+      }
+    }
+
+    // Update visuals
+    for (let c of state.creatures) {
+        // darker color if low energy
+        const ratio = Math.max(0, Math.min(1, c.energy / STARTING_ENERGY));
+        if (ratio < 0.3) {
+            c.head.render.strokeStyle = '#ff0000';
+            c.head.render.lineWidth = 2;
+        } else {
+            c.head.render.strokeStyle = '#000';
+            c.head.render.lineWidth = 1;
+        }
+    }
+
+    if (state.time % 30 === 0) {
+        updateLineageStats();
+        updateMetrics();
+        updateD3();
+    }
+  });
+
+  // Collision handling (Eating)
+  Events.on(engine, 'collisionStart', (event) => {
+    const pairs = event.pairs;
+    for (let i = 0; i < pairs.length; i++) {
+      const bodyA = pairs[i].bodyA;
+      const bodyB = pairs[i].bodyB;
+
+      let creatureBody, foodBody;
+
+      if (bodyA.label.startsWith('creature') && bodyB.label === 'food') {
+        creatureBody = bodyA;
+        foodBody = bodyB;
+      } else if (bodyB.label.startsWith('creature') && bodyA.label === 'food') {
+        creatureBody = bodyB;
+        foodBody = bodyA;
+      }
+
+      if (creatureBody && foodBody) {
+        const c = creatureBody.creatureRef;
+        if (c && state.foods.includes(foodBody)) {
+          c.energy += foodBody.energy;
+          Composite.remove(engine.world, foodBody);
+          state.foods = state.foods.filter(f => f !== foodBody);
+        }
+      }
+    }
+  });
+
+  // --- Interaction ---
+  els.container.addEventListener('mousedown', (e) => {
+    const rect = els.container.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    if (state.placementMode === 'food') {
+        for(let i=0; i<3; i++) createFood(x + (Math.random()-0.5)*20, y + (Math.random()-0.5)*20);
+    } else if (state.placementMode === 'obstacle') {
+        createObstacle(x, y);
+    } else if (state.placementMode === 'attractor' || state.placementMode === 'repulsor') {
+        createField(x, y, state.placementMode);
+    }
+
+    // Force immediate metric update so playwright sees it right away
+    updateMetrics();
+  });
+
+  // Controls bindings
+  function setActiveBtn(btn) {
+      [els.btnFood, els.btnObstacle, els.btnAttractor, els.btnRepulsor].forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+  }
+
+  els.btnFood.addEventListener('click', () => { state.placementMode = 'food'; setActiveBtn(els.btnFood); });
+  els.btnObstacle.addEventListener('click', () => { state.placementMode = 'obstacle'; setActiveBtn(els.btnObstacle); });
+  els.btnAttractor.addEventListener('click', () => { state.placementMode = 'attractor'; setActiveBtn(els.btnAttractor); });
+  els.btnRepulsor.addEventListener('click', () => { state.placementMode = 'repulsor'; setActiveBtn(els.btnRepulsor); });
+
+  els.mutationSlider.addEventListener('input', (e) => {
+      state.mutationPressure = parseInt(e.target.value);
+      els.mutationVal.textContent = state.mutationPressure;
+  });
+
+  els.btnPause.addEventListener('click', () => {
+      state.paused = !state.paused;
+      els.btnPause.textContent = state.paused ? 'Resume' : 'Pause';
+      if(state.paused) {
+          els.btnPause.style.backgroundColor = '#f39c12';
+          els.btnPause.style.borderColor = '#e67e22';
+      } else {
+          els.btnPause.style.backgroundColor = '';
+          els.btnPause.style.borderColor = '';
+      }
+  });
+
+  els.btnReset.addEventListener('click', initSimulation);
+
+  els.btnEvent.addEventListener('click', () => {
+      if (state.eventName === 'Rain') {
+          // Rain: Spawn huge amount of food
+          for (let i = 0; i < 50; i++) {
+              createFood(Math.random() * width, Math.random() * height);
+          }
+          state.eventName = 'Drought';
+          els.btnEvent.textContent = 'Trigger Drought';
+          els.btnEvent.style.backgroundColor = '#d35400';
+          els.btnEvent.style.borderColor = '#e67e22';
+      } else {
+          // Drought: Kill low energy, remove food
+          for (let i = state.creatures.length - 1; i >= 0; i--) {
+              if (state.creatures[i].energy < STARTING_ENERGY) {
+                  Composite.remove(engine.world, state.creatures[i].composite);
+                  state.creatures.splice(i, 1);
+              }
+          }
+          // Remove half food
+          const toRemove = state.foods.splice(0, Math.floor(state.foods.length / 2));
+          toRemove.forEach(f => Composite.remove(engine.world, f));
+
+          state.eventName = 'Rain';
+          els.btnEvent.textContent = 'Trigger Rain';
+          els.btnEvent.style.backgroundColor = '#2980b9';
+          els.btnEvent.style.borderColor = '#3498db';
+      }
+      updateMetrics();
+  });
+
+  // --- Metrics & D3 Visualization ---
+
+  function updateLineageStats() {
+      // Reset pops
+      state.lineages.forEach(l => { l.pop = 0; l.totEng = 0; });
+
+      let activeLineages = new Set();
+
+      for (let c of state.creatures) {
+          let l = state.lineages.find(lin => lin.id === c.traits.rootId);
+          if (l) {
+              l.pop++;
+              l.totEng += c.energy;
+              activeLineages.add(c.traits.rootId);
+          }
+      }
+
+      // Calculate averages and filter dead lineages
+      state.lineages = state.lineages.filter(l => activeLineages.has(l.id));
+      state.lineages.forEach(l => {
+          if (l.pop > 0) l.avgEng = l.totEng / l.pop;
+      });
+  }
+
+  function updateMetrics() {
+      const pop = state.creatures.length;
+      els.mPop.textContent = pop;
+
+      let totalEng = 0;
+      let maxGen = 0;
+      for (let c of state.creatures) {
+          totalEng += c.energy;
+          if (c.traits.generation > maxGen) maxGen = c.traits.generation;
+      }
+
+      els.mEng.textContent = pop > 0 ? Math.floor(totalEng / pop) : 0;
+      els.mFood.textContent = state.foods.length;
+      els.mGen.textContent = maxGen;
+  }
+
+  // D3
+  const svg = d3.select('#d3-container')
+    .append('svg');
+
+  const margin = {top: 20, right: 20, bottom: 30, left: 40};
+
+  function updateD3() {
+      const container = document.getElementById('d3-container');
+      const w = container.clientWidth;
+      const h = container.clientHeight - 30; // minus title height
+
+      if (w === 0 || h <= 0) return;
+
+      svg.attr('viewBox', `0 0 ${w} ${h}`);
+      svg.selectAll('*').remove();
+
+      if (state.lineages.length === 0) return;
+
+      const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+      const innerW = w - margin.left - margin.right;
+      const innerH = h - margin.top - margin.bottom;
+
+      // Bubble chart of lineages
+      // X = Generation, Y = Avg Energy, Radius = Population, Color = Lineage ID
+
+      const maxGen = d3.max(state.lineages, d => d.gen) || 1;
+      const minGen = d3.min(state.lineages, d => d.gen) || 1;
+      const maxEng = Math.max(REPRODUCE_ENERGY, d3.max(state.lineages, d => d.avgEng) || STARTING_ENERGY);
+      const maxPop = d3.max(state.lineages, d => d.pop) || 1;
+
+      const xScale = d3.scaleLinear()
+          .domain([Math.max(1, minGen - 1), maxGen + 1])
+          .range([0, innerW]);
+
+      const yScale = d3.scaleLinear()
+          .domain([0, maxEng * 1.2])
+          .range([innerH, 0]);
+
+      const rScale = d3.scaleSqrt()
+          .domain([0, maxPop])
+          .range([2, Math.min(innerW/5, innerH/5, 40)]);
+
+      // Axes
+      g.append('g')
+          .attr('transform', `translate(0,${innerH})`)
+          .call(d3.axisBottom(xScale).ticks(5).tickFormat(d3.format("d")))
+          .attr('color', '#64748b');
+
+      g.append('text')
+          .attr('x', innerW / 2)
+          .attr('y', innerH + margin.bottom - 5)
+          .style('text-anchor', 'middle')
+          .style('font-size', '10px')
+          .style('fill', '#64748b')
+          .text('Generation');
+
+      g.append('g')
+          .call(d3.axisLeft(yScale).ticks(5))
+          .attr('color', '#64748b');
+
+      g.append('text')
+          .attr('transform', 'rotate(-90)')
+          .attr('y', -margin.left + 10)
+          .attr('x', -innerH / 2)
+          .style('text-anchor', 'middle')
+          .style('font-size', '10px')
+          .style('fill', '#64748b')
+          .text('Avg Energy');
+
+      // Grid lines
+      g.append('g')
+          .attr('class', 'grid')
+          .call(d3.axisLeft(yScale)
+              .tickSize(-innerW)
+              .tickFormat('')
+          )
+          .style('stroke-dasharray', '3,3')
+          .style('opacity', 0.1);
+
+      // Bubbles
+      const nodes = g.selectAll('circle.node')
+          .data(state.lineages, d => d.id);
+
+      nodes.enter()
+          .append('circle')
+          .attr('class', 'node')
+          .attr('cx', d => xScale(d.gen))
+          .attr('cy', d => yScale(d.avgEng))
+          .attr('r', 0)
+          .style('fill', d => d.color)
+          .style('opacity', 0.8)
+          .style('stroke', '#333')
+          .style('stroke-width', 1)
+          .merge(nodes)
+          .transition()
+          .duration(200)
+          .attr('cx', d => xScale(d.gen))
+          .attr('cy', d => yScale(d.avgEng))
+          .attr('r', d => rScale(d.pop));
+
+      nodes.exit().remove();
+
+      // Interaction
+      const tooltip = d3.select('#tooltip');
+      g.selectAll('circle.node')
+          .on('mouseover', function(event, d) {
+              d3.select(this).style('stroke-width', 2).style('opacity', 1);
+              tooltip.style('opacity', 1)
+                  .html(`Gen: ${d.gen}<br>Pop: ${d.pop}<br>Eng: ${Math.floor(d.avgEng)}`)
+                  .style('left', (event.pageX + 10) + 'px')
+                  .style('top', (event.pageY - 28) + 'px');
+          })
+          .on('mouseout', function() {
+              d3.select(this).style('stroke-width', 1).style('opacity', 0.8);
+              tooltip.style('opacity', 0);
+          });
+  }
+
+  // Start
+  initSimulation();
+
+</script>
+</body>
+</html>
