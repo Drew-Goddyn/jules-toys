@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Starship Rogue Circuit</title>
+<style>
+  :root {
+    --bg: #0a0c10;
+    --panel-bg: #11151c;
+    --text: #c0c8d0;
+    --accent: #50fa7b;
+    --accent-dim: #287a3e;
+    --danger: #ff5555;
+    --warn: #f1fa8c;
+    --cyan: #8be9fd;
+    --wall: #343746;
+    --floor: #1a1e24;
+    --door-closed: #6272a4;
+    --door-open: #44475a;
+    --fow: #000000;
+    --player: #8be9fd;
+    --enemy: #ff5555;
+    --item: #f1fa8c;
+    --exit: #bd93f9;
+  }
+
+  body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: 'Courier New', Courier, monospace;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+  }
+
+  #game-container {
+    display: grid;
+    grid-template-columns: 250px 1fr 250px;
+    grid-template-rows: 1fr 200px;
+    gap: 10px;
+    width: 100%;
+    max-width: 1200px;
+    height: 100%;
+    max-height: 800px;
+    padding: 10px;
+    box-sizing: border-box;
+  }
+
+  .panel {
+    background-color: var(--panel-bg);
+    border: 1px solid var(--wall);
+    border-radius: 4px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  h1, h2 {
+    margin-top: 0;
+    color: var(--accent);
+    font-size: 1.2rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--wall);
+    padding-bottom: 5px;
+  }
+
+  /* Stats Panel */
+  #left-panel {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+  }
+  .stat-val { font-weight: bold; }
+  .health { color: var(--danger); }
+  .shields { color: var(--cyan); }
+
+  .bar-container {
+    width: 100%;
+    height: 10px;
+    background: var(--bg);
+    border: 1px solid var(--wall);
+    margin-bottom: 15px;
+    border-radius: 2px;
+  }
+  .bar-fill {
+    height: 100%;
+    transition: width 0.2s;
+  }
+  #hp-bar { background: var(--danger); width: 100%; }
+  #shield-bar { background: var(--cyan); width: 100%; }
+
+  /* Main View */
+  #main-view {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    background-color: var(--fow);
+  }
+
+  #canvas-container {
+    position: relative;
+  }
+
+  canvas {
+    background-color: var(--fow);
+    image-rendering: pixelated;
+    display: block;
+  }
+
+  #overlay {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    z-index: 10;
+  }
+  .hidden { display: none !important; }
+
+  button {
+    background: var(--bg);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 10px 20px;
+    font-family: inherit;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-top: 20px;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+  button:hover {
+    background: var(--accent-dim);
+    color: #fff;
+  }
+
+  /* Right Panel (Inventory / Minimap) */
+  #right-panel {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  #minimap-container {
+    width: 100%;
+    aspect-ratio: 1;
+    background: var(--bg);
+    border: 1px solid var(--wall);
+    margin-bottom: 15px;
+  }
+
+  #inventory-list {
+    flex-grow: 1;
+    overflow-y: auto;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .inv-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px;
+    border: 1px solid var(--wall);
+    margin-bottom: 5px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    background: var(--bg);
+  }
+  .inv-item:hover {
+    border-color: var(--accent);
+  }
+  .inv-item.equipped {
+    border-left: 3px solid var(--accent);
+  }
+
+  /* Message Log */
+  #bottom-panel {
+    grid-column: 1 / 4;
+    grid-row: 2;
+    display: flex;
+    flex-direction: row;
+    gap: 15px;
+  }
+
+  #log-container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #message-log {
+    flex-grow: 1;
+    overflow-y: auto;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    display: flex;
+    flex-direction: column-reverse;
+  }
+  .log-msg { margin-bottom: 4px; }
+  .log-sys { color: var(--text); }
+  .log-combat { color: var(--danger); }
+  .log-item { color: var(--warn); }
+  .log-good { color: var(--accent); }
+
+  #controls-hint {
+    width: 250px;
+    font-size: 0.8rem;
+    color: var(--wall);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .key {
+    display: inline-block;
+    padding: 2px 5px;
+    border: 1px solid var(--wall);
+    border-radius: 3px;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  /* Animations */
+  @keyframes damage {
+    0% { transform: translate(0,0); color: red; }
+    25% { transform: translate(-2px,-2px); }
+    50% { transform: translate(2px,2px); }
+    75% { transform: translate(-2px,2px); }
+    100% { transform: translate(0,0); }
+  }
+  .anim-damage { animation: damage 0.2s ease-in-out; }
+
+  @keyframes float-up {
+    0% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-20px); }
+  }
+  .floating-text {
+    position: absolute;
+    pointer-events: none;
+    font-weight: bold;
+    text-shadow: 1px 1px 0 #000;
+    animation: float-up 1s forwards;
+    z-index: 5;
+  }
+
+  /* On-screen controls for Playwright / Mobile */
+  #onscreen-controls {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+    margin-top: auto;
+  }
+  .ctrl-btn {
+    background: var(--bg);
+    border: 1px solid var(--wall);
+    color: var(--text);
+    padding: 8px 0;
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
+  }
+  .ctrl-btn:hover, .ctrl-btn:active {
+    background: var(--wall);
+  }
+  #btn-up { grid-column: 2; grid-row: 1; }
+  #btn-left { grid-column: 1; grid-row: 2; }
+  #btn-wait { grid-column: 2; grid-row: 2; font-size: 0.7rem;}
+  #btn-right { grid-column: 3; grid-row: 2; }
+  #btn-down { grid-column: 2; grid-row: 3; }
+</style>
+</head>
+<body>
+
+<div id="game-container">
+  <!-- Left Panel: Stats -->
+  <div id="left-panel" class="panel">
+    <h2>Status</h2>
+    <div class="stat-row"><span>Deck</span> <span id="stat-deck" class="stat-val">1</span></div>
+
+    <div class="stat-row"><span>Health</span> <span id="stat-hp" class="stat-val health">100/100</span></div>
+    <div class="bar-container"><div id="hp-bar" class="bar-fill"></div></div>
+
+    <div class="stat-row"><span>Shields</span> <span id="stat-shield" class="stat-val shields">50/50</span></div>
+    <div class="bar-container"><div id="shield-bar" class="bar-fill"></div></div>
+
+    <div class="stat-row"><span>Weapon</span> <span id="stat-weapon" class="stat-val">Blaster (3 DMG)</span></div>
+
+    <div id="onscreen-controls">
+      <div class="ctrl-btn" id="btn-up">W</div>
+      <div class="ctrl-btn" id="btn-left">A</div>
+      <div class="ctrl-btn" id="btn-wait">WAIT</div>
+      <div class="ctrl-btn" id="btn-right">D</div>
+      <div class="ctrl-btn" id="btn-down">S</div>
+    </div>
+  </div>
+
+  <!-- Main View: Game Map -->
+  <div id="main-view" class="panel" style="padding:0;">
+    <div id="canvas-container">
+      <canvas id="gameCanvas" width="640" height="480"></canvas>
+      <div id="floating-text-layer" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;"></div>
+    </div>
+
+    <!-- Overlays -->
+    <div id="overlay">
+      <h1 id="overlay-title" style="border:none; font-size: 2rem;">STARSHIP ROGUE CIRCUIT</h1>
+      <p id="overlay-desc">Board the derelict. Survive the circuit.</p>
+      <button id="overlay-btn">Start Run</button>
+    </div>
+  </div>
+
+  <!-- Right Panel: Minimap & Inventory -->
+  <div id="right-panel" class="panel">
+    <h2>Scanner</h2>
+    <canvas id="minimapCanvas" width="200" height="200" style="width:100%; aspect-ratio:1; border:1px solid var(--wall); background:var(--bg); margin-bottom: 10px;"></canvas>
+
+    <h2>Inventory</h2>
+    <ul id="inventory-list">
+      <!-- Items populated here -->
+    </ul>
+  </div>
+
+  <!-- Bottom Panel: Log -->
+  <div id="bottom-panel" class="panel">
+    <div id="log-container">
+      <h2>Comms Log</h2>
+      <div id="message-log">
+        <!-- Logs populated here (flex-direction: column-reverse means appending goes to bottom logically) -->
+      </div>
+    </div>
+    <div id="controls-hint">
+      <p><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> or <span class="key">Arrows</span> to move/attack.</p>
+      <p><span class="key">Space</span> to wait.</p>
+      <p>Click items to use/equip.</p>
+      <p>Bump enemies to attack.</p>
+      <p>Reach <span style="color:var(--exit)">purple</span> exits.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// --- Constants & Config ---
+const MAP_WIDTH = 40;
+const MAP_HEIGHT = 30;
+const TILE_SIZE = 16; // internal logic
+const DISPLAY_TILE_SIZE = 16;
+const MAX_ROOMS = 10;
+const ROOM_MIN_SIZE = 4;
+const ROOM_MAX_SIZE = 10;
+const FOV_RADIUS = 6;
+
+// --- Enums ---
+const TILE = {
+  EMPTY: 0,
+  FLOOR: 1,
+  WALL: 2,
+  DOOR_CLOSED: 3,
+  DOOR_OPEN: 4,
+  EXIT: 5
+};
+
+// --- Types ---
+const ITEM_TYPES = {
+  MEDKIT: { name: 'Medkit', type: 'consumable', heal: 50, color: '#ff5555' },
+  SHIELD_CELL: { name: 'Shield Cell', type: 'consumable', shield: 25, color: '#8be9fd' },
+  BLASTER_UPGRADE: { name: 'Ion Blaster', type: 'weapon', dmg: 5, color: '#f1fa8c' },
+  PLASMA_RIFLE: { name: 'Plasma Rifle', type: 'weapon', dmg: 8, color: '#f1fa8c' }
+};
+
+// --- Globals ---
+let map = []; // 2D array [x][y]
+let explored = []; // 2D array
+let visible = []; // 2D array
+let rooms = [];
+let entities = []; // Enemies
+let items = []; // Ground items
+let player = {
+  x: 0, y: 0,
+  hp: 100, maxHp: 100,
+  shield: 50, maxShield: 50,
+  dmg: 3, weaponName: 'Blaster',
+  inventory: []
+};
+let ctx, miniCtx;
+let deckLevel = 1;
+let gameState = 'start'; // start, playing, over, won
+
+// --- Audio ---
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+let audioCtx;
+
+function playSound(type) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  const now = audioCtx.currentTime;
+  if (type === 'shoot') {
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(400, now);
+    osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+    osc.start(now);
+    osc.stop(now + 0.1);
+  } else if (type === 'hit') {
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(150, now);
+    osc.frequency.exponentialRampToValueAtTime(50, now + 0.2);
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+    osc.start(now);
+    osc.stop(now + 0.2);
+  } else if (type === 'pickup') {
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, now);
+    osc.frequency.setValueAtTime(800, now + 0.1);
+    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.2);
+    osc.start(now);
+    osc.stop(now + 0.2);
+  } else if (type === 'step') {
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(100, now);
+    gain.gain.setValueAtTime(0.05, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.05);
+    osc.start(now);
+    osc.stop(now + 0.05);
+  }
+}
+
+function initAudio() {
+  if (!audioCtx) {
+    audioCtx = new AudioContext();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+}
+
+// --- Utility ---
+const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+const dist = (x1, y1, x2, y2) => Math.abs(x1 - x2) + Math.abs(y1 - y2);
+const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
+
+// --- Initialization ---
+function init() {
+  const canvas = document.getElementById('gameCanvas');
+  ctx = canvas.getContext('2d');
+
+  const miniCanvas = document.getElementById('minimapCanvas');
+  miniCtx = miniCanvas.getContext('2d');
+
+  generateMap();
+  spawnEntities();
+
+  player.x = rooms[0].centerX;
+  player.y = rooms[0].centerY;
+
+  document.getElementById('stat-deck').innerText = deckLevel;
+  updateUI();
+  computeFOV(player.x, player.y);
+  draw();
+  logMsg(`Deck ${deckLevel} loaded. Proceed to exit.`, 'log-sys');
+  gameState = 'playing';
+}
+
+function resetGame() {
+  deckLevel = 1;
+  player.hp = player.maxHp;
+  player.shield = player.maxShield;
+  player.inventory = [];
+  player.dmg = 3;
+  player.weaponName = 'Blaster';
+  document.getElementById('overlay').classList.add('hidden');
+  init();
+}
+
+function logMsg(msg, cssClass = 'log-sys') {
+  const logDiv = document.getElementById('message-log');
+  const div = document.createElement('div');
+  div.className = `log-msg ${cssClass}`;
+  div.innerText = `> ${msg}`;
+  logDiv.prepend(div);
+  if (logDiv.children.length > 20) {
+    logDiv.lastChild.remove();
+  }
+}
+
+// --- Map Generation ---
+class Rect {
+  constructor(x, y, w, h) {
+    this.x = x; this.y = y; this.w = w; this.h = h;
+  }
+  get centerX() { return Math.floor(this.x + this.w / 2); }
+  get centerY() { return Math.floor(this.y + this.h / 2); }
+  intersect(other) {
+    return (this.x <= other.x + other.w && this.x + this.w >= other.x &&
+            this.y <= other.y + other.h && this.y + this.h >= other.y);
+  }
+}
+
+function generateMap() {
+  map = Array(MAP_WIDTH).fill(0).map(() => Array(MAP_HEIGHT).fill(TILE.EMPTY));
+  explored = Array(MAP_WIDTH).fill(0).map(() => Array(MAP_HEIGHT).fill(false));
+  visible = Array(MAP_WIDTH).fill(0).map(() => Array(MAP_HEIGHT).fill(false));
+  rooms = [];
+
+  for (let i = 0; i < MAX_ROOMS; i++) {
+    const w = rand(ROOM_MIN_SIZE, ROOM_MAX_SIZE);
+    const h = rand(ROOM_MIN_SIZE, ROOM_MAX_SIZE);
+    const x = rand(1, MAP_WIDTH - w - 2);
+    const y = rand(1, MAP_HEIGHT - h - 2);
+
+    const newRoom = new Rect(x, y, w, h);
+    let failed = false;
+    for (let other of rooms) {
+      if (newRoom.intersect(other)) { failed = true; break; }
+    }
+
+    if (!failed) {
+      createRoom(newRoom);
+      if (rooms.length > 0) {
+        const prev = rooms[rooms.length - 1];
+        if (rand(0, 1) === 1) {
+          createHTunnel(prev.centerX, newRoom.centerX, prev.centerY);
+          createVTunnel(prev.centerY, newRoom.centerY, newRoom.centerX);
+        } else {
+          createVTunnel(prev.centerY, newRoom.centerY, prev.centerX);
+          createHTunnel(prev.centerX, newRoom.centerX, newRoom.centerY);
+        }
+      }
+      rooms.push(newRoom);
+    }
+  }
+
+  // Create walls around floors
+  for (let x = 0; x < MAP_WIDTH; x++) {
+    for (let y = 0; y < MAP_HEIGHT; y++) {
+      if (map[x][y] === TILE.FLOOR) {
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            const nx = x + dx, ny = y + dy;
+            if (nx >= 0 && nx < MAP_WIDTH && ny >= 0 && ny < MAP_HEIGHT) {
+              if (map[nx][ny] === TILE.EMPTY) {
+                map[nx][ny] = TILE.WALL;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Set exit in last room
+  const lastRoom = rooms[rooms.length - 1];
+  map[lastRoom.centerX][lastRoom.centerY] = TILE.EXIT;
+}
+
+function spawnEntities() {
+  entities = [];
+  items = [];
+
+  // Skip first room
+  for (let i = 1; i < rooms.length; i++) {
+    const room = rooms[i];
+
+    // Spawn enemy?
+    if (rand(0, 100) > 30) {
+      entities.push({
+        x: rand(room.x, room.x + room.w - 1),
+        y: rand(room.y, room.y + room.h - 1),
+        hp: rand(10, 20),
+        dmg: rand(2, 5),
+        state: 'patrol' // or chase
+      });
+    }
+
+    // Spawn item?
+    if (rand(0, 100) > 60) {
+      const keys = Object.keys(ITEM_TYPES);
+      const randomKey = keys[rand(0, keys.length - 1)];
+      items.push({
+        x: rand(room.x, room.x + room.w - 1),
+        y: rand(room.y, room.y + room.h - 1),
+        itemData: ITEM_TYPES[randomKey]
+      });
+    }
+  }
+}
+
+function createRoom(room) {
+  for (let x = room.x; x < room.x + room.w; x++) {
+    for (let y = room.y; y < room.y + room.h; y++) {
+      map[x][y] = TILE.FLOOR;
+    }
+  }
+}
+
+function createHTunnel(x1, x2, y) {
+  for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) {
+    map[x][y] = TILE.FLOOR;
+  }
+}
+
+function createVTunnel(y1, y2, x) {
+  for (let y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) {
+    map[x][y] = TILE.FLOOR;
+  }
+}
+
+// --- FOV Logic (Recursive Shadowcasting roughly, or simple raycasting) ---
+function computeFOV(px, py) {
+  // Clear visible
+  for(let x=0; x<MAP_WIDTH; x++) for(let y=0; y<MAP_HEIGHT; y++) visible[x][y] = false;
+
+  // Simple raycasting for fov
+  for(let i=0; i<360; i+=2) {
+    const rad = i * Math.PI / 180;
+    const dx = Math.cos(rad);
+    const dy = Math.sin(rad);
+
+    let cx = px + 0.5;
+    let cy = py + 0.5;
+
+    for(let step=0; step<FOV_RADIUS; step++) {
+      const mx = Math.floor(cx);
+      const my = Math.floor(cy);
+      if(mx < 0 || mx >= MAP_WIDTH || my < 0 || my >= MAP_HEIGHT) break;
+
+      visible[mx][my] = true;
+      explored[mx][my] = true;
+
+      if(map[mx][my] === TILE.WALL || map[mx][my] === TILE.DOOR_CLOSED) {
+        break; // block vision
+      }
+
+      cx += dx;
+      cy += dy;
+    }
+  }
+
+  visible[px][py] = true;
+  explored[px][py] = true;
+}
+
+// --- UI ---
+function updateUI() {
+  document.getElementById('stat-hp').innerText = `${player.hp}/${player.maxHp}`;
+  document.getElementById('hp-bar').style.width = `${(player.hp / player.maxHp) * 100}%`;
+
+  document.getElementById('stat-shield').innerText = `${player.shield}/${player.maxShield}`;
+  document.getElementById('shield-bar').style.width = `${(player.shield / player.maxShield) * 100}%`;
+
+  document.getElementById('stat-weapon').innerText = `${player.weaponName} (${player.dmg} DMG)`;
+
+  const invList = document.getElementById('inventory-list');
+  invList.innerHTML = '';
+  player.inventory.forEach((item, index) => {
+    const li = document.createElement('li');
+    li.className = 'inv-item';
+    if(item.type === 'weapon' && player.weaponName === item.name) li.classList.add('equipped');
+
+    li.innerHTML = `<span>${item.name}</span>`;
+    li.onclick = () => useItem(index);
+    invList.appendChild(li);
+  });
+}
+
+function useItem(index) {
+  const item = player.inventory[index];
+  if (item.type === 'consumable') {
+    if (item.heal) {
+      player.hp = Math.min(player.maxHp, player.hp + item.heal);
+      logMsg(`Used ${item.name}. Restored HP.`, 'log-good');
+    }
+    if (item.shield) {
+      player.shield = Math.min(player.maxShield, player.shield + item.shield);
+      logMsg(`Used ${item.name}. Restored Shields.`, 'log-good');
+    }
+    player.inventory.splice(index, 1);
+  } else if (item.type === 'weapon') {
+    player.dmg = item.dmg;
+    player.weaponName = item.name;
+    logMsg(`Equipped ${item.name}.`, 'log-item');
+  }
+  updateUI();
+}
+
+function floatingText(x, y, text, color) {
+  const layer = document.getElementById('floating-text-layer');
+  const el = document.createElement('div');
+  el.className = 'floating-text';
+  el.style.left = `${x * DISPLAY_TILE_SIZE}px`;
+  el.style.top = `${y * DISPLAY_TILE_SIZE}px`;
+  el.style.color = color;
+  el.innerText = text;
+  layer.appendChild(el);
+  setTimeout(() => el.remove(), 1000);
+}
+
+// --- Combat ---
+function attackEntity(target, dmg) {
+  target.hp -= dmg;
+  floatingText(target.x, target.y, `-${dmg}`, '#ff5555');
+  if (target.hp <= 0) {
+    logMsg(`Destroyed enemy.`, 'log-good');
+    return true; // killed
+  }
+  return false;
+}
+
+function attackPlayer(dmg) {
+  document.getElementById('game-container').classList.add('anim-damage');
+  setTimeout(() => document.getElementById('game-container').classList.remove('anim-damage'), 200);
+
+  if (player.shield > 0) {
+    let remain = dmg - player.shield;
+    player.shield = Math.max(0, player.shield - dmg);
+    if (remain > 0) player.hp -= remain;
+  } else {
+    player.hp -= dmg;
+  }
+
+  playSound('hit');
+  floatingText(player.x, player.y, `-${dmg}`, '#ff5555');
+  logMsg(`Took ${dmg} damage!`, 'log-combat');
+  updateUI();
+
+  if (player.hp <= 0) {
+    logMsg(`CRITICAL FAILURE. HULL BREACHED.`, 'log-combat');
+    gameState = 'over';
+    document.getElementById('overlay').classList.remove('hidden');
+    document.getElementById('overlay-title').innerText = "HULL BREACHED";
+    document.getElementById('overlay-title').style.color = "var(--danger)";
+    document.getElementById('overlay-desc').innerText = `You survived until Deck ${deckLevel}.`;
+    document.getElementById('overlay-btn').innerText = "Restart Protocol";
+  }
+}
+
+// --- Turn Logic ---
+function tryMove(dx, dy) {
+  if (gameState !== 'playing') return;
+  initAudio(); // ensure audio ctx is running
+
+  const nx = player.x + dx;
+  const ny = player.y + dy;
+
+  // Check bounds and walls
+  if (nx < 0 || nx >= MAP_WIDTH || ny < 0 || ny >= MAP_HEIGHT) return;
+  if (map[nx][ny] === TILE.WALL) return;
+
+  // Check entities
+  let hitEnemy = -1;
+  for (let i = 0; i < entities.length; i++) {
+    if (entities[i].x === nx && entities[i].y === ny) {
+      hitEnemy = i;
+      break;
+    }
+  }
+
+  if (hitEnemy !== -1) {
+    // Attack
+    playSound('shoot');
+    logMsg(`Fired ${player.weaponName} at target.`, 'log-sys');
+    let killed = attackEntity(entities[hitEnemy], player.dmg);
+    if (killed) {
+      entities.splice(hitEnemy, 1);
+    }
+  } else {
+    // Move
+    player.x = nx;
+    player.y = ny;
+    playSound('step');
+
+    // Pick up items
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].x === nx && items[i].y === ny) {
+        if (player.inventory.length < 10) {
+          player.inventory.push(items[i].itemData);
+          logMsg(`Picked up ${items[i].itemData.name}.`, 'log-item');
+          playSound('pickup');
+          items.splice(i, 1);
+          updateUI();
+          break;
+        } else {
+          logMsg(`Inventory full!`, 'log-warn');
+        }
+      }
+    }
+
+    // Check exit
+    if (map[nx][ny] === TILE.EXIT) {
+      if (deckLevel >= 3) {
+        gameState = 'won';
+        document.getElementById('overlay').classList.remove('hidden');
+        document.getElementById('overlay-title').innerText = "CIRCUIT COMPLETE";
+        document.getElementById('overlay-title').style.color = "var(--accent)";
+        document.getElementById('overlay-desc').innerText = "You have secured the derelict.";
+        document.getElementById('overlay-btn').innerText = "Play Again";
+        return;
+      } else {
+        deckLevel++;
+        logMsg(`Descending to Deck ${deckLevel}...`, 'log-good');
+        init();
+        return;
+      }
+    }
+  }
+
+  // Enemy Turn
+  enemyTurn();
+
+  computeFOV(player.x, player.y);
+  draw();
+}
+
+function enemyTurn() {
+  for (let en of entities) {
+    // If adjacent to player, attack
+    if (dist(en.x, en.y, player.x, player.y) === 1) {
+      attackPlayer(en.dmg);
+    } else if (dist(en.x, en.y, player.x, player.y) <= FOV_RADIUS && visible[en.x][en.y]) {
+      // Chase
+      let dx = Math.sign(player.x - en.x);
+      let dy = Math.sign(player.y - en.y);
+      // Try move primarily on longest axis, or fallback
+      let tx = en.x + dx;
+      let ty = en.y + dy;
+
+      if (Math.abs(player.x - en.x) > Math.abs(player.y - en.y)) {
+        if (map[tx][en.y] !== TILE.WALL) { en.x = tx; continue; }
+        if (map[en.x][ty] !== TILE.WALL) { en.y = ty; continue; }
+      } else {
+        if (map[en.x][ty] !== TILE.WALL) { en.y = ty; continue; }
+        if (map[tx][en.y] !== TILE.WALL) { en.x = tx; continue; }
+      }
+    } else {
+      // Patrol randomly
+      if (rand(0,1) === 1) {
+        let dirs = [[0,-1], [0,1], [-1,0], [1,0]];
+        let d = dirs[rand(0,3)];
+        if (map[en.x + d[0]][en.y + d[1]] !== TILE.WALL) {
+          en.x += d[0];
+          en.y += d[1];
+        }
+      }
+    }
+  }
+}
+
+// --- Input ---
+window.addEventListener('keydown', (e) => {
+  if (gameState !== 'playing') return;
+  if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') tryMove(0, -1);
+  if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') tryMove(0, 1);
+  if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') tryMove(-1, 0);
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') tryMove(1, 0);
+  if (e.key === ' ') tryMove(0, 0); // Wait
+});
+
+document.getElementById('btn-up').onclick = () => tryMove(0, -1);
+document.getElementById('btn-down').onclick = () => tryMove(0, 1);
+document.getElementById('btn-left').onclick = () => tryMove(-1, 0);
+document.getElementById('btn-right').onclick = () => tryMove(1, 0);
+document.getElementById('btn-wait').onclick = () => tryMove(0, 0);
+
+document.getElementById('overlay-btn').onclick = () => {
+  initAudio();
+  resetGame();
+};
+
+// --- Rendering ---
+const colors = {
+  [TILE.EMPTY]: '#000000',
+  [TILE.FLOOR]: '#1a1e24',
+  [TILE.WALL]: '#343746',
+  [TILE.DOOR_CLOSED]: '#6272a4',
+  [TILE.DOOR_OPEN]: '#44475a',
+  [TILE.EXIT]: '#bd93f9'
+};
+
+function draw() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, 640, 480);
+
+  miniCtx.fillStyle = '#000';
+  miniCtx.fillRect(0, 0, 200, 200);
+  const mw = 200 / MAP_WIDTH;
+  const mh = 200 / MAP_HEIGHT;
+
+  for (let x = 0; x < MAP_WIDTH; x++) {
+    for (let y = 0; y < MAP_HEIGHT; y++) {
+      // Main map
+      if (explored[x][y]) {
+        let color = colors[map[x][y]];
+        if (!visible[x][y]) {
+          // Dimmer color for out of fov
+          if(map[x][y] === TILE.FLOOR) color = '#0d0f12';
+          else if(map[x][y] === TILE.WALL) color = '#1a1b23';
+          else if(map[x][y] === TILE.EXIT) color = '#5e497c';
+        }
+
+        ctx.fillStyle = color;
+        ctx.fillRect(x * DISPLAY_TILE_SIZE, y * DISPLAY_TILE_SIZE, DISPLAY_TILE_SIZE, DISPLAY_TILE_SIZE);
+
+        // Minimap
+        miniCtx.fillStyle = color;
+        miniCtx.fillRect(x * mw, y * mh, mw, mh);
+      }
+    }
+  }
+
+  // Draw items
+  items.forEach(item => {
+    if (visible[item.x][item.y]) {
+      ctx.fillStyle = item.itemData.color;
+      ctx.beginPath();
+      ctx.arc(item.x * DISPLAY_TILE_SIZE + 8, item.y * DISPLAY_TILE_SIZE + 8, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      miniCtx.fillStyle = item.itemData.color;
+      miniCtx.fillRect(item.x * mw, item.y * mh, mw, mh);
+    }
+  });
+
+  // Draw enemies
+  entities.forEach(en => {
+    if (visible[en.x][en.y]) {
+      ctx.fillStyle = '#ff5555';
+      ctx.fillRect(en.x * DISPLAY_TILE_SIZE + 2, en.y * DISPLAY_TILE_SIZE + 2, DISPLAY_TILE_SIZE - 4, DISPLAY_TILE_SIZE - 4);
+
+      miniCtx.fillStyle = '#ff5555';
+      miniCtx.fillRect(en.x * mw, en.y * mh, mw, mh);
+    }
+  });
+
+  // Draw Player
+  ctx.fillStyle = '#8be9fd';
+  ctx.fillRect(player.x * DISPLAY_TILE_SIZE + 2, player.y * DISPLAY_TILE_SIZE + 2, DISPLAY_TILE_SIZE - 4, DISPLAY_TILE_SIZE - 4);
+
+  miniCtx.fillStyle = '#8be9fd';
+  miniCtx.fillRect(player.x * mw, player.y * mh, mw, mh);
+}
+
+// Kick off
+// Initially just draws empty board behind overlay
+generateMap();
+draw();
+</script>
+
+</body>
+</html>
