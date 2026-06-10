@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Archive of Moving Cities</title>
+  <style>
+    :root {
+      --bg-color: #0f1115;
+      --text-color: #eaeaea;
+      --accent-color: #e09f3e;
+      --panel-bg: rgba(15, 17, 21, 0.85);
+      --font-main: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-family: var(--font-main);
+      overflow-x: hidden;
+    }
+
+    /* Fixed 3D Canvas Background */
+    #canvas-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Overlay for UI and text */
+    #overlay {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+    }
+
+    /* Navigation / Controls Header */
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+      z-index: 20;
+    }
+
+    .title-area h1 {
+      font-size: 1.2rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .controls {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    button {
+      background: transparent;
+      border: 1px solid var(--accent-color);
+      color: var(--accent-color);
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+    }
+
+    button:hover, button:focus {
+      background: var(--accent-color);
+      color: var(--bg-color);
+      outline: none;
+    }
+
+    .chapter-nav {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .chapter-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .chapter-btn.active {
+      background: var(--accent-color);
+      color: var(--bg-color);
+    }
+
+    /* Progress bar */
+    #progress-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: rgba(255,255,255,0.1);
+      z-index: 21;
+    }
+
+    #progress-bar {
+      height: 100%;
+      width: 0%;
+      background: var(--accent-color);
+      transform-origin: left;
+    }
+
+    /* Chapters (Scrollable Content) */
+    .chapter {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      padding: 2rem 10vw;
+    }
+
+    /* Alternate text alignment slightly */
+    .chapter:nth-child(even) {
+      justify-content: flex-end;
+    }
+
+    .chapter-content {
+      background: var(--panel-bg);
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 2rem;
+      max-width: 450px;
+      border-left: 4px solid var(--accent-color);
+      backdrop-filter: blur(5px);
+    }
+
+    .chapter-content h2 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      color: var(--accent-color);
+    }
+
+    .chapter-content p {
+      font-size: 1.1rem;
+      line-height: 1.6;
+      margin-bottom: 1.5rem;
+      color: #ccc;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      padding-top: 1rem;
+    }
+
+    .metric-box {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .metric-label {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      color: #888;
+    }
+
+    .metric-value {
+      font-size: 1.2rem;
+      font-weight: bold;
+      font-family: monospace;
+    }
+
+    @media (max-width: 768px) {
+      .chapter {
+        padding: 2rem;
+        justify-content: center !important;
+        align-items: flex-end;
+        padding-bottom: 5rem;
+      }
+      .chapter-content {
+        max-width: 100%;
+      }
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+      }
+      .controls {
+        width: 100%;
+        justify-content: space-between;
+      }
+    }
+
+    /* Reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+    }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.166.1/three.module.min.js"
+      }
+    }
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollToPlugin.min.js"></script>
+</head>
+<body>
+
+  <div id="progress-container">
+    <div id="progress-bar"></div>
+  </div>
+
+  <div id="canvas-container"></div>
+
+  <header>
+    <div class="title-area">
+      <h1>Archive of Moving Cities</h1>
+    </div>
+    <div class="controls">
+      <div class="chapter-nav" role="navigation" aria-label="Chapter Navigation">
+        <button class="chapter-btn" data-target="0" aria-label="Go to Chapter 1">1</button>
+        <button class="chapter-btn" data-target="1" aria-label="Go to Chapter 2">2</button>
+        <button class="chapter-btn" data-target="2" aria-label="Go to Chapter 3">3</button>
+        <button class="chapter-btn" data-target="3" aria-label="Go to Chapter 4">4</button>
+        <button class="chapter-btn" data-target="4" aria-label="Go to Chapter 5">5</button>
+      </div>
+      <button id="motion-toggle" aria-label="Toggle animations">Pause Motion</button>
+    </div>
+  </header>
+
+  <main id="overlay">
+    <!-- Chapters will be injected here via JS to keep the file cleaner, or we can just write them out -->
+    <section class="chapter" id="chapter-0">
+      <div class="chapter-content">
+        <h2>I. The Static Era</h2>
+        <p>Before the Great Drift, settlements clung to fault lines and riverbeds. Foundations were driven deep into unyielding stone, a testament to permanence in a changing world.</p>
+        <div class="metrics">
+          <div class="metric-box"><span class="metric-label">Mobility Status</span><span class="metric-value">Anchored</span></div>
+          <div class="metric-box"><span class="metric-label">Population</span><span class="metric-value">1.2M</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter" id="chapter-1">
+      <div class="chapter-content">
+        <h2>II. The First Tremors</h2>
+        <p>As tectonic plates fractured, survival demanded adaptation. Retrofitted with hydraulic tracks, the first districts began to crawl, severing their ancient tethers.</p>
+        <div class="metrics">
+          <div class="metric-box"><span class="metric-label">Mobility Status</span><span class="metric-value">Crawling</span></div>
+          <div class="metric-box"><span class="metric-label">Velocity</span><span class="metric-value">2 km/yr</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter" id="chapter-2">
+      <div class="chapter-content">
+        <h2>III. The Nomadic Fleets</h2>
+        <p>Entire metropolises became roaming convoys. Structures decoupled into modular units, reconfiguring on the fly to navigate expanding chasms and shifting dunes.</p>
+        <div class="metrics">
+          <div class="metric-box"><span class="metric-label">Formation</span><span class="metric-value">Dispersed</span></div>
+          <div class="metric-box"><span class="metric-label">Velocity</span><span class="metric-value">45 km/yr</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter" id="chapter-3">
+      <div class="chapter-content">
+        <h2>IV. The Convergence</h2>
+        <p>Seeking stable resources, the fleets coalesced. Massive crawler-cities locked together, forming transient super-structures that spanned horizons before splintering again.</p>
+        <div class="metrics">
+          <div class="metric-box"><span class="metric-label">Formation</span><span class="metric-value">Megastructure</span></div>
+          <div class="metric-box"><span class="metric-label">Density</span><span class="metric-value">Critical</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter" id="chapter-4">
+      <div class="chapter-content">
+        <h2>V. Ascension</h2>
+        <p>When the crust became uninhabitable, the cities cast off their treads. Magnetic repulsors ignited, lifting the concrete archipelagos into the lower stratosphere.</p>
+        <div class="metrics">
+          <div class="metric-box"><span class="metric-label">Mobility Status</span><span class="metric-value">Airborne</span></div>
+          <div class="metric-box"><span class="metric-label">Altitude</span><span class="metric-value">2,400m</span></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import * as THREE from 'three';
+
+    // Ensure Three.js is loaded
+    if (typeof THREE === 'undefined') {
+        console.error("Three.js failed to load!");
+    }
+
+    // --- Three.js Setup ---
+    const canvasContainer = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    // Dark fog for atmosphere
+    scene.fog = new THREE.FogExp2(0x0f1115, 0.015);
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    canvasContainer.appendChild(renderer.domElement);
+
+    // --- Lighting ---
+    const ambientLight = new THREE.AmbientLight(0x404040, 2); // Soft white light
+    scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xe09f3e, 1.5);
+    directionalLight.position.set(5, 10, 7);
+    scene.add(directionalLight);
+    const pointLight = new THREE.PointLight(0x00aaff, 2, 50);
+    pointLight.position.set(-5, 5, -5);
+    scene.add(pointLight);
+
+    // --- Geometries: The City ---
+    const cityGroup = new THREE.Group();
+    scene.add(cityGroup);
+
+    // Ground plane
+    const groundGeometry = new THREE.PlaneGeometry(200, 200, 32, 32);
+    // Wireframe ground to look like a map/grid
+    const groundMaterial = new THREE.MeshBasicMaterial({
+      color: 0x333333,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.3
+    });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -2;
+    scene.add(ground);
+
+    // Create buildings
+    const buildingCount = 150;
+    const buildingGeometry = new THREE.BoxGeometry(1, 1, 1);
+    // Move origin to bottom of box
+    buildingGeometry.translate(0, 0.5, 0);
+    const buildingMaterial = new THREE.MeshStandardMaterial({
+      color: 0x888888,
+      roughness: 0.7,
+      metalness: 0.3
+    });
+
+    // We'll store buildings to animate them later
+    const buildings = [];
+
+    // Helper to create a clustered layout
+    for (let i = 0; i < buildingCount; i++) {
+      const building = new THREE.Mesh(buildingGeometry, buildingMaterial);
+
+      // Random position in a circle
+      const angle = Math.random() * Math.PI * 2;
+      // Clusters: some near center, some far
+      const radius = Math.random() > 0.6 ? Math.random() * 20 + 5 : Math.random() * 8;
+
+      building.position.x = Math.cos(angle) * radius;
+      building.position.z = Math.sin(angle) * radius;
+
+      // Random height, taller near center
+      const height = (Math.random() * 4 + 1) * (1 - Math.min(radius/30, 0.8));
+      building.scale.y = height;
+
+      // Random width/depth
+      building.scale.x = Math.random() * 1.5 + 0.5;
+      building.scale.z = Math.random() * 1.5 + 0.5;
+
+      building.rotation.y = Math.random() * Math.PI;
+
+      // Store initial positions for animations
+      building.userData = {
+        baseX: building.position.x,
+        baseZ: building.position.z,
+        baseScaleY: building.scale.y,
+        baseRotY: building.rotation.y,
+        randomFactor: Math.random()
+      };
+
+      cityGroup.add(building);
+      buildings.push(building);
+    }
+
+    // Particles for dust/clouds/stars
+    const particleCount = 1000;
+    const particlesGeo = new THREE.BufferGeometry();
+    const posArray = new Float32Array(particleCount * 3);
+    for(let i=0; i < particleCount * 3; i++) {
+      posArray[i] = (Math.random() - 0.5) * 100;
+    }
+    particlesGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    const particlesMat = new THREE.PointsMaterial({
+      size: 0.1,
+      color: 0xaaaaaa,
+      transparent: true,
+      opacity: 0.6,
+      blending: THREE.AdditiveBlending
+    });
+    const particles = new THREE.Points(particlesGeo, particlesMat);
+    scene.add(particles);
+
+    // Initial Camera setup
+    camera.position.set(0, 10, 25);
+    camera.lookAt(0, 0, 0);
+
+    // Window resize handler
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // --- Animation Loop ---
+    let time = 0;
+    let isPaused = false;
+
+    // Global parameters modified by GSAP ScrollTrigger
+    const sceneParams = {
+      groundSpeed: 0,
+      citySpread: 0, // 0 = clustered, 1 = dispersed
+      cityFloat: 0,  // 0 = ground, 1 = floating in air
+      chaos: 0       // Rotation/movement chaos
+    };
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      if (!isPaused) {
+        time += 0.01;
+
+        // Animate ground texture moving if groundSpeed > 0
+        if (sceneParams.groundSpeed > 0) {
+           ground.position.z = (ground.position.z + sceneParams.groundSpeed) % 10;
+        }
+
+        // Animate particles
+        particles.rotation.y = time * 0.05;
+
+        // Dynamic city updates based on scroll params
+        buildings.forEach(b => {
+          const ud = b.userData;
+
+          // Spread logic (Chapter 2 & 3)
+          const spreadFactor = 1 + (sceneParams.citySpread * ud.randomFactor * 2);
+          b.position.x = ud.baseX * spreadFactor;
+          b.position.z = ud.baseZ * spreadFactor;
+
+          // Float logic (Chapter 4)
+          // Taller buildings float higher
+          const targetY = sceneParams.cityFloat * (ud.baseScaleY * 2 + ud.randomFactor * 5);
+          // Add some bobbing if floating
+          const bob = sceneParams.cityFloat > 0 ? Math.sin(time * 2 + ud.randomFactor * 10) * 0.5 : 0;
+          b.position.y = THREE.MathUtils.lerp(b.position.y, targetY + bob, 0.05);
+
+          // Chaos logic (Chapter 1 & 2)
+          if (sceneParams.chaos > 0) {
+            b.rotation.y = ud.baseRotY + (Math.sin(time * 5 + ud.randomFactor * 10) * sceneParams.chaos * 0.2);
+            b.position.x += Math.sin(time * 3 + ud.baseX) * sceneParams.chaos * 0.05;
+          } else {
+            // Restore rotation
+            b.rotation.y = THREE.MathUtils.lerp(b.rotation.y, ud.baseRotY, 0.1);
+          }
+        });
+
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // --- GSAP & ScrollTrigger Setup ---
+    gsap.registerPlugin(ScrollTrigger);
+
+    // Progress bar
+    gsap.to('#progress-bar', {
+      width: '100%',
+      ease: 'none',
+      scrollTrigger: {
+        trigger: 'body',
+        start: 'top top',
+        end: 'bottom bottom',
+        scrub: 0.1
+      }
+    });
+
+    const chapters = gsap.utils.toArray('.chapter');
+    const chapterBtns = gsap.utils.toArray('.chapter-btn');
+
+    // Chapter Navigation Buttons
+    chapterBtns.forEach((btn, i) => {
+      btn.addEventListener('click', () => {
+        gsap.to(window, {
+          scrollTo: { y: chapters[i], offsetY: 0 },
+          duration: 1,
+          ease: 'power2.inOut'
+        });
+      });
+    });
+
+    // Helper to update active nav button
+    function updateActiveNav(index) {
+      chapterBtns.forEach(btn => btn.classList.remove('active'));
+      if (chapterBtns[index]) {
+        chapterBtns[index].classList.add('active');
+      }
+    }
+
+    // --- Scene Timelines per Chapter ---
+
+    // Chapter 0: The Static Era (Base state, already set)
+    ScrollTrigger.create({
+      trigger: '#chapter-0',
+      start: 'top center',
+      onEnter: () => updateActiveNav(0),
+      onEnterBack: () => {
+        updateActiveNav(0);
+        gsap.to(sceneParams, { groundSpeed: 0, citySpread: 0, cityFloat: 0, chaos: 0, duration: 1 });
+        gsap.to(camera.position, { x: 0, y: 10, z: 25, duration: 2 });
+      }
+    });
+
+    // Chapter 1: The First Tremors
+    ScrollTrigger.create({
+      trigger: '#chapter-1',
+      start: 'top center',
+      onEnter: () => {
+        updateActiveNav(1);
+        gsap.to(sceneParams, { groundSpeed: 0.05, chaos: 0.5, duration: 2 });
+        gsap.to(camera.position, { x: 5, y: 12, z: 20, duration: 2 });
+        gsap.to(camera.rotation, { z: 0.05, duration: 2 }); // Slight tilt
+      },
+      onEnterBack: () => {
+        updateActiveNav(1);
+        gsap.to(sceneParams, { groundSpeed: 0.05, citySpread: 0, chaos: 0.5, duration: 2 });
+        gsap.to(camera.position, { x: 5, y: 12, z: 20, duration: 2 });
+      }
+    });
+
+    // Chapter 2: The Nomadic Fleets
+    ScrollTrigger.create({
+      trigger: '#chapter-2',
+      start: 'top center',
+      onEnter: () => {
+        updateActiveNav(2);
+        gsap.to(sceneParams, { groundSpeed: 0.2, citySpread: 1.5, chaos: 1, duration: 3 });
+        gsap.to(camera.position, { x: -10, y: 5, z: 15, duration: 3 });
+        gsap.to(camera.rotation, { z: 0, duration: 1 });
+      },
+      onEnterBack: () => {
+        updateActiveNav(2);
+        gsap.to(sceneParams, { groundSpeed: 0.2, citySpread: 1.5, cityFloat: 0, chaos: 1, duration: 3 });
+        gsap.to(camera.position, { x: -10, y: 5, z: 15, duration: 3 });
+      }
+    });
+
+    // Chapter 3: The Convergence
+    ScrollTrigger.create({
+      trigger: '#chapter-3',
+      start: 'top center',
+      onEnter: () => {
+        updateActiveNav(3);
+        // Pull back together, moving fast
+        gsap.to(sceneParams, { groundSpeed: 0.5, citySpread: 0.2, chaos: 0.2, duration: 3 });
+        gsap.to(camera.position, { x: 0, y: 25, z: 5, duration: 3 }); // Top down view
+        gsap.to(camera.rotation, { z: 0, duration: 1 });
+      },
+      onEnterBack: () => {
+        updateActiveNav(3);
+        gsap.to(sceneParams, { groundSpeed: 0.5, citySpread: 0.2, cityFloat: 0, chaos: 0.2, duration: 3 });
+        gsap.to(camera.position, { x: 0, y: 25, z: 5, duration: 3 });
+      }
+    });
+
+    // Chapter 4: Ascension
+    ScrollTrigger.create({
+      trigger: '#chapter-4',
+      start: 'top center',
+      onEnter: () => {
+        updateActiveNav(4);
+        // Float up
+        gsap.to(sceneParams, { groundSpeed: 0.1, citySpread: 0.5, cityFloat: 1, chaos: 0.1, duration: 4 });
+        gsap.to(camera.position, { x: 0, y: 5, z: 30, duration: 4 }); // Look up from below
+        gsap.to(camera.rotation, { z: 0, duration: 1 });
+
+        // Change lighting for ascension
+        gsap.to(pointLight.position, { y: 20, duration: 4 });
+        gsap.to(directionalLight.color, { r: 0.5, g: 0.8, b: 1, duration: 4 }); // Shift to blueish
+      }
+    });
+
+    // Initialize first nav button active
+    updateActiveNav(0);
+
+    // --- Reduced Motion / Pause Toggle ---
+    const motionToggle = document.getElementById('motion-toggle');
+    motionToggle.addEventListener('click', () => {
+      isPaused = !isPaused;
+      motionToggle.innerText = isPaused ? 'Resume Motion' : 'Pause Motion';
+      if (isPaused) {
+        gsap.globalTimeline.pause();
+      } else {
+        gsap.globalTimeline.play();
+      }
+    });
+
+    // Auto-pause if prefers-reduced-motion is true
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (prefersReducedMotion.matches) {
+      isPaused = true;
+      motionToggle.innerText = 'Resume Motion';
+      gsap.globalTimeline.pause();
+    }
+
+  </script>
+</body>
+</html>
