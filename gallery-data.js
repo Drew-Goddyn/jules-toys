@@ -408,5 +408,95 @@ window.galleryItems = [
     kind: "GPT-5 library audio comparison",
     tags: ["GPT-5", "Tone.js", "PixiJS", "audio", "comparison"],
     oneLine: "GPT-5 comparison: starts a Tone.js/PixiJS choir, changes tempo/scale/habitat, adds/mutates voices, edits pattern steps, and logs events."
+  },
+  {
+    tier: 11,
+    title: "Gravity Loom",
+    slug: "gravity-loom",
+    path: "tier-lib/gravity-loom/index.html",
+    screenshot: "tier-lib/gravity-loom/screenshot.png",
+    kind: "Library physics instrument",
+    tags: ["Jules", "Matter.js", "PixiJS", "Tone.js", "physics", "music"],
+    oneLine: "Pins pegs, connects threads, releases a shuttle, and turns Matter.js constraints into PixiJS trails and Tone.js plucks."
+  },
+  {
+    tier: 11,
+    title: "Mycelium Cathedral",
+    slug: "mycelium-cathedral",
+    path: "tier-lib/mycelium-cathedral/index.html",
+    screenshot: "tier-lib/mycelium-cathedral/screenshot.png",
+    kind: "Library 3D living architecture",
+    tags: ["Jules", "Three.js", "D3-force", "Tone.js", "3D", "network"],
+    oneLine: "Drops spores and relics into a Three.js reliquary where D3-force routes grow and the healthiest paths raise translucent vaulted membranes."
+  },
+  {
+    tier: 11,
+    title: "Comet Courtroom",
+    slug: "comet-courtroom",
+    path: "tier-lib/comet-courtroom/index.html",
+    screenshot: "tier-lib/comet-courtroom/screenshot.png",
+    kind: "Library orbital arcade",
+    tags: ["Jules", "Phaser", "Matter.js", "Anime.js", "game", "orbit"],
+    oneLine: "Runs a Phaser/Matter courtroom where evidence shots orbit a judge-star, collide into precedents, burn up, and trigger verdict flourishes."
+  },
+  {
+    tier: 11,
+    title: "Weather Organ",
+    slug: "weather-organ",
+    path: "tier-lib/weather-organ/index.html",
+    screenshot: "tier-lib/weather-organ/screenshot.png",
+    kind: "Library climate instrument",
+    tags: ["Jules", "D3", "PixiJS", "Tone.js", "weather", "particles"],
+    oneLine: "Places pressure cells, mountains, and oceans to drive D3 vector fields, PixiJS weather particles, storm energy, and Tone.js weather voices."
+  },
+  {
+    tier: 11,
+    title: "Argument Aquarium",
+    slug: "argument-aquarium",
+    path: "tier-lib/argument-aquarium/index.html",
+    screenshot: "tier-lib/argument-aquarium/screenshot.png",
+    kind: "Library argument ecology",
+    tags: ["Jules", "D3", "Zod", "Zustand", "argument", "ecology"],
+    oneLine: "Validates claims with Zod, stores evolving state with Zustand, and uses a D3 force aquarium where evidence, doubts, and counterexamples link into visible tension."
+  },
+  {
+    tier: 11,
+    title: "The Museum Of Unmade Rooms",
+    slug: "museum-of-unmade-rooms",
+    path: "tier-lib/museum-of-unmade-rooms/index.html",
+    screenshot: "tier-lib/museum-of-unmade-rooms/screenshot.png",
+    kind: "Library 3D timeline room",
+    tags: ["Jules", "Three.js", "Theatre.js", "Zustand", "3D", "timeline"],
+    oneLine: "Uses Three.js objects, Zustand branches, and Theatre.js timeline playback so moving room artifacts rewrites architecture, light, and memory text."
+  },
+  {
+    tier: 11,
+    title: "Spellforge Validator",
+    slug: "spellforge-validator",
+    path: "tier-lib/spellforge-validator/index.html",
+    screenshot: "tier-lib/spellforge-validator/screenshot.png",
+    kind: "Library schema magic toy",
+    tags: ["Jules", "Zod", "Three.js", "GSAP", "validation", "3D"],
+    oneLine: "Turns Zod spell grammar into play: valid recipes create Three.js effects, invalid recipes spawn animated misfires, and GSAP repairs them."
+  },
+  {
+    tier: 11,
+    title: "GPT-5 Mycelium Cathedral",
+    slug: "gpt5-mycelium-cathedral",
+    path: "tier-lib/gpt5-mycelium-cathedral/index.html",
+    screenshot: "tier-lib/gpt5-mycelium-cathedral/screenshot.png",
+    kind: "GPT-5 library 3D comparison",
+    tags: ["GPT-5", "Three.js", "D3-force", "Tone.js", "3D", "comparison"],
+    oneLine: "GPT-5 comparison: grows a Three.js/D3 fungal reliquary with spores, relics, sever/feed controls, vaulted membranes, and Tone.js pulse hooks."
+  },
+  {
+    tier: 11,
+    title: "GPT-5 Inkquake City",
+    slug: "gpt5-inkquake-city",
+    path: "tier-lib/gpt5-inkquake-city/index.html",
+    screenshot: "tier-lib/gpt5-inkquake-city/screenshot.png",
+    kind: "GPT-5 library physics comparison",
+    tags: ["GPT-5", "Rapier", "PixiJS", "GSAP", "typography", "comparison"],
+    oneLine: "GPT-5 comparison: turns typed glyphs into Rapier/Pixi city bodies with punctuation anchors, shockwaves, material reinforcement, and GSAP reconstruction."
   }
 ];
