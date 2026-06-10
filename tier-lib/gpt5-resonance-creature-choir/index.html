@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>GPT-5 Resonance Creature Choir</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090a0f;
+      --panel: rgba(16, 20, 28, 0.88);
+      --panel-strong: #141923;
+      --line: rgba(215, 226, 255, 0.16);
+      --text: #f4f7ff;
+      --muted: #9ba9bd;
+      --cyan: #57d8ff;
+      --pink: #ff6aa2;
+      --amber: #ffd166;
+      --green: #8af1b5;
+      --violet: #b89cff;
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
+      background: radial-gradient(circle at 80% 10%, rgba(87, 216, 255, 0.16), transparent 32%),
+        radial-gradient(circle at 20% 84%, rgba(255, 106, 162, 0.14), transparent 30%),
+        var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.07);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    button:hover {
+      border-color: rgba(87, 216, 255, 0.75);
+      background: rgba(87, 216, 255, 0.13);
+    }
+
+    button[aria-pressed="true"],
+    button.is-primary {
+      border-color: rgba(255, 209, 102, 0.82);
+      background: rgba(255, 209, 102, 0.17);
+    }
+
+    input,
+    select {
+      width: 100%;
+      min-height: 38px;
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.07);
+      padding: 0 10px;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(270px, 330px) minmax(0, 1fr) minmax(280px, 360px);
+      width: 100vw;
+      height: 100vh;
+    }
+
+    .panel {
+      position: relative;
+      z-index: 2;
+      min-height: 0;
+      overflow: auto;
+      background: linear-gradient(180deg, var(--panel-strong), rgba(9, 10, 15, 0.9));
+      border-color: var(--line);
+      padding: 18px;
+    }
+
+    .left {
+      border-right: 1px solid var(--line);
+    }
+
+    .right {
+      border-left: 1px solid var(--line);
+    }
+
+    .stage {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    #pixiHost {
+      width: 100%;
+      height: 100%;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    header,
+    .stack,
+    .control,
+    .role-list,
+    .log,
+    .matrix {
+      display: grid;
+      gap: 10px;
+    }
+
+    header {
+      margin-bottom: 18px;
+    }
+
+    h1,
+    h2,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 1.32rem;
+      line-height: 1.08;
+    }
+
+    h2 {
+      margin-bottom: 10px;
+      font-size: 0.95rem;
+    }
+
+    .kicker,
+    .label,
+    dt {
+      color: var(--muted);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+    }
+
+    .kicker {
+      color: var(--amber);
+    }
+
+    .control {
+      margin: 16px 0;
+    }
+
+    .two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .metrics {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      bottom: 18px;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .metric,
+    .mini-panel,
+    .role-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(9, 12, 18, 0.72);
+      padding: 10px;
+      backdrop-filter: blur(16px);
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 1.1rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .top-label {
+      position: absolute;
+      top: 18px;
+      left: 18px;
+      z-index: 1;
+      width: min(420px, calc(100% - 36px));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(9, 12, 18, 0.72);
+      padding: 11px 12px;
+      backdrop-filter: blur(16px);
+      pointer-events: none;
+    }
+
+    .top-label strong {
+      display: block;
+      font-size: 0.95rem;
+    }
+
+    .top-label span {
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .role-card {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: var(--role-color);
+      box-shadow: 0 0 16px var(--role-color);
+    }
+
+    .role-card small,
+    dd {
+      color: var(--muted);
+    }
+
+    .matrix {
+      grid-template-columns: repeat(16, minmax(18px, 1fr));
+      gap: 5px;
+    }
+
+    .cell {
+      aspect-ratio: 1;
+      min-height: 20px;
+      border-radius: 4px;
+      padding: 0;
+    }
+
+    .cell[aria-pressed="true"] {
+      background: var(--cyan);
+      border-color: var(--cyan);
+      box-shadow: 0 0 12px rgba(87, 216, 255, 0.5);
+    }
+
+    dl {
+      display: grid;
+      grid-template-columns: 88px 1fr;
+      gap: 8px;
+      margin: 0;
+    }
+
+    dd {
+      margin: 0;
+    }
+
+    .log {
+      max-height: 170px;
+      overflow: auto;
+    }
+
+    .log p {
+      border-left: 2px solid rgba(255, 106, 162, 0.55);
+      padding: 6px 0 6px 9px;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    @media (max-width: 1040px) {
+      html,
+      body {
+        overflow: auto;
+      }
+
+      .app {
+        grid-template-columns: 1fr;
+        height: auto;
+        min-height: 100vh;
+      }
+
+      .panel {
+        overflow: visible;
+        border: 0;
+      }
+
+      .stage {
+        min-height: 64vh;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .metrics {
+        position: relative;
+        left: auto;
+        right: auto;
+        bottom: auto;
+        grid-template-columns: 1fr 1fr;
+        padding: 12px;
+      }
+
+      .matrix {
+        grid-template-columns: repeat(8, minmax(20px, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <aside class="panel left" aria-label="Choir controls">
+      <header>
+        <p class="kicker">GPT-5 side-by-side / Tone.js + PixiJS</p>
+        <h1>Resonance Creature Choir</h1>
+      </header>
+
+      <section class="control" aria-labelledby="transportTitle">
+        <h2 id="transportTitle">Transport</h2>
+        <div class="two">
+          <button type="button" class="is-primary" id="startButton">Start</button>
+          <button type="button" id="stopButton">Stop</button>
+        </div>
+      </section>
+
+      <section class="control" aria-labelledby="tempoTitle">
+        <h2 id="tempoTitle">Tempo</h2>
+        <label class="label" for="tempoRange">BPM</label>
+        <input id="tempoRange" type="range" min="70" max="156" value="104">
+      </section>
+
+      <section class="control" aria-labelledby="moodTitle">
+        <h2 id="moodTitle">Habitat</h2>
+        <div class="two">
+          <select id="scaleSelect">
+            <option value="lydian">Lydian reef</option>
+            <option value="minor">Minor cave</option>
+            <option value="pentatonic">Pentatonic moss</option>
+          </select>
+          <select id="habitatSelect">
+            <option value="reef">Reef glow</option>
+            <option value="canopy">Canopy rain</option>
+            <option value="cavern">Crystal cavern</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="control" aria-labelledby="creatureTitle">
+        <h2 id="creatureTitle">Creatures</h2>
+        <div class="two">
+          <button type="button" id="addButton">Add voice</button>
+          <button type="button" id="mutateButton">Mutate</button>
+        </div>
+      </section>
+
+      <section class="control" aria-labelledby="patternTitle">
+        <h2 id="patternTitle">Pattern</h2>
+        <div class="matrix" id="patternGrid" aria-label="Sequencer pattern"></div>
+      </section>
+    </aside>
+
+    <section class="stage" aria-label="Animated creature choir stage">
+      <div class="top-label">
+        <strong id="sceneTitle">Choir dormant</strong>
+        <span id="sceneSubtitle">Start the transport to wake the creatures.</span>
+      </div>
+      <div id="pixiHost"></div>
+      <div class="metrics" aria-label="Choir metrics">
+        <div class="metric"><span class="label">Step</span><strong id="stepMetric">0</strong></div>
+        <div class="metric"><span class="label">Voices</span><strong id="voiceMetric">0</strong></div>
+        <div class="metric"><span class="label">Scale</span><strong id="scaleMetric">Lydian</strong></div>
+        <div class="metric"><span class="label">Events</span><strong id="eventMetric">0</strong></div>
+      </div>
+    </section>
+
+    <aside class="panel right" aria-label="Choir inspector">
+      <section class="stack">
+        <div>
+          <p class="kicker">Inspector</p>
+          <h2 id="inspectorTitle">No pulse yet</h2>
+        </div>
+        <div class="mini-panel">
+          <dl>
+            <dt>Status</dt><dd id="statusValue">Stopped</dd>
+            <dt>Tempo</dt><dd id="tempoValue">104 BPM</dd>
+            <dt>Habitat</dt><dd id="habitatValue">Reef glow</dd>
+            <dt>Last note</dt><dd id="noteValue">None</dd>
+          </dl>
+        </div>
+        <section aria-labelledby="rolesTitle">
+          <h2 id="rolesTitle">Voice roles</h2>
+          <div class="role-list" id="roleList"></div>
+        </section>
+        <section aria-labelledby="logTitle">
+          <h2 id="logTitle">Event log</h2>
+          <div class="log" id="eventLog"></div>
+        </section>
+      </section>
+    </aside>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.4.2/pixi.min.js"></script>
+  <script>
+    const host = document.querySelector("#pixiHost");
+    const app = new PIXI.Application({
+      resizeTo: host,
+      antialias: true,
+      backgroundAlpha: 0,
+      autoDensity: true,
+      resolution: Math.min(window.devicePixelRatio || 1, 2)
+    });
+    host.appendChild(app.view);
+
+    const scales = {
+      lydian: ["C4", "D4", "E4", "F#4", "G4", "A4", "B4", "D5"],
+      minor: ["A3", "C4", "D4", "E4", "G4", "A4", "C5", "E5"],
+      pentatonic: ["D4", "E4", "G4", "A4", "B4", "D5", "E5", "G5"]
+    };
+
+    const habitats = {
+      reef: { label: "Reef glow", colors: [0x57d8ff, 0xffd166, 0x8af1b5], drift: 0.8 },
+      canopy: { label: "Canopy rain", colors: [0x8af1b5, 0xb89cff, 0xffd166], drift: 1.1 },
+      cavern: { label: "Crystal cavern", colors: [0xb89cff, 0x57d8ff, 0xff6aa2], drift: 0.58 }
+    };
+
+    const roles = [
+      { name: "Pulse", color: 0x57d8ff, wave: "sine", octave: 0 },
+      { name: "Bloom", color: 0xff6aa2, wave: "triangle", octave: 1 },
+      { name: "Root", color: 0xffd166, wave: "square", octave: -1 },
+      { name: "Mist", color: 0x8af1b5, wave: "sawtooth", octave: 0 }
+    ];
+
+    const state = {
+      running: false,
+      startedOnce: false,
+      step: 0,
+      eventCount: 0,
+      scale: "lydian",
+      habitat: "reef",
+      creatures: [],
+      pattern: [true, false, true, false, false, true, false, true, true, false, false, true, false, true, false, false],
+      synths: [],
+      sequence: null,
+      lastNote: "None"
+    };
+    window.choirState = state;
+
+    const field = new PIXI.Graphics();
+    const world = new PIXI.Container();
+    const trails = new PIXI.Graphics();
+    const rings = new PIXI.Graphics();
+    const beatMarkers = new PIXI.Container();
+    app.stage.addChild(field, trails, world, rings, beatMarkers);
+
+    function log(message) {
+      state.eventCount += 1;
+      const entry = document.createElement("p");
+      entry.textContent = message;
+      document.querySelector("#eventLog").prepend(entry);
+      while (document.querySelector("#eventLog").children.length > 8) {
+        document.querySelector("#eventLog").lastElementChild.remove();
+      }
+      renderUi();
+    }
+
+    function makeCreature(roleIndex = state.creatures.length % roles.length) {
+      const role = roles[roleIndex % roles.length];
+      const creature = {
+        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
+        roleIndex: roleIndex % roles.length,
+        noteOffset: Math.floor(Math.random() * scales[state.scale].length),
+        radius: 120 + Math.random() * 240,
+        angle: Math.random() * Math.PI * 2,
+        speed: 0.0035 + Math.random() * 0.0045,
+        pulse: 0,
+        activeStep: Math.floor(Math.random() * 16),
+        graphic: new PIXI.Graphics(),
+        label: new PIXI.Text(role.name[0], { fill: 0xffffff, fontSize: 12, fontFamily: "system-ui" })
+      };
+      creature.label.anchor.set(0.5);
+      world.addChild(creature.graphic, creature.label);
+      state.creatures.push(creature);
+      drawCreature(creature);
+      log(`${role.name} voice joined.`);
+      return creature;
+    }
+
+    function drawCreature(creature) {
+      const role = roles[creature.roleIndex];
+      creature.graphic.clear();
+      creature.graphic.lineStyle(2, role.color, 0.8);
+      creature.graphic.beginFill(role.color, 0.22 + creature.pulse * 0.16);
+      const size = 17 + creature.pulse * 12;
+      creature.graphic.drawCircle(0, 0, size);
+      creature.graphic.endFill();
+      creature.graphic.lineStyle(1, 0xffffff, 0.4);
+      creature.graphic.drawCircle(0, 0, size + 5);
+      creature.graphic.lineStyle(2, role.color, 0.2);
+      creature.graphic.drawCircle(0, 0, size + 16 + creature.pulse * 12);
+      creature.label.text = role.name[0];
+    }
+
+    function resizeScene() {
+      const w = app.renderer.width / app.renderer.resolution;
+      const h = app.renderer.height / app.renderer.resolution;
+      world.position.set(w / 2, h / 2);
+      beatMarkers.removeChildren();
+      for (let i = 0; i < 16; i += 1) {
+        const marker = new PIXI.Graphics();
+        marker.beginFill(0xffffff, i === state.step ? 0.42 : 0.12);
+        marker.drawRoundedRect(-5, -5, 10, 10, 4);
+        marker.endFill();
+        marker.x = 22 + i * Math.max(18, (w - 44) / 16);
+        marker.y = 26;
+        beatMarkers.addChild(marker);
+      }
+    }
+
+    app.renderer.on("resize", resizeScene);
+    resizeScene();
+
+    function createSynths() {
+      state.synths.forEach((synth) => synth.dispose());
+      state.synths = roles.map((role) => {
+        return new Tone.PolySynth(Tone.Synth, {
+          oscillator: { type: role.wave },
+          envelope: { attack: 0.018, decay: 0.16, sustain: 0.24, release: 0.42 }
+        }).toDestination();
+      });
+      state.synths[2].volume.value = -8;
+      state.synths[3].volume.value = -12;
+    }
+
+    function noteFor(creature) {
+      const list = scales[state.scale];
+      const note = list[(creature.noteOffset + state.step) % list.length];
+      if (!note) return "C4";
+      const octaveShift = roles[creature.roleIndex].octave;
+      if (!octaveShift) return note;
+      return note.replace(/\d$/, (digit) => String(Number(digit) + octaveShift));
+    }
+
+    function pulseCreature(creature, time) {
+      creature.pulse = 1;
+      const note = noteFor(creature);
+      state.lastNote = `${roles[creature.roleIndex].name} ${note}`;
+      const synth = state.synths[creature.roleIndex];
+      if (synth) synth.triggerAttackRelease(note, "8n", time, 0.45);
+      rings.lineStyle(2, roles[creature.roleIndex].color, 0.76);
+      rings.drawCircle(creature.graphic.x + world.x, creature.graphic.y + world.y, 24 + Math.random() * 22);
+      setTimeout(() => {
+        rings.clear();
+      }, 120);
+    }
+
+    async function startChoir() {
+      await Tone.start();
+      if (!state.startedOnce) {
+        createSynths();
+        Tone.Transport.bpm.value = Number(document.querySelector("#tempoRange").value);
+        state.sequence = new Tone.Sequence((time, step) => {
+          state.step = step;
+          if (state.pattern[step]) {
+            state.creatures
+              .filter((creature) => creature.activeStep === step || (step + creature.noteOffset) % 4 === 0)
+              .forEach((creature) => pulseCreature(creature, time));
+          }
+          Tone.Draw.schedule(renderUi, time);
+        }, [...Array(16).keys()], "8n").start(0);
+        state.startedOnce = true;
+      }
+      state.running = true;
+      Tone.Transport.start();
+      log("Transport started after user gesture.");
+    }
+
+    function stopChoir() {
+      state.running = false;
+      Tone.Transport.stop();
+      log("Transport stopped.");
+    }
+
+    function mutate() {
+      state.creatures.forEach((creature) => {
+        creature.noteOffset = (creature.noteOffset + 1 + Math.floor(Math.random() * 3)) % scales[state.scale].length;
+        creature.activeStep = Math.floor(Math.random() * 16);
+        creature.radius = 110 + Math.random() * 260;
+      });
+      log("Creature pattern mutated.");
+      renderUi();
+    }
+
+    function renderPattern() {
+      const grid = document.querySelector("#patternGrid");
+      grid.replaceChildren(...state.pattern.map((on, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "cell";
+        button.setAttribute("aria-label", `Step ${index + 1}`);
+        button.setAttribute("aria-pressed", String(on));
+        button.addEventListener("click", () => {
+          state.pattern[index] = !state.pattern[index];
+          log(`Step ${index + 1} ${state.pattern[index] ? "opened" : "muted"}.`);
+          renderPattern();
+        });
+        return button;
+      }));
+    }
+
+    function renderUi() {
+      document.querySelector("#stepMetric").textContent = String(state.step + 1);
+      document.querySelector("#voiceMetric").textContent = String(state.creatures.length);
+      document.querySelector("#scaleMetric").textContent = document.querySelector("#scaleSelect").selectedOptions[0].textContent.split(" ")[0];
+      document.querySelector("#eventMetric").textContent = String(state.eventCount);
+      document.querySelector("#statusValue").textContent = state.running ? "Running" : "Stopped";
+      document.querySelector("#tempoValue").textContent = `${document.querySelector("#tempoRange").value} BPM`;
+      document.querySelector("#habitatValue").textContent = habitats[state.habitat].label;
+      document.querySelector("#noteValue").textContent = state.lastNote;
+      document.querySelector("#sceneTitle").textContent = state.running ? "Choir conducting" : "Choir dormant";
+      document.querySelector("#sceneSubtitle").textContent = `${state.creatures.length} voices / ${habitats[state.habitat].label}`;
+      document.querySelector("#inspectorTitle").textContent = state.lastNote === "None" ? "Awaiting first pulse" : state.lastNote;
+      document.querySelector("#roleList").replaceChildren(...roles.map((role, index) => {
+        const count = state.creatures.filter((creature) => creature.roleIndex === index).length;
+        const div = document.createElement("div");
+        div.className = "role-card";
+        div.style.setProperty("--role-color", `#${role.color.toString(16).padStart(6, "0")}`);
+        div.innerHTML = `<span class="swatch"></span><span>${role.name}<br><small>${role.wave}</small></span><strong>${count}</strong>`;
+        return div;
+      }));
+      beatMarkers.children.forEach((marker, index) => {
+        marker.alpha = index === state.step ? 1 : state.pattern[index] ? 0.55 : 0.2;
+      });
+    }
+
+    document.querySelector("#startButton").addEventListener("click", startChoir);
+    document.querySelector("#stopButton").addEventListener("click", stopChoir);
+    document.querySelector("#addButton").addEventListener("click", () => makeCreature());
+    document.querySelector("#mutateButton").addEventListener("click", mutate);
+    document.querySelector("#tempoRange").addEventListener("input", (event) => {
+      Tone.Transport.bpm.rampTo(Number(event.target.value), 0.2);
+      renderUi();
+    });
+    document.querySelector("#scaleSelect").addEventListener("change", (event) => {
+      state.scale = event.target.value;
+      log(`Scale changed to ${event.target.selectedOptions[0].textContent}.`);
+    });
+    document.querySelector("#habitatSelect").addEventListener("change", (event) => {
+      state.habitat = event.target.value;
+      log(`${habitats[state.habitat].label} habitat loaded.`);
+    });
+
+    app.ticker.add(() => {
+      const habitat = habitats[state.habitat];
+      const w = app.renderer.width / app.renderer.resolution;
+      const h = app.renderer.height / app.renderer.resolution;
+      field.clear();
+      trails.clear();
+      const centerX = w / 2;
+      const centerY = h / 2;
+      field.beginFill(habitat.colors[0], 0.035);
+      field.drawCircle(centerX, centerY, Math.min(w, h) * 0.42);
+      field.endFill();
+      for (let i = 0; i < 7; i += 1) {
+        const radius = 90 + i * 58 + Math.sin(performance.now() * 0.001 + i) * 8;
+        field.lineStyle(1, habitat.colors[i % habitat.colors.length], 0.08 + i * 0.012);
+        field.drawEllipse(centerX, centerY, radius * 1.42, radius);
+      }
+      for (let i = 0; i < 42; i += 1) {
+        const angle = i * 2.399 + performance.now() * 0.00018 * habitat.drift;
+        const radius = 70 + (i % 14) * 24;
+        const moteX = centerX + Math.cos(angle) * radius * 1.25;
+        const moteY = centerY + Math.sin(angle * 1.27) * radius * 0.74;
+        field.beginFill(habitat.colors[i % habitat.colors.length], 0.18);
+        field.drawCircle(moteX, moteY, 1.8 + (i % 3));
+        field.endFill();
+      }
+      trails.lineStyle(1, habitat.colors[state.step % habitat.colors.length], 0.22);
+      state.creatures.forEach((creature, index) => {
+        creature.angle += creature.speed * habitat.drift * app.ticker.deltaMS;
+        creature.pulse *= 0.9;
+        const wobble = Math.sin(performance.now() * 0.0015 + index) * 18;
+        const x = Math.cos(creature.angle) * (creature.radius + wobble);
+        const y = Math.sin(creature.angle * 1.12) * (creature.radius * 0.58);
+        creature.graphic.position.set(x, y);
+        creature.label.position.set(x, y);
+        drawCreature(creature);
+        trails.moveTo(w / 2, h / 2);
+        trails.lineTo(world.x + x, world.y + y);
+      });
+    });
+
+    renderPattern();
+    makeCreature(0);
+    makeCreature(1);
+    makeCreature(2);
+    makeCreature(3);
+    log("Choir loaded with pinned Tone.js 14.7.77 and PixiJS 7.4.2.");
+    renderUi();
+    window.toyReady = true;
+  </script>
+</body>
+</html>
