@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:,">
+  <title>GPT-5 Mycelium Cathedral</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #edf7ef;
+      --muted: #a7b8ab;
+      --quiet: #74857b;
+      --panel: rgb(12 18 16 / 0.78);
+      --panel-strong: rgb(17 28 23 / 0.9);
+      --line: rgb(184 222 191 / 0.18);
+      --line-strong: rgb(197 236 205 / 0.34);
+      --spore: #a7f3d0;
+      --relic: #f7d58a;
+      --danger: #fb7185;
+      --accent: #8fd7ff;
+      --radius: 8px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
+      background: #07100e;
+      color: var(--ink);
+      overflow: hidden;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      min-height: 38px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: rgb(238 255 241 / 0.08);
+      color: var(--ink);
+      padding: 8px 11px;
+      cursor: pointer;
+      transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      background: rgb(238 255 241 / 0.15);
+    }
+
+    button:focus-visible,
+    input:focus-visible {
+      outline: 3px solid rgb(143 215 255 / 0.44);
+      outline-offset: 2px;
+    }
+
+    button:disabled {
+      color: var(--quiet);
+      border-color: var(--line);
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .app {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 350px);
+      background:
+        radial-gradient(circle at 18% 18%, rgb(74 222 128 / 0.14), transparent 26%),
+        radial-gradient(circle at 78% 30%, rgb(143 215 255 / 0.12), transparent 28%),
+        linear-gradient(135deg, #07100e, #0d1418 52%, #050807);
+    }
+
+    #scene {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .hud {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      gap: 14px;
+      height: 100vh;
+      padding: 16px;
+      border-left: 1px solid var(--line);
+      background: linear-gradient(180deg, rgb(10 15 14 / 0.92), rgb(5 8 7 / 0.8));
+      backdrop-filter: blur(16px);
+      overflow-y: auto;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(24px, 4vw, 40px);
+      line-height: 1.02;
+      letter-spacing: 0;
+      max-width: 12ch;
+    }
+
+    .eyebrow,
+    label,
+    .metric span,
+    .event-log strong {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .lede {
+      margin: 10px 0 0;
+      color: #c8d7cc;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .controls,
+    .metrics,
+    .event-log {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: 0 22px 50px rgb(0 0 0 / 0.28);
+    }
+
+    .controls {
+      display: grid;
+      gap: 12px;
+      padding: 12px;
+    }
+
+    .button-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--spore);
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      overflow: hidden;
+      background: var(--line);
+    }
+
+    .metric {
+      min-height: 66px;
+      padding: 12px;
+      background: var(--panel-strong);
+    }
+
+    .metric b {
+      display: block;
+      margin-top: 6px;
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .event-log {
+      min-height: 0;
+      padding: 12px;
+      color: #c9d6ca;
+      font-size: 13px;
+      line-height: 1.42;
+    }
+
+    .event-log ul {
+      display: grid;
+      gap: 8px;
+      margin: 10px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .event-log li {
+      border-left: 2px solid rgb(167 243 208 / 0.42);
+      padding-left: 9px;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .key {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--spore);
+      box-shadow: 0 0 16px currentColor;
+    }
+
+    .dot.relic {
+      background: var(--relic);
+    }
+
+    .dot.vault {
+      background: var(--accent);
+    }
+
+    .scene-label {
+      position: absolute;
+      left: 18px;
+      bottom: 16px;
+      z-index: 3;
+      max-width: min(520px, calc(100vw - 390px));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgb(7 13 11 / 0.64);
+      color: #d7e8db;
+      padding: 10px 12px;
+      backdrop-filter: blur(12px);
+    }
+
+    @media (max-width: 820px) {
+      body {
+        overflow: auto;
+      }
+
+      .app {
+        position: relative;
+        min-height: 100vh;
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(420px, 58vh) auto;
+      }
+
+      .hud {
+        height: auto;
+        border-left: 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .scene-label {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section aria-label="Three dimensional mycelium cathedral reliquary">
+      <canvas id="scene"></canvas>
+      <div class="scene-label" id="selectionLabel">Click a spore or relic to consecrate it. Healthy routes lift vaulted membranes.</div>
+    </section>
+
+    <aside class="hud" aria-label="Cathedral controls">
+      <header>
+        <p class="eyebrow">GPT-5 library comparison</p>
+        <h1>Mycelium Cathedral</h1>
+        <p class="lede">Spores and mineral relics negotiate a living nave. Feed the organism and its strongest routes become translucent architecture.</p>
+      </header>
+
+      <section class="controls" aria-label="Sculpting controls">
+        <div class="button-grid">
+          <button type="button" id="addSpore">Drop spore</button>
+          <button type="button" id="addRelic">Place relic</button>
+          <button type="button" id="feed">Feed selected</button>
+          <button type="button" id="starve">Starve selected</button>
+          <button type="button" id="sever">Sever weak</button>
+          <button type="button" id="reset">Reset nave</button>
+        </div>
+        <div class="field">
+          <label for="nutrient">Nutrient tide</label>
+          <input id="nutrient" type="range" min="0" max="100" value="64">
+        </div>
+        <div class="button-grid">
+          <button type="button" id="audio">Start audio</button>
+          <button type="button" id="demo">Run demo</button>
+        </div>
+        <div class="legend" aria-label="Legend">
+          <span class="key"><span class="dot"></span> Spore</span>
+          <span class="key"><span class="dot relic"></span> Relic</span>
+          <span class="key"><span class="dot vault"></span> Vault</span>
+        </div>
+      </section>
+
+      <section class="metrics" aria-label="Cathedral metrics">
+        <div class="metric"><span>Spores</span><b id="nodeMetric">0</b></div>
+        <div class="metric"><span>Routes</span><b id="routeMetric">0</b></div>
+        <div class="metric"><span>Vaults</span><b id="vaultMetric">0</b></div>
+        <div class="metric"><span>Health</span><b id="healthMetric">0%</b></div>
+      </section>
+
+      <section class="event-log" aria-label="Cathedral event log">
+        <strong>Reliquary record</strong>
+        <ul id="log"></ul>
+      </section>
+    </aside>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+    const canvas = document.getElementById("scene");
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x07100e, 0.038);
+
+    const camera = new THREE.PerspectiveCamera(46, 1, 0.1, 200);
+    camera.position.set(0, 13, 23);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.minDistance = 13;
+    controls.maxDistance = 42;
+    controls.maxPolarAngle = Math.PI * 0.48;
+    controls.target.set(0, 1.2, 0);
+
+    const reliquary = new THREE.Group();
+    scene.add(reliquary);
+
+    const nodeGroup = new THREE.Group();
+    const routeGroup = new THREE.Group();
+    const vaultGroup = new THREE.Group();
+    reliquary.add(routeGroup, vaultGroup, nodeGroup);
+
+    const amb = new THREE.HemisphereLight(0xd9ffe2, 0x112018, 1.55);
+    scene.add(amb);
+    const sun = new THREE.DirectionalLight(0xffe2a1, 2.2);
+    sun.position.set(-8, 16, 10);
+    scene.add(sun);
+    const naveLight = new THREE.PointLight(0x8fd7ff, 8, 38, 1.4);
+    naveLight.position.set(0, 7, 0);
+    scene.add(naveLight);
+
+    const floor = new THREE.Mesh(
+      new THREE.CylinderGeometry(13, 15, 0.7, 96),
+      new THREE.MeshStandardMaterial({ color: 0x13211d, roughness: 0.75, metalness: 0.1 })
+    );
+    floor.position.y = -0.45;
+    scene.add(floor);
+
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(12.8, 0.05, 12, 144),
+      new THREE.MeshBasicMaterial({ color: 0xa7f3d0, transparent: true, opacity: 0.45 })
+    );
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 0.02;
+    scene.add(ring);
+
+    const sporeMaterial = new THREE.MeshStandardMaterial({ color: 0xa7f3d0, emissive: 0x1a6b49, emissiveIntensity: 0.7, roughness: 0.42 });
+    const relicMaterial = new THREE.MeshStandardMaterial({ color: 0xf7d58a, emissive: 0x8a5a12, emissiveIntensity: 0.65, roughness: 0.28, metalness: 0.22 });
+    const selectedMaterial = new THREE.MeshStandardMaterial({ color: 0x8fd7ff, emissive: 0x2f9ad8, emissiveIntensity: 0.95, roughness: 0.3 });
+    const routeMaterial = new THREE.MeshBasicMaterial({ color: 0xb8ffd8, transparent: true, opacity: 0.45 });
+    const vaultMaterial = new THREE.MeshStandardMaterial({ color: 0x8fd7ff, emissive: 0x103b52, emissiveIntensity: 0.32, transparent: true, opacity: 0.22, side: THREE.DoubleSide, roughness: 0.28 });
+
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    const nodes = [];
+    let links = [];
+    let selectedId = null;
+    let nextId = 1;
+    let audioStarted = false;
+    let synth = null;
+    let loop = null;
+    let membraneCount = 0;
+    let pulse = 0;
+
+    const logEl = document.getElementById("log");
+    const selectionLabel = document.getElementById("selectionLabel");
+    const nutrientEl = document.getElementById("nutrient");
+
+    function log(message) {
+      const li = document.createElement("li");
+      li.textContent = message;
+      logEl.prepend(li);
+      while (logEl.children.length > 5) logEl.lastElementChild.remove();
+    }
+
+    function nodePosition(angle, radius, lift = 0) {
+      return {
+        x: Math.cos(angle) * radius,
+        y: Math.sin(angle) * radius,
+        z: lift
+      };
+    }
+
+    function createNode(type = "spore", seedAngle = Math.random() * Math.PI * 2) {
+      const radius = type === "relic" ? 7.5 + Math.random() * 2.5 : 2.4 + Math.random() * 7.5;
+      const p = nodePosition(seedAngle, radius, type === "relic" ? 0.55 : 0.25);
+      const health = type === "relic" ? 0.88 : 0.42 + Math.random() * 0.34;
+      const mesh = new THREE.Mesh(
+        type === "relic" ? new THREE.OctahedronGeometry(0.52, 0) : new THREE.SphereGeometry(0.34, 22, 14),
+        type === "relic" ? relicMaterial.clone() : sporeMaterial.clone()
+      );
+      mesh.position.set(p.x, p.z, p.y);
+      mesh.userData.id = nextId;
+      mesh.userData.kind = type;
+      nodeGroup.add(mesh);
+      const node = { id: nextId++, type, x: p.x, y: p.y, z: p.z, health, mesh, radius, angle: seedAngle };
+      nodes.push(node);
+      simulation.nodes(nodes);
+      rebuildLinks();
+      log(type === "relic" ? "A mineral relic begins humming in the apse." : "A spore lands and listens for routes.");
+      return node;
+    }
+
+    function seed() {
+      nodes.splice(0);
+      links = [];
+      nextId = 1;
+      selectedId = null;
+      nodeGroup.clear();
+      routeGroup.clear();
+      vaultGroup.clear();
+      logEl.replaceChildren();
+      for (let i = 0; i < 8; i += 1) createNode(i % 5 === 0 ? "relic" : "spore", (i / 8) * Math.PI * 2);
+      for (let i = 0; i < 3; i += 1) createNode("spore", Math.random() * Math.PI * 2);
+      selectedId = nodes[0]?.id ?? null;
+      log("The nave reseeds itself from old hymns.");
+      updateSelectionLabel();
+    }
+
+    const simulation = d3.forceSimulation(nodes)
+      .force("charge", d3.forceManyBody().strength((d) => d.type === "relic" ? -95 : -34))
+      .force("link", d3.forceLink(links).id((d) => d.id).distance((d) => 70 - d.health * 22).strength((d) => 0.03 + d.health * 0.08))
+      .force("center", d3.forceCenter(0, 0))
+      .force("radial", d3.forceRadial((d) => d.type === "relic" ? 8 : 5.5, 0, 0).strength(0.06))
+      .force("collide", d3.forceCollide().radius((d) => d.type === "relic" ? 1.4 : 0.9))
+      .alphaDecay(0.018);
+
+    function rebuildLinks() {
+      const nextLinks = [];
+      for (const a of nodes) {
+        const candidates = nodes
+          .filter((b) => b !== a)
+          .map((b) => ({ b, dist: Math.hypot(a.x - b.x, a.y - b.y) }))
+          .sort((m, n) => m.dist - n.dist)
+          .slice(0, a.type === "relic" ? 4 : 3);
+        for (const { b, dist } of candidates) {
+          const key = a.id < b.id ? `${a.id}-${b.id}` : `${b.id}-${a.id}`;
+          if (nextLinks.some((l) => l.key === key)) continue;
+          const old = links.find((l) => l.key === key);
+          const health = old ? old.health : Math.min(1, Math.max(0.18, (a.health + b.health) / 2 - dist / 35));
+          nextLinks.push({ source: a, target: b, health, key });
+        }
+      }
+      links = nextLinks;
+      simulation.force("link").links(links);
+      simulation.alpha(0.76).restart();
+      drawRoutes();
+    }
+
+    function drawRoutes() {
+      routeGroup.clear();
+      vaultGroup.clear();
+      membraneCount = 0;
+      for (const link of links) {
+        const a = nodeByRef(link.source);
+        const b = nodeByRef(link.target);
+        if (!a || !b) continue;
+        const p1 = new THREE.Vector3(a.x, 0.25 + a.health * 0.8, a.y);
+        const p2 = new THREE.Vector3(b.x, 0.25 + b.health * 0.8, b.y);
+        const mid = p1.clone().lerp(p2, 0.5);
+        mid.y += 0.7 + link.health * 1.6;
+        const curve = new THREE.CatmullRomCurve3([p1, mid, p2]);
+        const tube = new THREE.Mesh(
+          new THREE.TubeGeometry(curve, 18, 0.025 + link.health * 0.035, 8, false),
+          routeMaterial.clone()
+        );
+        tube.material.opacity = 0.16 + link.health * 0.48;
+        routeGroup.add(tube);
+        if (link.health > 0.58) {
+          const width = Math.max(0.45, p1.distanceTo(p2) * 0.18);
+          const height = 1.2 + link.health * 4.2;
+          const plane = new THREE.Mesh(new THREE.PlaneGeometry(width, height, 1, 8), vaultMaterial.clone());
+          plane.position.copy(mid);
+          plane.position.y += height * 0.28;
+          plane.lookAt(camera.position.x, plane.position.y, camera.position.z);
+          plane.material.opacity = 0.12 + link.health * 0.26;
+          vaultGroup.add(plane);
+          membraneCount += 1;
+        }
+      }
+      updateMetrics();
+    }
+
+    function nodeByRef(ref) {
+      return typeof ref === "object" ? ref : nodes.find((node) => node.id === ref);
+    }
+
+    function updateMeshes() {
+      const nutrient = Number(nutrientEl.value) / 100;
+      for (const node of nodes) {
+        const radius = Math.hypot(node.x, node.y);
+        if (radius > 10.8) {
+          node.x = (node.x / radius) * 10.8;
+          node.y = (node.y / radius) * 10.8;
+        }
+        node.health = Math.max(0.05, Math.min(1, node.health + (nutrient - 0.48) * 0.0018));
+        const breath = 1 + Math.sin(pulse * 1.9 + node.id) * 0.055 + node.health * 0.08;
+        node.mesh.position.set(node.x, node.z + node.health * 0.8 + Math.sin(pulse + node.id) * 0.08, node.y);
+        node.mesh.scale.setScalar(node.type === "relic" ? 1.1 + node.health * 0.36 : breath);
+        node.mesh.material = node.id === selectedId ? selectedMaterial : node.type === "relic" ? relicMaterial : sporeMaterial;
+        node.mesh.material = node.mesh.material.clone();
+        node.mesh.material.emissiveIntensity = node.id === selectedId ? 1.15 : 0.3 + node.health * 0.75;
+      }
+      for (const link of links) {
+        const a = nodeByRef(link.source);
+        const b = nodeByRef(link.target);
+        if (!a || !b) continue;
+        const target = (a.health + b.health) / 2;
+        link.health += (target - link.health) * 0.018;
+      }
+    }
+
+    function updateMetrics() {
+      const health = nodes.length ? nodes.reduce((sum, node) => sum + node.health, 0) / nodes.length : 0;
+      document.getElementById("nodeMetric").textContent = String(nodes.length);
+      document.getElementById("routeMetric").textContent = String(links.length);
+      document.getElementById("vaultMetric").textContent = String(membraneCount);
+      document.getElementById("healthMetric").textContent = `${Math.round(health * 100)}%`;
+      if (naveLight) naveLight.intensity = 4 + health * 9;
+    }
+
+    function updateSelectionLabel() {
+      const selected = nodes.find((node) => node.id === selectedId);
+      selectionLabel.textContent = selected
+        ? `${selected.type === "relic" ? "Relic" : "Spore"} ${selected.id}: health ${Math.round(selected.health * 100)}%, ${connectedLinks(selected).length} living routes.`
+        : "Click a spore or relic to consecrate it. Healthy routes lift vaulted membranes.";
+    }
+
+    function connectedLinks(node) {
+      return links.filter((link) => nodeByRef(link.source)?.id === node.id || nodeByRef(link.target)?.id === node.id);
+    }
+
+    function feedSelected(amount = 0.2) {
+      const selected = nodes.find((node) => node.id === selectedId) ?? nodes[0];
+      if (!selected) return;
+      selected.health = Math.min(1, selected.health + amount);
+      for (const link of connectedLinks(selected)) link.health = Math.min(1, link.health + amount * 0.7);
+      simulation.alpha(0.42).restart();
+      log(`${selected.type === "relic" ? "Relic" : "Spore"} ${selected.id} drinks the nutrient tide.`);
+      drawRoutes();
+      updateSelectionLabel();
+    }
+
+    function starveSelected(amount = 0.2) {
+      const selected = nodes.find((node) => node.id === selectedId) ?? nodes[0];
+      if (!selected) return;
+      selected.health = Math.max(0.05, selected.health - amount);
+      for (const link of connectedLinks(selected)) link.health = Math.max(0.05, link.health - amount * 0.8);
+      log(`${selected.type === "relic" ? "Relic" : "Spore"} ${selected.id} dims; nearby vaults sag.`);
+      drawRoutes();
+      updateSelectionLabel();
+    }
+
+    function severWeak() {
+      const before = links.length;
+      links = links.filter((link) => link.health > 0.38);
+      simulation.force("link").links(links);
+      simulation.alpha(0.8).restart();
+      log(`Severed ${Math.max(0, before - links.length)} weak hyphae from the nave.`);
+      drawRoutes();
+    }
+
+    async function startAudio() {
+      if (audioStarted) return true;
+      await Tone.start();
+      synth = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "sine" },
+        envelope: { attack: 0.08, decay: 0.4, sustain: 0.32, release: 1.4 }
+      }).toDestination();
+      synth.volume.value = -16;
+      loop = new Tone.Loop((time) => {
+        const health = getHealth();
+        const notes = ["C3", "G3", "D4", "E4", "A4"];
+        const count = Math.max(1, Math.min(4, Math.round(1 + membraneCount / 3)));
+        for (let i = 0; i < count; i += 1) {
+          synth.triggerAttackRelease(notes[(i + Math.round(health * 4)) % notes.length], "8n", time + i * 0.04, 0.18 + health * 0.4);
+        }
+      }, "2n").start(0);
+      Tone.Transport.bpm.value = 46 + getHealth() * 46;
+      Tone.Transport.start();
+      audioStarted = true;
+      document.getElementById("audio").textContent = "Audio breathing";
+      log("The choral pulse opens after the gesture.");
+      return true;
+    }
+
+    function getHealth() {
+      return nodes.length ? nodes.reduce((sum, node) => sum + node.health, 0) / nodes.length : 0;
+    }
+
+    function getState() {
+      return {
+        libsLoaded: {
+          three: Boolean(THREE.WebGLRenderer),
+          d3Force: Boolean(window.d3?.forceSimulation),
+          tone: Boolean(window.Tone?.Transport)
+        },
+        nodes: nodes.length,
+        links: links.length,
+        membranes: membraneCount,
+        selectedId,
+        audioStarted,
+        health: Number(getHealth().toFixed(3)),
+        nutrient: Number(nutrientEl.value)
+      };
+    }
+
+    async function runDemo() {
+      const a = createNode("spore", Math.PI * 0.13);
+      const b = createNode("relic", Math.PI * 0.72);
+      selectedId = a.id;
+      feedSelected(0.34);
+      selectedId = b.id;
+      feedSelected(0.18);
+      starveSelected(0.08);
+      severWeak();
+      for (let i = 0; i < 24; i += 1) simulation.tick();
+      drawRoutes();
+      updateSelectionLabel();
+      return getState();
+    }
+
+    function onPointerDown(event) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const hit = raycaster.intersectObjects(nodeGroup.children, false)[0];
+      if (hit) {
+        selectedId = hit.object.userData.id;
+        log(`Selected ${hit.object.userData.kind} ${selectedId}.`);
+        updateSelectionLabel();
+        drawRoutes();
+      }
+    }
+
+    function resize() {
+      const width = canvas.clientWidth || window.innerWidth;
+      const height = canvas.clientHeight || window.innerHeight;
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height, false);
+    }
+
+    document.getElementById("addSpore").addEventListener("click", () => {
+      selectedId = createNode("spore").id;
+      updateSelectionLabel();
+    });
+    document.getElementById("addRelic").addEventListener("click", () => {
+      selectedId = createNode("relic").id;
+      updateSelectionLabel();
+    });
+    document.getElementById("feed").addEventListener("click", () => feedSelected());
+    document.getElementById("starve").addEventListener("click", () => starveSelected());
+    document.getElementById("sever").addEventListener("click", severWeak);
+    document.getElementById("reset").addEventListener("click", seed);
+    document.getElementById("audio").addEventListener("click", startAudio);
+    document.getElementById("demo").addEventListener("click", runDemo);
+    nutrientEl.addEventListener("input", () => updateMetrics());
+    renderer.domElement.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("resize", resize);
+
+    seed();
+    resize();
+
+    function animate() {
+      pulse += 0.014;
+      simulation.tick();
+      updateMeshes();
+      if (Math.floor(pulse * 30) % 16 === 0) drawRoutes();
+      reliquary.rotation.y = Math.sin(pulse * 0.22) * 0.035;
+      vaultGroup.children.forEach((vault, index) => {
+        vault.scale.y = 1 + Math.sin(pulse * 2 + index) * 0.035;
+        vault.material.opacity = 0.17 + Math.sin(pulse * 1.4 + index) * 0.04 + (vault.position.y / 10) * 0.02;
+      });
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+    window.__toyProbe = {
+      getState,
+      runDemo,
+      startAudio
+    };
+  </script>
+</body>
+</html>
