@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comet Courtroom</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.80.1/phaser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #050510;
+            color: #e0e0ff;
+            font-family: 'Georgia', serif;
+            overflow: hidden;
+            touch-action: none; /* Prevent scrolling on mobile while playing */
+        }
+
+        #game-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-sizing: border-box;
+            padding: 20px;
+        }
+
+        .panel {
+            background: rgba(10, 10, 25, 0.8);
+            border: 1px solid #4a4a7a;
+            border-radius: 8px;
+            padding: 15px;
+            pointer-events: auto;
+            box-shadow: 0 0 15px rgba(100, 100, 255, 0.2);
+            backdrop-filter: blur(4px);
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        h1 {
+            margin: 0 0 5px 0;
+            font-size: 1.5rem;
+            color: #d0c0ff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(200, 200, 255, 0.5);
+        }
+
+        #score-meter {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        #verdict-status {
+            font-size: 1rem;
+            color: #aaaaaa;
+            margin-top: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #precedent-log {
+            width: 300px;
+            max-height: 150px;
+            overflow-y: auto;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85rem;
+            color: #aaccff;
+            scrollbar-width: thin;
+            scrollbar-color: #4a4a7a transparent;
+        }
+
+        #precedent-log::-webkit-scrollbar {
+            width: 6px;
+        }
+        #precedent-log::-webkit-scrollbar-thumb {
+            background: #4a4a7a;
+            border-radius: 3px;
+        }
+
+        .log-entry {
+            margin-bottom: 4px;
+            border-bottom: 1px dashed rgba(74, 74, 122, 0.5);
+            padding-bottom: 2px;
+        }
+
+        .log-entry.success { color: #88ff88; }
+        .log-entry.fail { color: #ff8888; }
+
+        #controls {
+            align-self: center;
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            background: #1a1a3a;
+            color: #d0c0ff;
+            border: 1px solid #4a4a7a;
+            padding: 10px 20px;
+            font-family: 'Georgia', serif;
+            font-size: 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button:hover:not(:disabled) {
+            background: #2a2a5a;
+            box-shadow: 0 0 10px rgba(150, 150, 255, 0.5);
+            border-color: #8a8afa;
+        }
+
+        button:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #111;
+            border-color: #333;
+        }
+
+        .cooldown-bar {
+            height: 4px;
+            background: #4a4a7a;
+            margin-top: 5px;
+            border-radius: 2px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .cooldown-fill {
+            height: 100%;
+            background: #ffd700;
+            width: 100%;
+            transform-origin: left;
+        }
+
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(5, 5, 16, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            pointer-events: auto;
+        }
+
+        #start-screen h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        #start-screen p {
+            max-width: 600px;
+            text-align: center;
+            line-height: 1.5;
+            margin-bottom: 30px;
+            color: #bbb;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        #flash-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: white;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 15;
+        }
+
+        @media (max-width: 600px) {
+            header {
+                flex-direction: column;
+                gap: 10px;
+            }
+            #precedent-log {
+                width: 100%;
+            }
+            #start-screen h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+    <div id="ui-layer">
+        <header>
+            <div class="panel">
+                <h1>Comet Courtroom</h1>
+                <div id="score-meter">Score: <span id="score-val">0</span></div>
+                <div id="verdict-status">Status: Deliberating</div>
+            </div>
+            <div class="panel" id="precedent-log">
+                <div style="font-weight:bold; margin-bottom: 5px; color:#fff;">Court Record:</div>
+                <div id="log-content"></div>
+            </div>
+        </header>
+
+        <div id="controls">
+            <div class="control-group">
+                <button id="btn-witness" class="evidence-btn" data-type="witness">Load Witness</button>
+            </div>
+            <div class="control-group">
+                <button id="btn-exhibit" class="evidence-btn" data-type="exhibit">Load Exhibit</button>
+            </div>
+            <div class="control-group">
+                <button id="btn-objection" class="evidence-btn" data-type="objection">Objection!</button>
+                <div class="cooldown-bar" id="objection-cooldown"><div class="cooldown-fill"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="start-screen">
+        <h1>Comet Courtroom</h1>
+        <p>A fast, theatrical arcade trial. <br>
+           The Judge is the central star. Evidence pieces orbit. <br>
+           Sling witnesses, exhibits, and objections into gravitational paths. <br>
+           Collisions create precedents. Direct impacts burn up. <br>
+           Strong arguments bend the whole court.</p>
+        <button id="btn-start" style="font-size: 1.5rem; padding: 15px 30px;">Start Trial</button>
+    </div>
+
+    <div id="flash-overlay"></div>
+
+    <script>
+        class CourtScene extends Phaser.Scene {
+            constructor() {
+                super({ key: 'CourtScene' });
+                this.judge = null;
+                this.evidencePieces = [];
+                this.score = 0;
+                this.burnups = 0;
+                this.collisions = 0;
+                this.shotsFired = 0;
+                this.phase = 'setup'; // setup, playing, ended
+
+                this.dragStart = null;
+                this.dragLine = null;
+                this.loadedEvidenceType = null;
+                this.objectionCooldown = false;
+                this.trailGraphics = null;
+            }
+
+            preload() {
+                // No external assets, we generate textures
+            }
+
+            create() {
+                // Generate Textures
+                this.createTextures();
+
+                const cx = this.scale.width / 2;
+                const cy = this.scale.height / 2;
+
+                // Ambient rings to show gravitational field
+                const bgGraphics = this.add.graphics();
+                bgGraphics.lineStyle(1, 0x4a4a7a, 0.3);
+                bgGraphics.strokeCircle(cx, cy, 150);
+                bgGraphics.strokeCircle(cx, cy, 300);
+                bgGraphics.strokeCircle(cx, cy, 450);
+
+                // Graphics layer for trails
+                this.trailGraphics = this.add.graphics();
+
+                // Create the Judge Star (central gravity well)
+                this.judge = this.matter.add.image(cx, cy, 'judge', null, {
+                    isStatic: true,
+                    isSensor: false,
+                    circleRadius: 60,
+                    label: 'judge'
+                });
+
+                // Add graphics for drag line
+                this.dragLine = this.add.graphics();
+
+                // Input handling for slinging
+                this.input.on('pointerdown', (pointer) => {
+                    if (this.phase !== 'playing' || !this.loadedEvidenceType) return;
+                    this.dragStart = new Phaser.Math.Vector2(pointer.x, pointer.y);
+                });
+
+                this.input.on('pointermove', (pointer) => {
+                    if (this.dragStart) {
+                        this.dragLine.clear();
+                        this.dragLine.lineStyle(2, 0xffffff, 0.5);
+                        this.dragLine.beginPath();
+                        this.dragLine.moveTo(this.dragStart.x, this.dragStart.y);
+                        this.dragLine.lineTo(pointer.x, pointer.y);
+                        this.dragLine.strokePath();
+                    }
+                });
+
+                this.input.on('pointerup', (pointer) => {
+                    if (this.dragStart) {
+                        this.dragLine.clear();
+                        const dragEnd = new Phaser.Math.Vector2(pointer.x, pointer.y);
+                        const vector = dragEnd.clone().subtract(this.dragStart);
+
+                        // Fire only if dragged sufficiently
+                        if (vector.length() > 10) {
+                            this.fireEvidence(this.dragStart.x, this.dragStart.y, vector);
+                        }
+
+                        this.dragStart = null;
+                    }
+                });
+
+                // Setup UI hooks
+                this.setupUI();
+
+                // Collision events
+                this.matter.world.on('collisionstart', this.handleCollision, this);
+            }
+
+            createTextures() {
+                const graphics = this.make.graphics({ x: 0, y: 0, add: false });
+
+                // Judge Star
+                graphics.fillStyle(0xffaa00, 1);
+                graphics.fillCircle(60, 60, 60);
+                graphics.generateTexture('judge', 120, 120);
+                graphics.clear();
+
+                // Witness (Blue circle)
+                graphics.fillStyle(0x00aaff, 1);
+                graphics.fillCircle(10, 10, 10);
+                graphics.generateTexture('witness', 20, 20);
+                graphics.clear();
+
+                // Exhibit (Green square)
+                graphics.fillStyle(0x00ffaa, 1);
+                graphics.fillRect(0, 0, 20, 20);
+                graphics.generateTexture('exhibit', 20, 20);
+                graphics.clear();
+
+                // Objection (Red triangle)
+                graphics.fillStyle(0xff3333, 1);
+                graphics.fillTriangle(10, 0, 20, 20, 0, 20);
+                graphics.generateTexture('objection', 20, 20);
+                graphics.clear();
+            }
+
+            setupUI() {
+                document.getElementById('btn-start').addEventListener('click', () => {
+                    document.getElementById('start-screen').classList.add('hidden');
+                    this.phase = 'playing';
+                    this.logEvent("Trial commenced.", "success");
+                });
+
+                const btns = document.querySelectorAll('.evidence-btn');
+                btns.forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        if (this.phase !== 'playing') return;
+
+                        const type = e.target.dataset.type;
+                        if (type === 'objection' && this.objectionCooldown) return;
+
+                        // Highlight selected button
+                        btns.forEach(b => b.style.borderColor = '#4a4a7a');
+                        e.target.style.borderColor = '#ffffff';
+
+                        this.loadedEvidenceType = type;
+                    });
+                });
+            }
+
+            fireEvidence(x, y, vector) {
+                if (!this.loadedEvidenceType) return;
+
+                const type = this.loadedEvidenceType;
+                let texture, radius, mass, label;
+
+                if (type === 'witness') {
+                    texture = 'witness'; radius = 10; mass = 1; label = 'witness';
+                } else if (type === 'exhibit') {
+                    texture = 'exhibit'; radius = 10; mass = 2; label = 'exhibit';
+                } else if (type === 'objection') {
+                    texture = 'objection'; radius = 10; mass = 3; label = 'objection';
+                    this.triggerObjectionCooldown();
+                }
+
+                // Create physical body
+                const piece = this.matter.add.image(x, y, texture, null, {
+                    restitution: 0.8,
+                    frictionAir: 0,
+                    label: label,
+                    circleRadius: type !== 'exhibit' ? radius : undefined
+                });
+
+                piece.setMass(mass);
+                piece.trail = []; // Array to store recent positions
+                piece.trailColor = type === 'witness' ? 0x00aaff : (type === 'exhibit' ? 0x00ffaa : 0xff3333);
+
+                // Apply force based on drag vector (reversed, like a slingshot)
+                const forceMagnitude = 0.0005 * mass;
+                piece.applyForce(new Phaser.Math.Vector2(-vector.x * forceMagnitude, -vector.y * forceMagnitude));
+
+                this.evidencePieces.push(piece);
+                this.shotsFired++;
+
+                // Reset loaded type (except if we want to allow rapid fire, but let's reset to force intent)
+                this.loadedEvidenceType = null;
+                document.querySelectorAll('.evidence-btn').forEach(b => b.style.borderColor = '#4a4a7a');
+            }
+
+            triggerObjectionCooldown() {
+                this.objectionCooldown = true;
+                const btn = document.getElementById('btn-objection');
+                const bar = document.getElementById('objection-cooldown');
+                const fill = bar.querySelector('.cooldown-fill');
+
+                btn.disabled = true;
+                bar.style.display = 'block';
+
+                anime({
+                    targets: fill,
+                    scaleX: [0, 1],
+                    duration: 3000,
+                    easing: 'linear',
+                    complete: () => {
+                        this.objectionCooldown = false;
+                        btn.disabled = false;
+                        bar.style.display = 'none';
+                    }
+                });
+            }
+
+            handleCollision(event) {
+                if (this.phase !== 'playing') return;
+
+                event.pairs.forEach((pair) => {
+                    const { bodyA, bodyB } = pair;
+
+                    // Identify if collision involves the judge
+                    let judgeBody = null;
+                    let evidenceBody = null;
+
+                    if (bodyA.label === 'judge') {
+                        judgeBody = bodyA;
+                        evidenceBody = bodyB;
+                    } else if (bodyB.label === 'judge') {
+                        judgeBody = bodyB;
+                        evidenceBody = bodyA;
+                    }
+
+                    if (judgeBody && evidenceBody && evidenceBody.gameObject) {
+                        const piece = evidenceBody.gameObject;
+
+                        // Prevent multi-processing
+                        if (piece.hitProcessed) return;
+                        piece.hitProcessed = true;
+
+                        // Calculate impact speed
+                        const vx = evidenceBody.velocity.x;
+                        const vy = evidenceBody.velocity.y;
+                        const speed = Math.sqrt(vx * vx + vy * vy);
+
+                        // If speed is very high, direct impact -> burn up
+                        // If speed is moderate, glancing blow -> precedent
+                        // Reduced threshold to make precedents much easier to achieve for the demo
+                        if (speed > 15) {
+                            this.burnUp(piece);
+                        } else {
+                            this.formPrecedent(piece);
+                        }
+                    } else if (bodyA.gameObject && bodyB.gameObject) {
+                        // Evidence colliding with evidence
+                        const p1 = bodyA.gameObject;
+                        const p2 = bodyB.gameObject;
+
+                        if (!p1.hitProcessed && !p2.hitProcessed) {
+                            this.logEvent("Objection sustained! Evidence collides.", "fail");
+                            this.animateImpact(p1.x, p1.y);
+                        }
+                    }
+                });
+            }
+
+            burnUp(piece) {
+                this.burnups++;
+                this.updateScore(-10);
+                this.logEvent(`Direct hit! ${piece.body.label} burned up.`, "fail");
+
+                // Animate burn up
+                anime({
+                    targets: piece,
+                    scale: 2,
+                    alpha: 0,
+                    duration: 500,
+                    easing: 'easeOutExpo',
+                    complete: () => {
+                        if (piece && piece.active) {
+                            piece.destroy();
+                            const idx = this.evidencePieces.indexOf(piece);
+                            if (idx > -1) this.evidencePieces.splice(idx, 1);
+                        }
+                    }
+                });
+            }
+
+            formPrecedent(piece) {
+                this.collisions++;
+
+                let points = 10;
+                if (piece.body.label === 'exhibit') points = 20;
+                if (piece.body.label === 'objection') points = 30;
+
+                this.updateScore(points);
+                this.logEvent(`Precedent formed! +${points} points`, "success");
+
+                // "Stick" to the judge
+                this.matter.add.constraint(this.judge, piece, 0, 1);
+
+                // Anime.js flourish on the court
+                this.animateVerdictFlourish();
+            }
+
+            animateImpact(x, y) {
+                const flash = document.getElementById('flash-overlay');
+                flash.style.opacity = '1';
+                flash.style.background = 'red';
+
+                anime({
+                    targets: flash,
+                    opacity: 0,
+                    duration: 300,
+                    easing: 'easeInQuad'
+                });
+            }
+
+            animateVerdictFlourish() {
+                // Flash screen
+                const flash = document.getElementById('flash-overlay');
+                flash.style.opacity = '0.5';
+                flash.style.background = 'white';
+
+                anime({
+                    targets: flash,
+                    opacity: 0,
+                    duration: 500,
+                    easing: 'easeInQuad'
+                });
+
+                // Bulge the judge star
+                anime({
+                    targets: this.judge,
+                    scaleX: [1.2, 1],
+                    scaleY: [1.2, 1],
+                    duration: 800,
+                    easing: 'easeOutElastic(1, .5)'
+                });
+            }
+
+            logEvent(message, type = "success") {
+                const logContent = document.getElementById('log-content');
+                const entry = document.createElement('div');
+                entry.className = `log-entry ${type}`;
+                entry.innerText = message;
+                logContent.prepend(entry);
+            }
+
+            updateScore(points) {
+                this.score += points;
+                document.getElementById('score-val').innerText = this.score;
+
+                if (this.score >= 100) {
+                    document.getElementById('verdict-status').innerText = "Status: Verdict Reached (Win)";
+                    document.getElementById('verdict-status').style.color = "#88ff88";
+                    this.phase = 'ended';
+                } else if (this.score <= -50) {
+                    document.getElementById('verdict-status').innerText = "Status: Mistrial (Loss)";
+                    document.getElementById('verdict-status').style.color = "#ff8888";
+                    this.phase = 'ended';
+                }
+            }
+
+            update(time, delta) {
+                if (this.phase !== 'playing') return;
+
+                const cx = this.scale.width / 2;
+                const cy = this.scale.height / 2;
+                const G = 0.05; // Gravity constant
+
+                this.trailGraphics.clear();
+
+                // Apply orbital gravity and draw trails
+                for (let i = this.evidencePieces.length - 1; i >= 0; i--) {
+                    const piece = this.evidencePieces[i];
+                    if (!piece.active) continue;
+
+                    // Cleanup out of bounds or NaN cases
+                    if (isNaN(piece.x) || isNaN(piece.y) ||
+                        piece.x < -100 || piece.x > this.scale.width + 100 ||
+                        piece.y < -100 || piece.y > this.scale.height + 100) {
+                        piece.destroy();
+                        this.evidencePieces.splice(i, 1);
+                        continue;
+                    }
+
+                    // Trail logic
+                    if (piece.trail) {
+                        piece.trail.push(new Phaser.Math.Vector2(piece.x, piece.y));
+                        if (piece.trail.length > 30) {
+                            piece.trail.shift();
+                        }
+
+                        if (piece.trail.length > 1) {
+                            this.trailGraphics.lineStyle(2, piece.trailColor, 0.6);
+                            this.trailGraphics.beginPath();
+                            this.trailGraphics.moveTo(piece.trail[0].x, piece.trail[0].y);
+                            for (let j = 1; j < piece.trail.length; j++) {
+                                this.trailGraphics.lineTo(piece.trail[j].x, piece.trail[j].y);
+                            }
+                            this.trailGraphics.strokePath();
+                        }
+                    }
+
+                    // Calculate distance and direction to judge
+                    const dx = cx - piece.x;
+                    const dy = cy - piece.y;
+                    const distanceSq = dx * dx + dy * dy;
+
+
+                    // Apply gravity force
+                    if (distanceSq > 3600) { // Don't apply huge force if inside the judge
+                        const judgeMass = 10000; // Static bodies have Infinity mass, use fixed value
+                        const forceMag = G * piece.body.mass * judgeMass / distanceSq;
+                        const angle = Math.atan2(dy, dx);
+
+                        piece.applyForce(new Phaser.Math.Vector2(
+                            Math.cos(angle) * forceMag,
+                            Math.sin(angle) * forceMag
+                        ));
+                    }
+                }
+            }
+        }
+
+        const config = {
+            type: Phaser.AUTO,
+            parent: 'game-container',
+            width: window.innerWidth,
+            height: window.innerHeight,
+            transparent: true,
+            physics: {
+                default: 'matter',
+                matter: {
+                    gravity: { x: 0, y: 0 },
+                    debug: false
+                }
+            },
+            scene: CourtScene
+        };
+
+        const game = new Phaser.Game(config);
+
+        window.addEventListener('resize', () => {
+            game.scale.resize(window.innerWidth, window.innerHeight);
+            const scene = game.scene.keys['CourtScene'];
+            if (scene && scene.judge) {
+                scene.judge.setPosition(window.innerWidth / 2, window.innerHeight / 2);
+            }
+        });
+
+        // Verification Probe
+        window.__toyProbe = {
+            getState: () => {
+                const scene = game.scene.keys['CourtScene'];
+                return {
+                    libsLoaded: {
+                        phaser: typeof Phaser !== 'undefined',
+                        matter: typeof Matter !== 'undefined' || (Phaser && Phaser.Physics && Phaser.Physics.Matter),
+                        anime: typeof anime !== 'undefined'
+                    },
+                    phase: scene ? scene.phase : 'uninitialized',
+                    score: scene ? scene.score : 0,
+                    burnups: scene ? scene.burnups : 0,
+                    collisions: scene ? scene.collisions : 0,
+                    shotsFired: scene ? scene.shotsFired : 0,
+                    orbitingBodyCount: scene ? scene.evidencePieces.filter(p => p.active).length : 0
+                };
+            },
+            runDemo: async () => {
+                // Click start
+                document.getElementById('btn-start').click();
+                await new Promise(r => setTimeout(r, 500));
+
+                const scene = game.scene.keys['CourtScene'];
+                if (!scene) return window.__toyProbe.getState();
+
+                const cx = window.innerWidth / 2;
+                const cy = window.innerHeight / 2;
+
+                // 1. Fire a witness with a tangential velocity to establish a clear orbit
+                scene.loadedEvidenceType = 'witness';
+                // Fire from far left, aiming mostly up to curve into orbit
+                scene.fireEvidence(cx - 300, cy, new Phaser.Math.Vector2(0, -120));
+
+                await new Promise(r => setTimeout(r, 800));
+
+                // 2. Fire an exhibit on a glancing blow trajectory to form a precedent (collision)
+                scene.loadedEvidenceType = 'exhibit';
+                scene.fireEvidence(cx + 150, cy + 200, new Phaser.Math.Vector2(100, 100)); // Angled, moderate speed towards star
+
+                await new Promise(r => setTimeout(r, 1000));
+
+                // 3. Fire an objection to establish a second distinct orbit
+                scene.loadedEvidenceType = 'objection';
+                scene.fireEvidence(cx, cy + 250, new Phaser.Math.Vector2(-150, 0)); // Fire from bottom right, tangent horizontally
+
+                // Wait for simulation to run and orbits/trails to establish visually
+                await new Promise(r => setTimeout(r, 3500));
+
+                return window.__toyProbe.getState();
+            }
+        };
+    </script>
+</body>
+</html>
