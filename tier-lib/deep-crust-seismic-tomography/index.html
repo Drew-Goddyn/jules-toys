@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deep-Crust Seismic Tomography</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #111;
+            color: #ddd;
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .header {
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border-bottom: 1px solid #444;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: auto;
+        }
+
+        .title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #ff9900;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            background-color: #333;
+            color: #ddd;
+            border: 1px solid #555;
+            padding: 5px 15px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background-color: #444;
+            border-color: #ff9900;
+            color: #fff;
+        }
+
+        button:active {
+            background-color: #222;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            border-color: #333;
+        }
+
+        .panels {
+            display: flex;
+            flex: 1;
+            pointer-events: none;
+        }
+
+        .side-panel {
+            width: 250px;
+            background: rgba(0, 0, 0, 0.5);
+            border-right: 1px solid #333;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            pointer-events: auto;
+        }
+
+        .hud {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(20, 20, 20, 0.8);
+            border: 1px solid #444;
+            font-size: 0.9rem;
+        }
+
+        .hud-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .hud-value {
+            color: #00ffcc;
+        }
+
+        .hud-value.warning {
+            color: #ff3300;
+        }
+
+        #log-container {
+            flex: 1;
+            margin-top: 10px;
+            border: 1px solid #333;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 5px;
+            overflow-y: auto;
+            font-size: 0.8rem;
+            color: #aaa;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .log-entry {
+            margin-bottom: 2px;
+            border-bottom: 1px solid #222;
+            padding-bottom: 2px;
+        }
+
+        .log-entry.ping { color: #ff9900; }
+        .log-entry.recv { color: #00ffcc; }
+        .log-entry.alert { color: #ff3300; font-weight: bold; }
+
+        .views-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            pointer-events: auto;
+        }
+
+        .view-wrapper {
+            flex: 1;
+            position: relative;
+            border-bottom: 1px solid #333;
+            background-color: #050505;
+        }
+
+        .view-wrapper:last-child {
+            border-bottom: none;
+        }
+
+        .view-label {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 2px 5px;
+            font-size: 0.8rem;
+            color: #888;
+            border: 1px solid #333;
+            z-index: 5;
+        }
+
+        #matter-container {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+        }
+
+        #matter-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        #three-container {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+        }
+
+        #three-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+            pointer-events: auto;
+        }
+
+        .start-modal {
+            background: #222;
+            padding: 30px;
+            border: 1px solid #555;
+            border-top: 3px solid #ff9900;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .start-modal h2 {
+            margin-top: 0;
+            color: #ff9900;
+        }
+
+        .start-modal p {
+            margin-bottom: 20px;
+            line-height: 1.5;
+            color: #ccc;
+            text-align: left;
+        }
+
+        .start-btn {
+            font-size: 1.2rem;
+            padding: 10px 30px;
+            background: #ff9900;
+            color: #000;
+            border: none;
+            font-weight: bold;
+        }
+
+        .start-btn:hover {
+            background: #ffaa33;
+            color: #000;
+            border: none;
+        }
+    </style>
+    <!-- Dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js"
+        }
+    }
+    </script>
+</head>
+<body>
+
+    <div id="init-overlay" class="overlay">
+        <div class="start-modal">
+            <h2>DEEP-CRUST TOMOGRAPHY</h2>
+            <p>
+                Geological acoustic instrument interface.<br><br>
+                1. Deploy Thumpers and Geophones on the surface.<br>
+                2. Detonate seismic pings.<br>
+                3. Receivers log reflected delays from hidden strata.<br>
+                4. Cross-section is reconstructed in 3D.<br><br>
+                <em>WARNING: Over-stimulating magma pockets may cause pressure instability.</em>
+            </p>
+            <button id="start-btn" class="start-btn">INITIALIZE SYSTEM</button>
+        </div>
+    </div>
+
+    <div id="ui-layer">
+        <div class="header">
+            <div class="title">DCST // Survey Interface v4.2</div>
+            <div class="controls">
+                <button id="btn-deploy-thumper">Deploy Thumper</button>
+                <button id="btn-deploy-geophone">Deploy Geophone</button>
+                <button id="btn-ping" style="color: #ff9900; border-color: #ff9900;" disabled>DETONATE PING</button>
+            </div>
+        </div>
+
+        <div class="panels">
+            <div class="side-panel">
+                <div class="hud">
+                    <div class="hud-row">
+                        <span>Receivers (R):</span>
+                        <span id="hud-geophones" class="hud-value">0</span>
+                    </div>
+                    <div class="hud-row">
+                        <span>Thumpers (T):</span>
+                        <span id="hud-thumpers" class="hud-value">0</span>
+                    </div>
+                    <div class="hud-row">
+                        <span>Wavefronts:</span>
+                        <span id="hud-wavefronts" class="hud-value">0</span>
+                    </div>
+                    <div class="hud-row">
+                        <span>Mapped Nodes:</span>
+                        <span id="hud-nodes" class="hud-value">0</span>
+                    </div>
+                    <div class="hud-row">
+                        <span>Magma Press.:</span>
+                        <span id="hud-pressure" class="hud-value">0%</span>
+                    </div>
+                </div>
+
+                <div id="log-container">
+                    <div class="log-entry">System ready. Waiting for deployment.</div>
+                </div>
+            </div>
+
+            <div class="views-container">
+                <div class="view-wrapper">
+                    <div class="view-label">2D SEISMIC PROPAGATION (Matter.js)</div>
+                    <div id="matter-container">
+                        <canvas id="matter-canvas"></canvas>
+                    </div>
+                </div>
+                <div class="view-wrapper">
+                    <div class="view-label">3D TOMOGRAPHIC RECONSTRUCTION (Three.js)</div>
+                    <div id="three-container">
+                        <canvas id="three-canvas"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // --- GLOBAL STATE ---
+        const state = {
+            initialized: false,
+            audioEnabled: false,
+            deployedGeophones: 0,
+            deployedThumpers: 0,
+            activeWavefronts: 0,
+            mappedSubterraneanNodes: 0,
+            magmaPressureLevel: 0,
+            lastReturnFrequency: 0,
+            threeReady: false,
+            instruments: [], // { type: 'thumper'|'geophone', x, body }
+            strataHits: [] // Mapped points
+        };
+
+        // DOM Elements
+        const ui = {
+            startBtn: document.getElementById('start-btn'),
+            initOverlay: document.getElementById('init-overlay'),
+            btnDeployThumper: document.getElementById('btn-deploy-thumper'),
+            btnDeployGeophone: document.getElementById('btn-deploy-geophone'),
+            btnPing: document.getElementById('btn-ping'),
+            hudGeophones: document.getElementById('hud-geophones'),
+            hudThumpers: document.getElementById('hud-thumpers'),
+            hudWavefronts: document.getElementById('hud-wavefronts'),
+            hudNodes: document.getElementById('hud-nodes'),
+            hudPressure: document.getElementById('hud-pressure'),
+            logContainer: document.getElementById('log-container')
+        };
+
+        // Config
+        const CONFIG = {
+            surfaceY: 50,
+            width: window.innerWidth - 250, // Matter width (subtracting side panel)
+            height: (window.innerHeight - 50) / 2, // Half height of available area
+            depth: 400,
+            waveSpeed: 3
+        };
+
+        function addLog(msg, type = '') {
+            const el = document.createElement('div');
+            el.className = `log-entry ${type}`;
+            const time = new Date().toISOString().substring(11, 19);
+            el.innerText = `[${time}] ${msg}`;
+            ui.logContainer.appendChild(el);
+            ui.logContainer.scrollTop = ui.logContainer.scrollHeight;
+        }
+
+        function updateHUD() {
+            ui.hudGeophones.innerText = state.deployedGeophones;
+            ui.hudThumpers.innerText = state.deployedThumpers;
+            ui.hudWavefronts.innerText = state.activeWavefronts;
+            ui.hudNodes.innerText = state.mappedSubterraneanNodes;
+
+            const p = Math.floor(state.magmaPressureLevel * 100);
+            ui.hudPressure.innerText = `${p}%`;
+
+            if (p > 75) {
+                ui.hudPressure.className = 'hud-value warning';
+            } else {
+                ui.hudPressure.className = 'hud-value';
+            }
+
+            ui.btnPing.disabled = state.deployedThumpers === 0 || state.deployedGeophones === 0;
+        }
+
+        // --- AUDIO SYSTEM (Tone.js) ---
+        const audio = {
+            thumpSynth: null,
+            returnSynth: null,
+            rumbleSynth: null,
+            reverb: null,
+            filter: null,
+
+            init() {
+                this.reverb = new Tone.Reverb({ decay: 4, preDelay: 0.1 }).toDestination();
+                this.filter = new Tone.Filter(800, "lowpass").connect(this.reverb);
+
+                this.thumpSynth = new Tone.MembraneSynth({
+                    pitchDecay: 0.05,
+                    octaves: 4,
+                    oscillator: { type: "sine" },
+                    envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 0.1 }
+                }).connect(this.filter);
+
+                this.returnSynth = new Tone.PolySynth(Tone.FMSynth, {
+                    harmonicity: 0.5,
+                    modulationIndex: 1.2,
+                    oscillator: { type: "sine" },
+                    envelope: { attack: 0.05, decay: 0.2, sustain: 0.2, release: 1.5 },
+                    modulation: { type: "square" },
+                    modulationEnvelope: { attack: 0.02, decay: 0.2, sustain: 0.1, release: 0.1 }
+                }).connect(this.filter);
+
+                this.rumbleSynth = new Tone.NoiseSynth({
+                    noise: { type: "brown" },
+                    envelope: { attack: 0.5, decay: 0.1, sustain: 1, release: 2 }
+                }).toDestination();
+                this.rumbleFilter = new Tone.Filter(200, "lowpass").connect(this.rumbleSynth.output);
+                this.rumbleSynth.disconnect();
+                this.rumbleSynth.connect(this.rumbleFilter);
+            },
+
+            playThump() {
+                if (!state.audioEnabled) return;
+                this.thumpSynth.triggerAttackRelease("C1", "8n");
+            },
+
+            playReturn(depth, type) {
+                if (!state.audioEnabled) return;
+
+                // Frequency mapped inversely to depth
+                const baseFreq = Math.max(50, 400 - (depth * 0.8));
+                let freq = baseFreq;
+
+                if (type === 'rock') {
+                    freq = baseFreq;
+                } else if (type === 'magma') {
+                    freq = baseFreq * 0.5; // Deeper for magma
+                } else if (type === 'void') {
+                    freq = baseFreq * 1.5; // Higher for void
+                }
+
+                state.lastReturnFrequency = freq;
+                this.returnSynth.triggerAttackRelease(freq, "16n");
+            },
+
+            playEruption() {
+                if (!state.audioEnabled) return;
+                this.rumbleSynth.triggerAttackRelease("2m");
+            }
+        };
+
+        // --- PHYSICS SYSTEM (Matter.js) ---
+        const Engine = Matter.Engine,
+              Render = Matter.Render,
+              Runner = Matter.Runner,
+              Bodies = Matter.Bodies,
+              Composite = Matter.Composite,
+              Events = Matter.Events,
+              Vector = Matter.Vector;
+
+        const physics = {
+            engine: null,
+            render: null,
+            runner: null,
+            strata: [],
+            wavefronts: [], // Array of objects containing rings
+
+            init() {
+                const canvas = document.getElementById('matter-canvas');
+
+                // Update canvas to correct pixel dimensions before passing to Matter
+                canvas.width = CONFIG.width;
+                canvas.height = CONFIG.height;
+
+                this.engine = Engine.create();
+                this.engine.gravity.y = 0; // Top-down / cross-section view without gravity affecting waves
+
+                this.render = Render.create({
+                    canvas: canvas,
+                    engine: this.engine,
+                    options: {
+                        width: CONFIG.width,
+                        height: CONFIG.height,
+                        wireframes: false,
+                        background: '#050505',
+                        pixelRatio: window.devicePixelRatio
+                    }
+                });
+
+                // Generate Strata (Hidden geological features)
+                this.generateStrata();
+
+                Render.run(this.render);
+                this.runner = Runner.create();
+                Runner.run(this.runner, this.engine);
+
+                Events.on(this.engine, 'beforeUpdate', this.update.bind(this));
+            },
+
+            generateStrata() {
+                // Rock layers
+                for(let i=0; i<5; i++) {
+                    const x = Math.random() * CONFIG.width;
+                    const y = CONFIG.surfaceY + 100 + Math.random() * (CONFIG.height - 150);
+                    const w = 100 + Math.random() * 200;
+                    const h = 20 + Math.random() * 50;
+                    const body = Bodies.rectangle(x, y, w, h, {
+                        isStatic: true,
+                        isSensor: true,
+                        render: { fillStyle: 'rgba(50, 50, 50, 0.2)' },
+                        label: 'strata_rock',
+                        matterId: `rock_${i}`
+                    });
+                    this.strata.push(body);
+                }
+
+                // Magma pocket
+                const mx = CONFIG.width / 2 + (Math.random()*100 - 50);
+                const my = CONFIG.height - 100;
+                const magma = Bodies.circle(mx, my, 60, {
+                    isStatic: true,
+                    isSensor: true,
+                    render: { fillStyle: 'rgba(255, 50, 0, 0.1)' },
+                    label: 'strata_magma',
+                    matterId: 'magma_1'
+                });
+                this.strata.push(magma);
+
+                Composite.add(this.engine.world, this.strata);
+            },
+
+            deployInstrument(type) {
+                const x = 50 + Math.random() * (CONFIG.width - 100);
+                const color = type === 'thumper' ? '#ff9900' : '#00ffcc';
+
+                const body = Bodies.rectangle(x, CONFIG.surfaceY, 20, 20, {
+                    isStatic: true,
+                    render: { fillStyle: color },
+                    label: `instrument_${type}`
+                });
+
+                state.instruments.push({ type, x, body });
+                Composite.add(this.engine.world, body);
+
+                if (type === 'thumper') state.deployedThumpers++;
+                else state.deployedGeophones++;
+
+                updateHUD();
+                addLog(`Deployed ${type.toUpperCase()} at x:${Math.floor(x)}`);
+            },
+
+            detonate() {
+                const thumpers = state.instruments.filter(i => i.type === 'thumper');
+                if (thumpers.length === 0) return;
+
+                // Pick a random thumper for the ping
+                const thumper = thumpers[Math.floor(Math.random() * thumpers.length)];
+
+                // Visual feedback on thumper
+                thumper.body.render.fillStyle = '#ffffff';
+                setTimeout(() => { thumper.body.render.fillStyle = '#ff9900'; }, 200);
+
+                audio.playThump();
+                addLog(`Ping detonated at Thumper x:${Math.floor(thumper.x)}`, 'ping');
+
+                const waveId = Date.now();
+                const rings = [];
+
+                // Create expanding rings (sensors)
+                for(let i=0; i<36; i++) {
+                    const angle = (i / 36) * Math.PI; // Semicircle downwards
+                    // Using a tiny circle sensor moving outward
+                    const ring = Bodies.circle(thumper.x, CONFIG.surfaceY + 10, 5, {
+                        isSensor: true,
+                        frictionAir: 0,
+                        render: { fillStyle: '#ffffff' },
+                        label: 'wavefront',
+                        waveId: waveId
+                    });
+
+                    Matter.Body.setVelocity(ring, {
+                        x: Math.cos(angle) * CONFIG.waveSpeed,
+                        y: Math.sin(angle) * CONFIG.waveSpeed
+                    });
+
+                    rings.push({ body: ring, originX: thumper.x, originY: CONFIG.surfaceY, history: [] });
+                    Composite.add(this.engine.world, ring);
+                }
+
+                this.wavefronts.push({
+                    id: waveId,
+                    rings: rings,
+                    age: 0,
+                    active: true
+                });
+
+                state.activeWavefronts++;
+                updateHUD();
+            },
+
+            update() {
+                // Update wavefronts
+                for (let i = this.wavefronts.length - 1; i >= 0; i--) {
+                    const wf = this.wavefronts[i];
+                    if (!wf.active) continue;
+
+                    wf.age++;
+                    let ringsActive = false;
+
+                    for (let r = wf.rings.length - 1; r >= 0; r--) {
+                        const ringObj = wf.rings[r];
+                        const ring = ringObj.body;
+
+                        // Check bounds
+                        if (ring.position.y > CONFIG.height || ring.position.x < 0 || ring.position.x > CONFIG.width) {
+                            Composite.remove(this.engine.world, ring);
+                            wf.rings.splice(r, 1);
+                            continue;
+                        }
+
+                        ringsActive = true;
+
+                        // Check collisions with strata
+                        const collisions = Matter.Query.collides(ring, this.strata);
+                        for (const col of collisions) {
+                            const stratum = col.bodyA === ring ? col.bodyB : col.bodyA;
+
+                            // Only log hit once per stratum per ring to avoid noise
+                            if (!ringObj.history.includes(stratum.id)) {
+                                ringObj.history.push(stratum.id);
+
+                                const type = stratum.label.split('_')[1];
+                                this.handleStratumHit(ring.position.x, ring.position.y, type, ringObj.originX);
+
+                                // Reflect wave partially back to surface
+                                this.spawnReflection(ring.position.x, ring.position.y, type);
+                            }
+                        }
+                    }
+
+                    if (!ringsActive) {
+                        wf.active = false;
+                        state.activeWavefronts--;
+                        updateHUD();
+                        this.wavefronts.splice(i, 1);
+                    }
+                }
+            },
+
+            handleStratumHit(x, y, type, originX) {
+                // Determine mapped data point
+                const hitData = {
+                    x: x,
+                    y: y,
+                    type: type,
+                    intensity: 1.0 - (y / CONFIG.height) // weaker at depth
+                };
+
+                state.strataHits.push(hitData);
+                state.mappedSubterraneanNodes++;
+
+                // Add to 3D view
+                graphics.addNode(hitData);
+
+                if (type === 'magma') {
+                    state.magmaPressureLevel += 0.05;
+                    updateHUD();
+
+                    if (state.magmaPressureLevel > 1.0) {
+                        this.triggerEruption();
+                    }
+                }
+            },
+
+            spawnReflection(x, y, type) {
+                // Find a random geophone to target (simplified raycast)
+                const geophones = state.instruments.filter(i => i.type === 'geophone');
+                if (geophones.length === 0) return;
+
+                const geo = geophones[Math.floor(Math.random() * geophones.length)];
+
+                // Calculate delay based on distance
+                const dist = Math.sqrt(Math.pow(geo.x - x, 2) + Math.pow(CONFIG.surfaceY - y, 2));
+                const delay = dist / CONFIG.waveSpeed * 16; // roughly frame count to ms
+
+                // Visual reflection indicator (fake particle moving up)
+                const refl = Bodies.circle(x, y, 3, {
+                    isSensor: true,
+                    render: { fillStyle: type === 'magma' ? '#ff3300' : '#00ffcc' }
+                });
+
+                const dirX = geo.x - x;
+                const dirY = CONFIG.surfaceY - y;
+                const len = Math.sqrt(dirX*dirX + dirY*dirY);
+
+                Matter.Body.setVelocity(refl, {
+                    x: (dirX/len) * CONFIG.waveSpeed * 2,
+                    y: (dirY/len) * CONFIG.waveSpeed * 2
+                });
+
+                Composite.add(this.engine.world, refl);
+
+                setTimeout(() => {
+                    Composite.remove(this.engine.world, refl);
+
+                    // Geophone receives signal
+                    geo.body.render.fillStyle = '#ffffff';
+                    setTimeout(() => { geo.body.render.fillStyle = '#00ffcc'; }, 100);
+
+                    audio.playReturn(y, type);
+
+                    // Throttle logging
+                    if (Math.random() > 0.8) {
+                        addLog(`Geophone at x:${Math.floor(geo.x)} recv return. dT=${Math.floor(delay)}ms`, 'recv');
+                    }
+                }, delay);
+            },
+
+            triggerEruption() {
+                addLog("CRITICAL: MAGMA PRESSURE INSTABILITY. ERUPTION TRIGGERED.", "alert");
+                state.magmaPressureLevel = 0;
+                audio.playEruption();
+
+                // Scramble instruments
+                state.instruments.forEach(inst => {
+                    Matter.Body.setStatic(inst.body, false);
+                    Matter.Body.applyForce(inst.body, inst.body.position, {
+                        x: (Math.random() - 0.5) * 0.05,
+                        y: -0.1
+                    });
+                });
+
+                setTimeout(() => {
+                    addLog("Sensors re-stabilizing...", "alert");
+                    state.instruments.forEach(inst => {
+                        Matter.Body.setStatic(inst.body, true);
+                        Matter.Body.setPosition(inst.body, { x: inst.body.position.x, y: CONFIG.surfaceY });
+                        Matter.Body.setVelocity(inst.body, { x: 0, y: 0 });
+                    });
+                }, 3000);
+            }
+        };
+
+        // --- 3D GRAPHICS (Three.js) ---
+        const graphics = {
+            scene: null,
+            camera: null,
+            renderer: null,
+            pointsGeom: null,
+            pointsMat: null,
+            pointCloud: null,
+            positions: [],
+            colors: [],
+            gridHelper: null,
+
+            init() {
+                const container = document.getElementById('three-container');
+                const canvas = document.getElementById('three-canvas');
+
+                const w = container.clientWidth;
+                const h = container.clientHeight;
+
+                this.scene = new THREE.Scene();
+                this.scene.fog = new THREE.FogExp2(0x000000, 0.001);
+
+                this.camera = new THREE.PerspectiveCamera(60, w / h, 1, 2000);
+                this.camera.position.set(CONFIG.width / 2, -100, 400);
+                this.camera.lookAt(CONFIG.width / 2, CONFIG.height / 2, 0);
+
+                this.renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+                this.renderer.setSize(w, h);
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+
+                // Grid
+                this.gridHelper = new THREE.GridHelper(1000, 20, 0x333333, 0x111111);
+                this.gridHelper.position.set(CONFIG.width/2, CONFIG.surfaceY, 0);
+                this.scene.add(this.gridHelper);
+
+                // Init Point Cloud
+                const maxPoints = 5000;
+                this.pointsGeom = new THREE.BufferGeometry();
+                this.positions = new Float32Array(maxPoints * 3);
+                this.colors = new Float32Array(maxPoints * 3);
+
+                this.pointsGeom.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
+                this.pointsGeom.setAttribute('color', new THREE.BufferAttribute(this.colors, 3));
+                this.pointsGeom.setDrawRange(0, 0);
+
+                this.pointsMat = new THREE.PointsMaterial({
+                    size: 4,
+                    vertexColors: true,
+                    transparent: true,
+                    opacity: 0.8,
+                    blending: THREE.AdditiveBlending
+                });
+
+                this.pointCloud = new THREE.Points(this.pointsGeom, this.pointsMat);
+                this.scene.add(this.pointCloud);
+
+                state.threeReady = true;
+
+                window.addEventListener('resize', this.onWindowResize.bind(this));
+
+                this.animate();
+            },
+
+            addNode(data) {
+                const count = state.mappedSubterraneanNodes - 1;
+                if (count >= 5000) return; // limit
+
+                const i3 = count * 3;
+
+                // Map 2D matter pos to 3D space. Matter origin is top-left, 3D is center
+                // Add some random z-depth scattering to make it 3D
+                const z = (Math.random() - 0.5) * 100;
+
+                this.positions[i3] = data.x;
+                this.positions[i3+1] = data.y; // Keep Y positive, camera handles it
+                this.positions[i3+2] = z;
+
+                // Color based on type
+                let r = 0.5, g = 0.5, b = 0.5;
+                if (data.type === 'rock') { r = 0.4; g = 0.4; b = 0.6; }
+                else if (data.type === 'magma') { r = 1.0; g = 0.2; b = 0.0; }
+
+                this.colors[i3] = r;
+                this.colors[i3+1] = g;
+                this.colors[i3+2] = b;
+
+                this.pointsGeom.attributes.position.needsUpdate = true;
+                this.pointsGeom.attributes.color.needsUpdate = true;
+                this.pointsGeom.setDrawRange(0, count + 1);
+            },
+
+            onWindowResize() {
+                const container = document.getElementById('three-container');
+                const w = container.clientWidth;
+                const h = container.clientHeight;
+
+                this.camera.aspect = w / h;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(w, h);
+            },
+
+            animate() {
+                requestAnimationFrame(this.animate.bind(this));
+
+                // Slow rotation of camera around the center to show 3D nature
+                const time = Date.now() * 0.0005;
+                const radius = 400;
+                this.camera.position.x = CONFIG.width/2 + Math.cos(time) * radius;
+                this.camera.position.z = Math.sin(time) * radius;
+                this.camera.lookAt(CONFIG.width/2, CONFIG.height/2, 0);
+
+                this.renderer.render(this.scene, this.camera);
+            }
+        };
+
+        // --- MAIN APP LOGIC ---
+        function initApp() {
+            ui.initOverlay.style.display = 'none';
+
+            // Wait for user gesture before Tone.js init
+            Tone.start().then(() => {
+                state.audioEnabled = true;
+                audio.init();
+                addLog("Audio Engine Online.");
+            }).catch(e => {
+                addLog("Audio Context Failed (Autoplay?). Proceeding silently.", "alert");
+            });
+
+            physics.init();
+            graphics.init();
+
+            state.initialized = true;
+            addLog("Initialization complete. Awaiting instrument deployment.");
+        }
+
+        // --- EVENT LISTENERS ---
+        ui.startBtn.addEventListener('click', initApp);
+
+        ui.btnDeployThumper.addEventListener('click', () => {
+            if(state.initialized) physics.deployInstrument('thumper');
+        });
+
+        ui.btnDeployGeophone.addEventListener('click', () => {
+            if(state.initialized) physics.deployInstrument('geophone');
+        });
+
+        ui.btnPing.addEventListener('click', () => {
+            if(state.initialized) physics.detonate();
+        });
+
+        // --- TOY PROBE (For Verification) ---
+        window.__toyProbe = {
+            getState: () => ({
+                deployedGeophones: state.deployedGeophones,
+                deployedThumpers: state.deployedThumpers,
+                activeWavefronts: state.activeWavefronts,
+                mappedSubterraneanNodes: state.mappedSubterraneanNodes,
+                magmaPressureLevel: state.magmaPressureLevel,
+                lastReturnFrequency: state.lastReturnFrequency,
+                threeReady: state.threeReady
+            }),
+            runDemo: async () => {
+                if (!state.initialized) {
+                    initApp();
+                    // Wait a tick for canvas to setup
+                    await new Promise(r => setTimeout(r, 100));
+                }
+
+                // Deploy
+                physics.deployInstrument('thumper');
+                physics.deployInstrument('geophone');
+                physics.deployInstrument('geophone');
+
+                // Wait for deployment
+                await new Promise(r => setTimeout(r, 200));
+
+                // Ping
+                physics.detonate();
+
+                // Wait for waves to propagate and map nodes
+                await new Promise(r => setTimeout(r, 2000));
+
+                return window.__toyProbe.getState();
+            }
+        };
+
+    </script>
+</body>
+</html>
