@@ -1,0 +1,56 @@
+--- tier-lib/inkquake-city/index.html
++++ tier-lib/inkquake-city/index.html
+@@ -404,15 +404,11 @@
+             duration: 1,
+             ease: "bounce.out",
+             delay: i * 0.05,
+-            onUpdate: function() {
+-              // Extract handles directly to prevent capturing the entire body proxy in Playwright context
+-              const nx = textSprite.x / physicsScale;
+-              const ny = textSprite.y / physicsScale;
+-              if (body.bodyType() === RAPIER.RigidBodyType.KinematicPositionBased) {
+-                body.setNextKinematicTranslation({ x: nx, y: ny });
+-              }
+-            },
+             onComplete: function() {
++              if (body.bodyType() === RAPIER.RigidBodyType.KinematicPositionBased) {
++                body.setNextKinematicTranslation({ x: textSprite.x / physicsScale, y: textSprite.y / physicsScale });
++                body.setNextKinematicRotation(textSprite.rotation);
++              }
+               body.setBodyType(RAPIER.RigidBodyType.Dynamic);
+             }
+           });
+@@ -476,13 +472,6 @@
+             rotation: 0,
+             duration: 1.5,
+             ease: "back.out(1.2)",
+-            onUpdate: function() {
+-              kinematicQueue.push({
+-                body: g.body,
+-                pos: { x: g.sprite.x / physicsScale, y: g.sprite.y / physicsScale },
+-                rot: g.sprite.rotation
+-              });
+-            },
+             onComplete: function() {
+               g.body.setBodyType(RAPIER.RigidBodyType.Dynamic);
+               g.body.setTranslation({ x: g.originalX / physicsScale, y: g.originalY / physicsScale }, true);
+@@ -511,15 +500,16 @@
+           // Render via Pixi
+-          g.sprite.x = pos.x * physicsScale;
+-          g.sprite.y = pos.y * physicsScale;
+-          g.sprite.rotation = rot;
++          if (g.body.bodyType() === RAPIER.RigidBodyType.Dynamic) {
++            g.sprite.x = pos.x * physicsScale;
++            g.sprite.y = pos.y * physicsScale;
++            g.sprite.rotation = rot;
++          }
+
+           // Check stress/collapse
+           if (!g.isAnchor) {
+             dynamicCount++;
+             const angleDev = Math.abs(rot % (Math.PI * 2));
+             const yDev = Math.abs((pos.y * physicsScale) - g.originalY);
+
+             totalDeviation += Math.min(yDev / 50 + angleDev, 5); // cap deviation
+
+             if (angleDev > Math.PI / 4 || yDev > 20) {
