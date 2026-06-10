@@ -405,7 +405,12 @@
             ease: "bounce.out",
             delay: i * 0.05,
             onUpdate: function() {
-              body.setNextKinematicTranslation({ x: textSprite.x / physicsScale, y: textSprite.y / physicsScale });
+              // Extract handles directly to prevent capturing the entire body proxy in Playwright context
+              const nx = textSprite.x / physicsScale;
+              const ny = textSprite.y / physicsScale;
+              if (body.bodyType() === RAPIER.RigidBodyType.KinematicPositionBased) {
+                body.setNextKinematicTranslation({ x: nx, y: ny });
+              }
             },
             onComplete: function() {
               body.setBodyType(RAPIER.RigidBodyType.Dynamic);
@@ -453,6 +458,9 @@
       });
     }
 
+    // Queue for GSAP updates to avoid mutating Rapier state during world.step()
+    const kinematicQueue = [];
+
     function rebuildSkyline() {
       glyphs.forEach((g, i) => {
         if (!g.isAnchor && g.body) {
@@ -469,8 +477,11 @@
             duration: 1.5,
             ease: "back.out(1.2)",
             onUpdate: function() {
-              g.body.setNextKinematicTranslation({ x: g.sprite.x / physicsScale, y: g.sprite.y / physicsScale });
-              g.body.setNextKinematicRotation(g.sprite.rotation);
+              kinematicQueue.push({
+                body: g.body,
+                pos: { x: g.sprite.x / physicsScale, y: g.sprite.y / physicsScale },
+                rot: g.sprite.rotation
+              });
             },
             onComplete: function() {
               g.body.setBodyType(RAPIER.RigidBodyType.Dynamic);
@@ -484,6 +495,18 @@
 
     function gameLoop() {
       if (!world) return;
+
+      // Process queued kinematic updates before step
+      while (kinematicQueue.length > 0) {
+        const update = kinematicQueue.shift();
+        if (update.body.bodyType() === RAPIER.RigidBodyType.KinematicPositionBased) {
+          update.body.setNextKinematicTranslation(update.pos);
+          if (update.rot !== undefined) {
+             update.body.setNextKinematicRotation(update.rot);
+          }
+        }
+      }
+
       world.step();
 
       let totalDeviation = 0;

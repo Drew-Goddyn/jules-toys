@@ -1,0 +1,30 @@
+--- tier-lib/inkquake-city/index.html
++++ tier-lib/inkquake-city/index.html
+@@ -357,10 +357,11 @@
+             duration: 1,
+             ease: "bounce.out",
+             delay: i * 0.05,
+             onUpdate: function() {
+-              body.setNextKinematicTranslation({ x: textSprite.x / physicsScale, y: textSprite.y / physicsScale });
++              // Only update if it's still kinematic, preventing race condition errors
++              if (body.bodyType() === RAPIER.RigidBodyType.KinematicPositionBased) {
++                body.setNextKinematicTranslation({ x: textSprite.x / physicsScale, y: textSprite.y / physicsScale });
++              }
+             },
+             onComplete: function() {
+               body.setBodyType(RAPIER.RigidBodyType.Dynamic);
+             }
+@@ -420,10 +421,12 @@
+             duration: 1.5,
+             ease: "back.out(1.2)",
+             onUpdate: function() {
+-              g.body.setNextKinematicTranslation({ x: g.sprite.x / physicsScale, y: g.sprite.y / physicsScale });
+-              g.body.setNextKinematicRotation(g.sprite.rotation);
++              if (g.body.bodyType() === RAPIER.RigidBodyType.KinematicPositionBased) {
++                g.body.setNextKinematicTranslation({ x: g.sprite.x / physicsScale, y: g.sprite.y / physicsScale });
++                g.body.setNextKinematicRotation(g.sprite.rotation);
++              }
+             },
+             onComplete: function() {
+               g.body.setBodyType(RAPIER.RigidBodyType.Dynamic);
+               g.body.setTranslation({ x: g.originalX / physicsScale, y: g.originalY / physicsScale }, true);
