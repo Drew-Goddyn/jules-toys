@@ -582,7 +582,15 @@ function spawnEntities() {
   entities = [];
   items = [];
 
-  // Skip first room
+  // Guaranteed item in the start room for verifiable inventory access
+  const startRoom = rooms[0];
+  items.push({
+    x: startRoom.centerX + 1,
+    y: startRoom.centerY,
+    itemData: ITEM_TYPES.MEDKIT
+  });
+
+  // Skip first room for normal generation
   for (let i = 1; i < rooms.length; i++) {
     const room = rooms[i];
 
@@ -965,6 +973,12 @@ function draw() {
 }
 
 // Kick off
+// Initialize contexts first
+const canvas = document.getElementById('gameCanvas');
+ctx = canvas.getContext('2d');
+const miniCanvas = document.getElementById('minimapCanvas');
+miniCtx = miniCanvas.getContext('2d');
+
 // Initially just draws empty board behind overlay
 generateMap();
 draw();
