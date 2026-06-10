@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import sharp from "sharp";
 import { buildSearchText, loadGalleryItems } from "./gallery-data-loader.mjs";
@@ -8,6 +9,7 @@ const generatedDir = path.join(rootDir, ".generated");
 const publicGeneratedDir = path.join(rootDir, "public", "generated");
 const thumbWidths = [480, 960];
 const previewWidth = 1280;
+const generationConcurrency = getGenerationConcurrency();
 
 await fs.mkdir(generatedDir, { recursive: true });
 await fs.mkdir(publicGeneratedDir, { recursive: true });
@@ -18,8 +20,16 @@ const generatedItems = [];
 let originalScreenshotBytes = 0;
 let thumbWebpBytes = 0;
 
-for (const item of sourceItems) {
+const processedItems = await mapLimit(sourceItems, generationConcurrency, processItem);
+
+for (const { item, sourceBytes, thumbWebpBytes: itemThumbWebpBytes } of processedItems) {
   tierCounts[item.tier] = (tierCounts[item.tier] || 0) + 1;
+  originalScreenshotBytes += sourceBytes;
+  thumbWebpBytes += itemThumbWebpBytes;
+  generatedItems.push(item);
+}
+
+async function processItem(item) {
   const screenshotPath = path.join(rootDir, item.screenshot);
   const sourceStats = await fs.stat(screenshotPath);
   const metadata = await sharp(screenshotPath).metadata();
@@ -28,7 +38,7 @@ for (const item of sourceItems) {
     throw new Error(`Unable to read image dimensions for ${item.screenshot}`);
   }
 
-  originalScreenshotBytes += sourceStats.size;
+  let itemThumbWebpBytes = 0;
   const fileStem = `${String(item.tier).padStart(2, "0")}-${safeFileName(item.slug)}`;
   const thumbnails = {
     avif: [],
@@ -39,7 +49,7 @@ for (const item of sourceItems) {
     thumbnails.avif.push(await writeVariant(screenshotPath, fileStem, "thumb", width, "avif"));
     const webpVariant = await writeVariant(screenshotPath, fileStem, "thumb", width, "webp");
     thumbnails.webp.push(webpVariant);
-    if (width === 480) thumbWebpBytes += webpVariant.bytes;
+    if (width === 480) itemThumbWebpBytes += webpVariant.bytes;
   }
 
   const preview = {
@@ -47,17 +57,36 @@ for (const item of sourceItems) {
     webp: [await writeVariant(screenshotPath, fileStem, "preview", previewWidth, "webp")]
   };
 
-  generatedItems.push({
-    ...item,
-    searchText: buildSearchText(item),
-    image: {
-      width: metadata.width,
-      height: metadata.height,
-      sourceBytes: sourceStats.size,
-      thumbnails,
-      preview
+  return {
+    item: {
+      ...item,
+      searchText: buildSearchText(item),
+      image: {
+        width: metadata.width,
+        height: metadata.height,
+        sourceBytes: sourceStats.size,
+        thumbnails,
+        preview
+      }
+    },
+    sourceBytes: sourceStats.size,
+    thumbWebpBytes: itemThumbWebpBytes
+  };
+}
+
+async function mapLimit(items, concurrency, mapper) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(items[index], index);
     }
-  });
+  }));
+
+  return results;
 }
 
 const generatedAt = new Date().toISOString();
@@ -122,6 +151,7 @@ await fs.writeFile(
 );
 
 console.log(`Generated ${generatedItems.length} gallery records.`);
+console.log(`Image generation concurrency: ${generationConcurrency}.`);
 console.log(`480w WebP thumbnails: ${formatBytes(thumbWebpBytes)} vs source screenshots: ${formatBytes(originalScreenshotBytes)}.`);
 
 async function writeVariant(sourcePath, fileStem, sizeName, width, format) {
@@ -130,8 +160,8 @@ async function writeVariant(sourcePath, fileStem, sizeName, width, format) {
   const outputPath = path.join(publicGeneratedDir, outputName);
   const image = sharp(sourcePath).resize({ width, withoutEnlargement: true });
   const pipeline = format === "avif"
-    ? image.avif({ quality: sizeName === "thumb" ? 48 : 54, effort: 6 })
-    : image.webp({ quality: sizeName === "thumb" ? 72 : 78, effort: 6 });
+    ? image.avif({ quality: sizeName === "thumb" ? 48 : 54, effort: 3 })
+    : image.webp({ quality: sizeName === "thumb" ? 72 : 78, effort: 4 });
   const { data, info } = await pipeline.toBuffer({ resolveWithObject: true });
   await fs.writeFile(outputPath, data);
 
@@ -149,4 +179,15 @@ function safeFileName(value) {
 
 function formatBytes(bytes) {
   return `${(bytes / 1024).toFixed(1)} KB`;
+}
+
+function getGenerationConcurrency() {
+  const envValue = Number.parseInt(process.env.GALLERY_IMAGE_CONCURRENCY || "", 10);
+  if (Number.isFinite(envValue) && envValue > 0) return envValue;
+
+  const available = typeof os.availableParallelism === "function"
+    ? os.availableParallelism()
+    : os.cpus().length;
+
+  return Math.max(2, Math.min(4, available));
 }
