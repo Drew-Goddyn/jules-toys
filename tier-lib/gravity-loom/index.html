@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gravity Loom</title>
+<style>
+  :root {
+    --bg-color: #0f172a;
+    --text-color: #f8fafc;
+    --ui-bg: rgba(15, 23, 42, 0.85);
+    --border-color: #334155;
+    --accent: #38bdf8;
+    --hover: #0ea5e9;
+    --disabled: #475569;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+    user-select: none;
+    touch-action: none;
+  }
+  #canvas-container {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 1;
+  }
+  #ui-layer {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 2;
+    pointer-events: none;
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .panel {
+    background: var(--ui-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    pointer-events: auto;
+    backdrop-filter: blur(8px);
+    max-width: 300px;
+  }
+  h1 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+  }
+  p {
+    margin: 0 0 1rem 0;
+    font-size: 0.9rem;
+    color: #94a3b8;
+    line-height: 1.4;
+  }
+  .metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    font-family: monospace;
+    font-size: 0.85rem;
+  }
+  .metric-row {
+    display: flex;
+    justify-content: space-between;
+    min-width: 150px;
+  }
+  .metric-label { color: #94a3b8; }
+  .metric-value { font-weight: bold; color: var(--accent); }
+
+  button {
+    background: var(--border-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    font-weight: 500;
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+  button:hover:not(:disabled) {
+    background: var(--hover);
+    border-color: var(--hover);
+  }
+  button:disabled {
+    background: var(--bg-color);
+    color: var(--disabled);
+    cursor: not-allowed;
+  }
+  button.active {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+  }
+
+  .instructions {
+    margin-top: 1rem;
+    font-size: 0.8rem;
+    color: #94a3b8;
+    line-height: 1.5;
+  }
+
+  .recent-notes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+  }
+  .note-tag {
+    background: #1e293b;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    color: var(--accent);
+  }
+
+  @media (max-width: 600px) {
+    #ui-layer {
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .panel {
+      max-width: 100%;
+      width: 100%;
+    }
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.3.2/pixi.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<div id="ui-layer">
+  <div class="panel">
+    <h1>Gravity Loom</h1>
+    <p>Weave physical threads into polyrhythmic music. Stable pendulums spin patterns and pluck notes.</p>
+    <button id="btn-audio">Enable Audio</button>
+    <button id="btn-clear">Clear Loom</button>
+
+    <div class="instructions">
+      • <b>Click</b> empty space to pin a Peg<br>
+      • <b>Drag</b> from a body to space for a Shuttle<br>
+      • <b>Drag</b> between bodies to link a Thread
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="metrics">
+      <div class="metric-row">
+        <span class="metric-label">Tension (Kinetic):</span>
+        <span class="metric-value" id="val-tension">0.0</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Stable Loops:</span>
+        <span class="metric-value" id="val-loops">0</span>
+      </div>
+      <div class="metric-row" style="flex-direction: column;">
+        <span class="metric-label">Recent Notes:</span>
+        <div class="recent-notes" id="val-notes"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+window.__toyProbe = {
+  getState: () => ({
+    libsLoaded: false,
+    pegCount: 0,
+    threadCount: 0,
+    shuttleCount: 0,
+    trailSampleCount: 0,
+    pluckCount: 0,
+    audioStarted: false,
+    tension: 0,
+    stability: 0
+  }),
+  runDemo: async () => {}
+};
+
+const state = {
+  pegs: [],
+  shuttles: [],
+  threads: [],
+  trailSampleCount: 0,
+  pluckCount: 0,
+  audioStarted: false,
+  tension: 0,
+  stableLoops: 0,
+  recentNotes: [],
+  draggingFrom: null,
+  dragPos: null
+};
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if (typeof Matter === 'undefined' || typeof PIXI === 'undefined' || typeof Tone === 'undefined') {
+    console.error("Libraries not loaded.");
+    return;
+  }
+
+  window.__toyProbe.getState = () => ({
+    libsLoaded: true,
+    pegCount: state.pegs.length,
+    threadCount: state.threads.length,
+    shuttleCount: state.shuttles.length,
+    trailSampleCount: state.trailSampleCount,
+    pluckCount: state.pluckCount,
+    audioStarted: state.audioStarted,
+    tension: state.tension,
+    stability: state.stableLoops
+  });
+
+  const container = document.getElementById('canvas-container');
+  const app = new PIXI.Application({
+    resizeTo: window,
+    backgroundColor: 0x0f172a,
+    antialias: true,
+    resolution: window.devicePixelRatio || 1
+  });
+  container.appendChild(app.view);
+
+  const renderTexture = PIXI.RenderTexture.create({
+    width: Math.max(window.innerWidth, 800),
+    height: Math.max(window.innerHeight, 600)
+  });
+  const trailSprite = new PIXI.Sprite(renderTexture);
+  app.stage.addChild(trailSprite);
+
+  const liveGraphics = new PIXI.Graphics();
+  app.stage.addChild(liveGraphics);
+
+  const trailBrush = new PIXI.Graphics();
+
+  window.addEventListener('resize', () => {
+    if (app.screen.width > 0 && app.screen.height > 0) {
+      renderTexture.resize(app.screen.width, app.screen.height);
+    }
+  });
+
+  const Engine = Matter.Engine,
+        World = Matter.World,
+        Bodies = Matter.Bodies,
+        Constraint = Matter.Constraint,
+        Composite = Matter.Composite,
+        Events = Matter.Events,
+        Vector = Matter.Vector;
+
+  const engine = Engine.create({
+    gravity: { x: 0, y: 0.6 }
+  });
+
+  const scale = ["C3", "D3", "E3", "G3", "A3", "C4", "D4", "E4", "G4", "A4", "C5", "D5", "E5", "G5", "A5"];
+  let synth;
+  let reverb;
+
+  const btnAudio = document.getElementById('btn-audio');
+  btnAudio.addEventListener('click', async () => {
+    if (!state.audioStarted) {
+      await Tone.start();
+      reverb = new Tone.Reverb({ decay: 4, wet: 0.5 }).toDestination();
+      synth = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "sine" },
+        envelope: { attack: 0.01, decay: 0.5, sustain: 0.1, release: 2 }
+      }).connect(reverb);
+
+      state.audioStarted = true;
+      btnAudio.textContent = "Audio Enabled";
+      btnAudio.classList.add("active");
+    }
+  });
+
+  function playNoteForX(x, velocity = 1) {
+    const screenW = app.screen.width || window.innerWidth || 800;
+    const index = Math.floor((x / screenW) * scale.length);
+    const clampedIndex = Math.max(0, Math.min(scale.length - 1, index));
+    const note = scale[clampedIndex];
+
+    state.pluckCount++;
+    state.recentNotes.push(note);
+    if (state.recentNotes.length > 8) state.recentNotes.shift();
+    updateNotesUI();
+
+    if (!state.audioStarted || !synth) return;
+
+    const vol = Math.min(1, Math.max(0.1, velocity / 10));
+    synth.triggerAttackRelease(note, "8n", Tone.now(), vol);
+  }
+
+  function updateNotesUI() {
+    const el = document.getElementById('val-notes');
+    el.innerHTML = state.recentNotes.map(n => `<div class="note-tag">${n}</div>`).join('');
+  }
+
+  const COLLISION_CATEGORY_PEG = 0x0001;
+  const COLLISION_CATEGORY_SHUTTLE = 0x0002;
+
+  function createPeg(x, y) {
+    const peg = Bodies.circle(x, y, 8, {
+      isStatic: true,
+      collisionFilter: { category: COLLISION_CATEGORY_PEG }
+    });
+    peg.isPeg = true;
+    World.add(engine.world, peg);
+    state.pegs.push(peg);
+    playNoteForX(x, 5);
+    return peg;
+  }
+
+  function createShuttle(x, y) {
+    const shuttle = Bodies.circle(x, y, 12, {
+      restitution: 0.8,
+      frictionAir: 0.005,
+      density: 0.05,
+      collisionFilter: { category: COLLISION_CATEGORY_SHUTTLE }
+    });
+    shuttle.isShuttle = true;
+    shuttle.prevVel = { x: 0, y: 0 };
+    World.add(engine.world, shuttle);
+    state.shuttles.push(shuttle);
+    return shuttle;
+  }
+
+  function createThread(bodyA, bodyB) {
+    const thread = Constraint.create({
+      bodyA: bodyA,
+      bodyB: bodyB,
+      stiffness: 0.02,
+      damping: 0.05,
+      render: { visible: true }
+    });
+    World.add(engine.world, thread);
+    state.threads.push(thread);
+    return thread;
+  }
+
+  function getBodyAt(x, y) {
+    const bodies = Composite.allBodies(engine.world);
+    for (let body of bodies) {
+      if (Matter.Bounds.contains(body.bounds, { x, y })) {
+        const dist = Math.hypot(body.position.x - x, body.position.y - y);
+        const radius = body.circleRadius || 15;
+        if (dist <= radius + 10) {
+          return body;
+        }
+      }
+    }
+    return null;
+  }
+
+  const interactionArea = document.getElementById('canvas-container');
+
+  interactionArea.addEventListener('pointerdown', (e) => {
+    const x = e.clientX;
+    const y = e.clientY;
+
+    const body = getBodyAt(x, y);
+    if (body) {
+      state.draggingFrom = body;
+      state.dragPos = { x, y };
+    } else {
+      createPeg(x, y);
+    }
+  });
+
+  interactionArea.addEventListener('pointermove', (e) => {
+    if (state.draggingFrom) {
+      state.dragPos = { x: e.clientX, y: e.clientY };
+    }
+  });
+
+  interactionArea.addEventListener('pointerup', (e) => {
+    if (state.draggingFrom) {
+      const x = e.clientX;
+      const y = e.clientY;
+      const targetBody = getBodyAt(x, y);
+
+      if (targetBody && targetBody !== state.draggingFrom) {
+        createThread(state.draggingFrom, targetBody);
+        playNoteForX(x, 5);
+      } else if (!targetBody) {
+        const shuttle = createShuttle(x, y);
+        createThread(state.draggingFrom, shuttle);
+        playNoteForX(x, 5);
+      }
+
+      state.draggingFrom = null;
+      state.dragPos = null;
+    }
+  });
+
+  document.getElementById('btn-clear').addEventListener('click', () => {
+    World.clear(engine.world);
+    Engine.clear(engine);
+    state.pegs = [];
+    state.shuttles = [];
+    state.threads = [];
+    state.recentNotes = [];
+    state.trailSampleCount = 0;
+    updateNotesUI();
+
+    const clearGraphics = new PIXI.Graphics();
+    clearGraphics.beginFill(0x0f172a);
+    clearGraphics.drawRect(0, 0, app.screen.width, app.screen.height);
+    clearGraphics.endFill();
+    app.renderer.render(clearGraphics, { renderTexture, clear: true });
+  });
+
+  Events.on(engine, 'collisionStart', (event) => {
+    const pairs = event.pairs;
+    for (let i = 0; i < pairs.length; i++) {
+      const bodyA = pairs[i].bodyA;
+      const bodyB = pairs[i].bodyB;
+      const speed = bodyA.speed + bodyB.speed;
+      if (speed > 1) {
+        playNoteForX(bodyA.position.x, speed);
+      }
+    }
+  });
+
+  const fadeGraphics = new PIXI.Graphics();
+  fadeGraphics.beginFill(0x0f172a, 0.02);
+  fadeGraphics.drawRect(0, 0, 10000, 10000);
+  fadeGraphics.endFill();
+
+  app.ticker.add((delta) => {
+    Engine.update(engine, app.ticker.deltaMS);
+
+    let totalKinetic = 0;
+
+    state.shuttles.forEach(shuttle => {
+      const speed = shuttle.speed;
+      totalKinetic += 0.5 * shuttle.mass * speed * speed;
+
+      if (speed < 0.2 && Vector.magnitude(shuttle.prevVel) > 0.2) {
+        playNoteForX(shuttle.position.x, 3);
+      }
+
+      shuttle.prevVel = { x: shuttle.velocity.x, y: shuttle.velocity.y };
+    });
+
+    state.tension = totalKinetic;
+    if (state.tension > 0.5 && state.shuttles.length > 0) {
+      state.stableLoops = Math.floor(state.tension / 2);
+    } else {
+      state.stableLoops = 0;
+    }
+
+    document.getElementById('val-tension').textContent = state.tension.toFixed(1);
+    document.getElementById('val-loops').textContent = state.stableLoops;
+
+    if (state.shuttles.length > 0) {
+      app.renderer.render(fadeGraphics, { renderTexture, clear: false });
+
+      trailBrush.clear();
+      state.shuttles.forEach(s => {
+        const speedNorm = Math.min(1, s.speed / 10);
+        const alpha = 0.1 + speedNorm * 0.4;
+        trailBrush.beginFill(0x38bdf8, alpha);
+        trailBrush.drawCircle(s.position.x, s.position.y, s.circleRadius * 0.7);
+        trailBrush.endFill();
+        state.trailSampleCount++;
+      });
+      app.renderer.render(trailBrush, { renderTexture, clear: false });
+    }
+
+    liveGraphics.clear();
+
+    liveGraphics.lineStyle(2, 0x94a3b8, 0.4);
+    state.threads.forEach(t => {
+      liveGraphics.moveTo(t.bodyA.position.x + t.pointA.x, t.bodyA.position.y + t.pointA.y);
+      liveGraphics.lineTo(t.bodyB.position.x + t.pointB.x, t.bodyB.position.y + t.pointB.y);
+    });
+
+    if (state.draggingFrom && state.dragPos) {
+      liveGraphics.lineStyle(2, 0x38bdf8, 0.8);
+      liveGraphics.moveTo(state.draggingFrom.position.x, state.draggingFrom.position.y);
+      liveGraphics.lineTo(state.dragPos.x, state.dragPos.y);
+    }
+
+    liveGraphics.lineStyle(0);
+    state.pegs.forEach(p => {
+      liveGraphics.beginFill(0xf8fafc, 1);
+      liveGraphics.drawCircle(p.position.x, p.position.y, p.circleRadius);
+      liveGraphics.endFill();
+      liveGraphics.beginFill(0x0f172a, 1);
+      liveGraphics.drawCircle(p.position.x, p.position.y, p.circleRadius * 0.4);
+      liveGraphics.endFill();
+    });
+
+    state.shuttles.forEach(s => {
+      liveGraphics.beginFill(0x38bdf8, 1);
+      liveGraphics.drawCircle(s.position.x, s.position.y, s.circleRadius);
+      liveGraphics.endFill();
+      liveGraphics.beginFill(0xffffff, 0.8);
+      liveGraphics.drawCircle(s.position.x - 3, s.position.y - 3, s.circleRadius * 0.3);
+      liveGraphics.endFill();
+    });
+  });
+
+  window.__toyProbe.runDemo = async () => {
+    const w = app.screen.width || window.innerWidth || 800;
+    const h = app.screen.height || window.innerHeight || 600;
+
+    document.getElementById('btn-clear').click();
+
+    const peg1 = createPeg(w / 2, h / 4);
+    const shuttle1 = createShuttle(w / 2 + 150, h / 4 + 100);
+    createThread(peg1, shuttle1);
+
+    return new Promise(resolve => {
+      setTimeout(() => {
+        resolve(window.__toyProbe.getState());
+      }, 1500);
+    });
+  };
+
+});
+</script>
+</body>
+</html>
