@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Living Trade Winds</title>
+  <style>
+    :root {
+      --bg: #111827;
+      --text: #f3f4f6;
+      --panel: #1f2937;
+      --accent: #3b82f6;
+      --accent-hover: #60a5fa;
+      --border: #374151;
+      --risk-low: #34d399;
+      --risk-med: #fbbf24;
+      --risk-high: #ef4444;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+    header {
+      padding: 1rem 1.5rem;
+      background-color: var(--panel);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    .main-container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+    .viz-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    #map-container {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+    }
+    .sidebar {
+      width: 320px;
+      background-color: var(--panel);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+    .control-group {
+      padding: 1.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .control-group h2 {
+      margin: 0 0 0.75rem 0;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #9ca3af;
+    }
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+    }
+    select, input[type="range"] {
+      width: 100%;
+      margin-bottom: 1rem;
+      background-color: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 0.5rem;
+      border-radius: 0.25rem;
+    }
+    input[type="range"] {
+      padding: 0;
+    }
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+    }
+    .inspector {
+      padding: 1.25rem;
+      background-color: rgba(17, 24, 39, 0.5);
+      border-radius: 0.5rem;
+      margin-top: 1rem;
+      min-height: 120px;
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+    .inspector h3 {
+      margin: 0 0 0.5rem 0;
+      color: var(--accent);
+      font-size: 1rem;
+    }
+    .inspector p {
+      margin: 0 0 0.25rem 0;
+    }
+    #chart-container {
+      padding: 1.25rem;
+      flex-shrink: 0;
+    }
+
+    /* D3 Map Styles */
+    .node {
+      cursor: pointer;
+      fill: var(--accent);
+      stroke: var(--bg);
+      stroke-width: 2px;
+      transition: fill 0.2s;
+    }
+    .node:hover {
+      fill: var(--accent-hover);
+    }
+    .node-label {
+      fill: var(--text);
+      font-size: 12px;
+      pointer-events: none;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    }
+    .link {
+      fill: none;
+      stroke-linecap: round;
+      cursor: pointer;
+      transition: stroke-width 0.2s;
+    }
+    .link:hover {
+      stroke-width: 8 !important;
+    }
+
+    @media (max-width: 768px) {
+      .main-container {
+        flex-direction: column;
+      }
+      .sidebar {
+        width: 100%;
+        height: 50%;
+        border-left: none;
+        border-top: 1px solid var(--border);
+      }
+      #chart-container {
+        display: none; /* Hide secondary chart on very small screens if needed, or adjust */
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Living Trade Winds</h1>
+    <div id="season-display">Season: Spring</div>
+  </header>
+
+  <div class="main-container">
+    <div class="viz-container">
+      <div id="map-container"></div>
+    </div>
+
+    <div class="sidebar">
+      <div class="control-group">
+        <h2>Controls</h2>
+        <label for="season-scrubber">Season</label>
+        <input type="range" id="season-scrubber" min="0" max="3" value="0" step="1">
+
+        <label for="commodity-filter">Commodity Focus</label>
+        <select id="commodity-filter">
+          <option value="All">All Commodities</option>
+          <option value="Spices">Spices</option>
+          <option value="Silk">Silk</option>
+          <option value="Iron">Iron</option>
+          <option value="Timber">Timber</option>
+          <option value="Gems">Gems</option>
+        </select>
+
+        <label class="checkbox-label">
+          <input type="checkbox" id="toggle-storm"> Coastal Storms (High Risk)
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="toggle-boom"> Trade Boom (High Volume)
+        </label>
+      </div>
+
+      <div class="control-group">
+        <h2>Inspector</h2>
+        <div id="inspector-content" class="inspector">
+          <p>Hover or click on a port or route to see details.</p>
+        </div>
+      </div>
+
+      <div id="chart-container">
+        <!-- Observable Plot will be inserted here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Using ES Modules for D3, Observable Plot, and GSAP -->
+  <script type="module">
+    import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm";
+    import * as Plot from "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.17/+esm";
+    import gsap from "https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm";
+
+    // 1. Data Generation
+    const ports = [
+      { id: "Aethelgard", x: 150, y: 150, region: "North" },
+      { id: "Brimstone", x: 350, y: 100, region: "North" },
+      { id: "Caleida", x: 600, y: 150, region: "East" },
+      { id: "Dullahan", x: 200, y: 350, region: "West" },
+      { id: "Emberfall", x: 450, y: 300, region: "Central" },
+      { id: "Frostford", x: 700, y: 300, region: "East" },
+      { id: "Gloomhaven", x: 150, y: 550, region: "South" },
+      { id: "Hallow", x: 350, y: 500, region: "South" },
+      { id: "Ilium", x: 600, y: 500, region: "South" },
+      { id: "Jotun", x: 800, y: 450, region: "East" }
+    ];
+
+    const commodities = ["Spices", "Silk", "Iron", "Timber", "Gems"];
+    const seasons = ["Spring", "Summer", "Autumn", "Winter"];
+
+    // 20 Routes
+    const baseRoutes = [
+      { source: "Aethelgard", target: "Brimstone", baseRisk: 0.2, baseVol: 40, comm: "Iron" },
+      { source: "Aethelgard", target: "Dullahan", baseRisk: 0.3, baseVol: 30, comm: "Timber" },
+      { source: "Brimstone", target: "Caleida", baseRisk: 0.4, baseVol: 50, comm: "Gems" },
+      { source: "Brimstone", target: "Emberfall", baseRisk: 0.1, baseVol: 80, comm: "Iron" },
+      { source: "Caleida", target: "Frostford", baseRisk: 0.5, baseVol: 35, comm: "Silk" },
+      { source: "Caleida", target: "Emberfall", baseRisk: 0.2, baseVol: 60, comm: "Spices" },
+      { source: "Dullahan", target: "Emberfall", baseRisk: 0.2, baseVol: 70, comm: "Timber" },
+      { source: "Dullahan", target: "Gloomhaven", baseRisk: 0.6, baseVol: 25, comm: "Spices" },
+      { source: "Emberfall", target: "Frostford", baseRisk: 0.3, baseVol: 55, comm: "Iron" },
+      { source: "Emberfall", target: "Hallow", baseRisk: 0.2, baseVol: 90, comm: "Silk" },
+      { source: "Frostford", target: "Jotun", baseRisk: 0.7, baseVol: 20, comm: "Gems" },
+      { source: "Frostford", target: "Ilium", baseRisk: 0.4, baseVol: 45, comm: "Timber" },
+      { source: "Gloomhaven", target: "Hallow", baseRisk: 0.3, baseVol: 65, comm: "Spices" },
+      { source: "Hallow", target: "Ilium", baseRisk: 0.2, baseVol: 85, comm: "Silk" },
+      { source: "Ilium", target: "Jotun", baseRisk: 0.5, baseVol: 40, comm: "Gems" },
+      { source: "Aethelgard", target: "Emberfall", baseRisk: 0.4, baseVol: 45, comm: "Iron" },
+      { source: "Gloomhaven", target: "Emberfall", baseRisk: 0.5, baseVol: 35, comm: "Timber" },
+      { source: "Jotun", target: "Emberfall", baseRisk: 0.6, baseVol: 30, comm: "Gems" },
+      { source: "Brimstone", target: "Dullahan", baseRisk: 0.3, baseVol: 50, comm: "Iron" },
+      { source: "Hallow", target: "Caleida", baseRisk: 0.4, baseVol: 60, comm: "Silk" }
+    ];
+
+    // State
+    let currentState = {
+      seasonIdx: 0,
+      commodity: "All",
+      stormActive: false,
+      boomActive: false,
+      hoveredItem: null // {type: 'port'|'route', data: ...}
+    };
+
+    // Derived Data Calculation
+    function getDerivedData() {
+      const season = seasons[currentState.seasonIdx];
+
+      let routes = baseRoutes.map(r => {
+        let vol = r.baseVol;
+        let risk = r.baseRisk;
+
+        // Season effects
+        if (season === "Winter") {
+          if (["Aethelgard", "Brimstone", "Caleida"].includes(r.source) || ["Aethelgard", "Brimstone", "Caleida"].includes(r.target)) {
+            risk += 0.3;
+            vol *= 0.7;
+          }
+        } else if (season === "Summer") {
+          vol *= 1.2;
+          risk -= 0.1;
+        } else if (season === "Spring") {
+          vol *= 1.1;
+        }
+
+        // Scenario effects
+        if (currentState.stormActive && ["Gloomhaven", "Hallow", "Ilium", "Jotun"].includes(r.source)) {
+          risk += 0.4;
+          vol *= 0.5;
+        }
+        if (currentState.boomActive) {
+          vol *= 1.5;
+        }
+
+        // Filter
+        if (currentState.commodity !== "All" && r.comm !== currentState.commodity) {
+          vol = 0; // Inactive route
+        }
+
+        return {
+          ...r,
+          currentVol: Math.max(0, vol),
+          currentRisk: Math.min(1, Math.max(0, risk))
+        };
+      });
+
+      // Calculate port totals
+      let portStats = {};
+      ports.forEach(p => portStats[p.id] = { in: 0, out: 0, total: 0 });
+
+      routes.forEach(r => {
+        if (r.currentVol > 0) {
+          portStats[r.source].out += r.currentVol;
+          portStats[r.target].in += r.currentVol;
+          portStats[r.source].total += r.currentVol;
+          portStats[r.target].total += r.currentVol;
+        }
+      });
+
+      let currentPorts = ports.map(p => ({
+        ...p,
+        ...portStats[p.id]
+      }));
+
+      return { routes, currentPorts };
+    }
+
+    // Visualization Setup
+    const mapContainer = document.getElementById("map-container");
+    const width = 1000;
+    const height = 700;
+
+    const svg = d3.select("#map-container")
+      .append("svg")
+      .attr("viewBox", `0 0 ${width} ${height}`)
+      .attr("preserveAspectRatio", "xMidYMid meet")
+      .style("width", "100%")
+      .style("height", "100%");
+
+    // Defs for gradients/filters
+    const defs = svg.append("defs");
+
+    // Scale for node size
+    const rScale = d3.scaleSqrt().domain([0, 300]).range([5, 30]);
+    // Scale for link width
+    const wScale = d3.scaleLinear().domain([0, 150]).range([0, 12]);
+    // Color scale for risk
+    const riskColorScale = d3.scaleLinear()
+      .domain([0, 0.4, 0.8])
+      .range(["#34d399", "#fbbf24", "#ef4444"]);
+
+    const linkGroup = svg.append("g").attr("class", "links");
+    const nodeGroup = svg.append("g").attr("class", "nodes");
+    const labelGroup = svg.append("g").attr("class", "labels");
+
+    function renderMap(data) {
+      // 1. Links
+      const links = linkGroup.selectAll("line")
+        .data(data.routes, d => `${d.source}-${d.target}`);
+
+      links.enter()
+        .append("line")
+        .attr("class", "link")
+        .attr("x1", d => ports.find(p => p.id === d.source).x)
+        .attr("y1", d => ports.find(p => p.id === d.source).y)
+        .attr("x2", d => ports.find(p => p.id === d.target).x)
+        .attr("y2", d => ports.find(p => p.id === d.target).y)
+        .style("stroke-width", 0)
+        .style("stroke", "#374151")
+        .on("mouseenter", (e, d) => setInspector({type: 'route', data: d}))
+        .on("mouseleave", () => setInspector(null))
+        .merge(links)
+        .transition()
+        .duration(800)
+        .style("stroke-width", d => wScale(d.currentVol))
+        .style("stroke", d => d.currentVol > 0 ? riskColorScale(d.currentRisk) : "#374151")
+        .style("opacity", d => d.currentVol > 0 ? 0.7 : 0.1);
+
+      links.exit().remove();
+
+      // 2. Nodes
+      const nodes = nodeGroup.selectAll("circle")
+        .data(data.currentPorts, d => d.id);
+
+      nodes.enter()
+        .append("circle")
+        .attr("class", "node")
+        .attr("cx", d => d.x)
+        .attr("cy", d => d.y)
+        .attr("r", 0)
+        .on("mouseenter", (e, d) => setInspector({type: 'port', data: d}))
+        .on("mouseleave", () => setInspector(null))
+        .merge(nodes)
+        .transition()
+        .duration(800)
+        .attr("r", d => rScale(d.total) < 5 ? 5 : rScale(d.total))
+        .style("fill", d => d.total === 0 ? "#4b5563" : "#3b82f6");
+
+      nodes.exit().remove();
+
+      // 3. Labels
+      const labels = labelGroup.selectAll("text")
+        .data(data.currentPorts, d => d.id);
+
+      labels.enter()
+        .append("text")
+        .attr("class", "node-label")
+        .attr("x", d => d.x)
+        .attr("y", d => d.y + 20)
+        .attr("text-anchor", "middle")
+        .text(d => d.id)
+        .merge(labels)
+        .transition()
+        .duration(800)
+        .attr("y", d => d.y + rScale(d.total) + 12)
+        .style("opacity", d => d.total === 0 ? 0.3 : 1);
+
+      labels.exit().remove();
+    }
+
+    function renderChart(data) {
+      const container = document.getElementById("chart-container");
+      container.innerHTML = "";
+
+      // Aggregate volume by commodity for current routes
+      let commVols = {};
+      commodities.forEach(c => commVols[c] = 0);
+      data.routes.forEach(r => {
+        if(r.currentVol > 0) {
+          commVols[r.comm] += r.currentVol;
+        }
+      });
+
+      const chartData = commodities.map(c => ({
+        commodity: c,
+        volume: commVols[c]
+      }));
+
+      const chart = Plot.plot({
+        width: 280,
+        height: 200,
+        marginLeft: 50,
+        marginBottom: 30,
+        style: {
+          background: "transparent",
+          color: "#f3f4f6",
+          fontSize: "12px"
+        },
+        x: {
+          label: "Volume",
+          grid: true
+        },
+        y: {
+          label: null,
+          domain: commodities
+        },
+        marks: [
+          Plot.barX(chartData, {
+            x: "volume",
+            y: "commodity",
+            fill: "#3b82f6",
+            sort: { y: "x", reverse: true }
+          }),
+          Plot.text(chartData, {
+            x: "volume",
+            y: "commodity",
+            text: d => Math.round(d.volume),
+            textAnchor: "start",
+            dx: 5,
+            fill: "#f3f4f6"
+          })
+        ]
+      });
+
+      container.appendChild(chart);
+    }
+
+    function setInspector(info) {
+      const el = document.getElementById("inspector-content");
+      if (!info) {
+        if (!currentState.hoveredItem) {
+          el.innerHTML = "<p>Hover or click on a port or route to see details.</p>";
+        }
+        return;
+      }
+
+      currentState.hoveredItem = info;
+
+      if (info.type === 'port') {
+        const d = info.data;
+        el.innerHTML = `
+          <h3>${d.id}</h3>
+          <p>Region: ${d.region}</p>
+          <p>Total Trade Volume: <strong>${Math.round(d.total)}</strong></p>
+          <p>Inbound: ${Math.round(d.in)} | Outbound: ${Math.round(d.out)}</p>
+        `;
+      } else if (info.type === 'route') {
+        const d = info.data;
+        const riskLevel = d.currentRisk < 0.3 ? "Low" : (d.currentRisk < 0.6 ? "Medium" : "High");
+        const riskColor = d.currentRisk < 0.3 ? "#34d399" : (d.currentRisk < 0.6 ? "#fbbf24" : "#ef4444");
+        el.innerHTML = `
+          <h3>Route: ${d.source} ↔ ${d.target}</h3>
+          <p>Commodity: <strong>${d.comm}</strong></p>
+          <p>Current Volume: <strong>${Math.round(d.currentVol)}</strong></p>
+          <p>Risk Level: <strong style="color: ${riskColor}">${riskLevel} (${Math.round(d.currentRisk*100)}%)</strong></p>
+        `;
+      }
+    }
+
+    // Animation / Narrative with GSAP
+    function triggerSeasonChangeNarrative() {
+      const season = seasons[currentState.seasonIdx];
+
+      // Flash the background slightly
+      gsap.to("body", {
+        backgroundColor: season === "Winter" ? "#0f172a" : (season === "Summer" ? "#271c19" : "#111827"),
+        duration: 1
+      });
+
+      const display = document.getElementById("season-display");
+      gsap.fromTo(display,
+        { opacity: 0, scale: 0.8 },
+        { opacity: 1, scale: 1, duration: 0.5, ease: "back.out(1.7)" }
+      );
+    }
+
+    function update() {
+      const data = getDerivedData();
+      renderMap(data);
+      renderChart(data);
+      triggerSeasonChangeNarrative();
+
+      document.getElementById("season-display").innerText = `Season: ${seasons[currentState.seasonIdx]}`;
+
+      // Reset hover if item data changed
+      if (currentState.hoveredItem) {
+        if (currentState.hoveredItem.type === 'port') {
+          const updatedPort = data.currentPorts.find(p => p.id === currentState.hoveredItem.data.id);
+          if (updatedPort) setInspector({type: 'port', data: updatedPort});
+        }
+      }
+    }
+
+    // Event Listeners
+    document.getElementById("season-scrubber").addEventListener("input", (e) => {
+      currentState.seasonIdx = parseInt(e.target.value, 10);
+      update();
+    });
+
+    document.getElementById("commodity-filter").addEventListener("change", (e) => {
+      currentState.commodity = e.target.value;
+      update();
+    });
+
+    document.getElementById("toggle-storm").addEventListener("change", (e) => {
+      currentState.stormActive = e.target.checked;
+      update();
+    });
+
+    document.getElementById("toggle-boom").addEventListener("change", (e) => {
+      currentState.boomActive = e.target.checked;
+      update();
+    });
+
+    // Initial render
+    update();
+
+    // Map interactions (to clear inspector on bg click)
+    svg.on("click", (e) => {
+      if (e.target.tagName === "svg") {
+        currentState.hoveredItem = null;
+        setInspector(null);
+      }
+    });
+
+  </script>
+</body>
+</html>
