@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Weather Organ</title>
+
+  <!-- CDNs -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.3.2/pixi.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #11151c;
+      --panel: #1b202b;
+      --text: #e2e8f0;
+      --accent: #38bdf8;
+      --accent-hover: #7dd3fc;
+      --high: #ef4444;
+      --low: #3b82f6;
+      --mountain: #854d0e;
+      --ocean: #0ea5e9;
+      --sun: #fbbf24;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      touch-action: none;
+    }
+
+    header {
+      padding: 1rem;
+      background: var(--panel);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #334155;
+      z-index: 10;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: -0.025em;
+    }
+
+    .controls {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    button {
+      background: var(--panel);
+      border: 1px solid #475569;
+      color: var(--text);
+      padding: 0.5rem 1rem;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      background: #334155;
+      border-color: #64748b;
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: #0f172a;
+      border-color: var(--accent);
+    }
+
+    button.primary:hover {
+      background: var(--accent-hover);
+    }
+
+    button.active {
+      background: var(--accent);
+      color: #0f172a;
+      border-color: var(--accent);
+    }
+
+    .main-area {
+      display: flex;
+      flex: 1;
+      position: relative;
+    }
+
+    .sidebar {
+      width: 280px;
+      background: var(--panel);
+      border-right: 1px solid #334155;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      z-index: 10;
+      overflow-y: auto;
+    }
+
+    .palette {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .palette-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 0.375rem;
+      cursor: grab;
+      user-select: none;
+    }
+
+    .palette-item:active {
+      cursor: grabbing;
+    }
+
+    .icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: bold;
+      color: white;
+    }
+
+    .metrics {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      padding-bottom: 0.25rem;
+      border-bottom: 1px solid #334155;
+    }
+
+    .metric-val {
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .canvas-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Layers: D3 at bottom, Pixi in middle, DOM elements (drag targets) on top */
+    #d3-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    #pixi-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    #interaction-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 3;
+    }
+
+    .weather-node {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: white;
+      transform: translate(-50%, -50%);
+      cursor: grab;
+      user-select: none;
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.5);
+      border: 2px solid rgba(255,255,255,0.2);
+    }
+
+    .weather-node:active {
+      cursor: grabbing;
+    }
+
+    .node-high { background: var(--high); }
+    .node-low { background: var(--low); }
+    .node-mountain { background: var(--mountain); border-radius: 8px; }
+    .node-ocean { background: var(--ocean); }
+    .node-sun { background: var(--sun); }
+
+    @media (max-width: 768px) {
+      body { flex-direction: column; }
+      .main-area { flex-direction: column-reverse; }
+      .sidebar {
+        width: 100%;
+        height: auto;
+        max-height: 200px;
+        flex-direction: row;
+        border-right: none;
+        border-top: 1px solid #334155;
+      }
+      .palette { flex-direction: row; flex-wrap: wrap; flex: 1; }
+      .metrics { flex: 1; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Weather Organ</h1>
+    <div class="controls">
+      <button id="btn-perform">Perform Front</button>
+      <button id="btn-reset">Reset</button>
+      <button id="btn-audio" class="primary">Enable Audio</button>
+    </div>
+  </header>
+
+  <div class="main-area">
+    <div class="sidebar">
+      <div>
+        <h3 style="margin-top: 0; font-size: 0.875rem; color: #94a3b8; text-transform: uppercase;">Instruments</h3>
+        <div class="palette">
+          <div class="palette-item" data-type="high">
+            <div class="icon" style="background: var(--high)">H</div>
+            <span>High Pressure</span>
+          </div>
+          <div class="palette-item" data-type="low">
+            <div class="icon" style="background: var(--low)">L</div>
+            <span>Low Pressure</span>
+          </div>
+          <div class="palette-item" data-type="mountain">
+            <div class="icon" style="background: var(--mountain); border-radius: 4px;">M</div>
+            <span>Mountain</span>
+          </div>
+          <div class="palette-item" data-type="ocean">
+            <div class="icon" style="background: var(--ocean)">O</div>
+            <span>Ocean</span>
+          </div>
+          <div class="palette-item" data-type="sun">
+            <div class="icon" style="background: var(--sun)">S</div>
+            <span>Sunbeam</span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h3 style="font-size: 0.875rem; color: #94a3b8; text-transform: uppercase;">Metrics</h3>
+        <div class="metrics">
+          <div class="metric-row">
+            <span>Pressure Contrast</span>
+            <span class="metric-val" id="metric-pressure">0 mb</span>
+          </div>
+          <div class="metric-row">
+            <span>Storm Energy</span>
+            <span class="metric-val" id="metric-energy">0 J</span>
+          </div>
+          <div class="metric-row">
+            <span>Rainfall</span>
+            <span class="metric-val" id="metric-rain">0 mm</span>
+          </div>
+          <div class="metric-row">
+            <span>Rain Shadow</span>
+            <span class="metric-val" id="metric-shadow">0%</span>
+          </div>
+          <div class="metric-row">
+            <span>Active Voices</span>
+            <span class="metric-val" id="metric-voices">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-container" id="container">
+      <svg id="d3-layer"></svg>
+      <canvas id="pixi-layer"></canvas>
+      <div id="interaction-layer"></div>
+    </div>
+  </div>
+
+  <script>
+    // --- State and Simulation ---
+    const state = {
+      nodes: [], // { id, type, x, y }
+      metrics: {
+        pressure: 0,
+        energy: 0,
+        rain: 0,
+        shadow: 0,
+        voices: 0
+      },
+      width: 0,
+      height: 0,
+      gridSize: 20,
+      grid: [], // 2D array of { pressure, moisture, temp, vx, vy }
+      audioEnabled: false,
+      performing: false,
+      nextId: 1
+    };
+
+    // DOM Elements
+    const container = document.getElementById('container');
+    const interactionLayer = document.getElementById('interaction-layer');
+    const metricPressure = document.getElementById('metric-pressure');
+    const metricEnergy = document.getElementById('metric-energy');
+    const metricRain = document.getElementById('metric-rain');
+    const metricShadow = document.getElementById('metric-shadow');
+    const metricVoices = document.getElementById('metric-voices');
+
+    // Resize handler
+    function resize() {
+      const rect = container.getBoundingClientRect();
+      state.width = rect.width;
+      state.height = rect.height;
+      initGrid();
+      updateSimulation();
+    }
+    window.addEventListener('resize', resize);
+
+    function initGrid() {
+      const cols = Math.ceil(state.width / state.gridSize);
+      const rows = Math.ceil(state.height / state.gridSize);
+      state.grid = Array(cols).fill(0).map(() => Array(rows).fill(0).map(() => ({
+        pressure: 1013, // Standard atmospheric pressure
+        moisture: 0,
+        temp: 20,
+        vx: 0,
+        vy: 0
+      })));
+    }
+
+    // Node Interaction
+    function addNode(type, x, y) {
+      const id = state.nextId++;
+      const node = { id, type, x, y };
+      state.nodes.push(node);
+      renderNode(node);
+      updateSimulation();
+      return node;
+    }
+
+    function removeNode(id) {
+      state.nodes = state.nodes.filter(n => n.id !== id);
+      const el = document.getElementById(`node-${id}`);
+      if (el) el.remove();
+      updateSimulation();
+    }
+
+    function renderNode(node) {
+      const el = document.createElement('div');
+      el.id = `node-${node.id}`;
+      el.className = `weather-node node-${node.type}`;
+
+      const labels = { high: 'H', low: 'L', mountain: 'M', ocean: 'O', sun: 'S' };
+      el.textContent = labels[node.type];
+
+      el.style.left = `${node.x}px`;
+      el.style.top = `${node.y}px`;
+
+      // Drag logic
+      let isDragging = false;
+      let startX, startY;
+
+      el.addEventListener('pointerdown', (e) => {
+        isDragging = true;
+        el.setPointerCapture(e.pointerId);
+        startX = e.clientX - node.x;
+        startY = e.clientY - node.y;
+      });
+
+      el.addEventListener('pointermove', (e) => {
+        if (!isDragging) return;
+        node.x = e.clientX - startX;
+        node.y = e.clientY - startY;
+
+        // Bounds check
+        node.x = Math.max(20, Math.min(state.width - 20, node.x));
+        node.y = Math.max(20, Math.min(state.height - 20, node.y));
+
+        el.style.left = `${node.x}px`;
+        el.style.top = `${node.y}px`;
+        updateSimulation(); // Real-time update
+      });
+
+      el.addEventListener('pointerup', (e) => {
+        isDragging = false;
+        el.releasePointerCapture(e.pointerId);
+      });
+
+      // Double click to remove
+      el.addEventListener('dblclick', () => {
+        removeNode(node.id);
+      });
+
+      interactionLayer.appendChild(el);
+    }
+
+    // Palette Drag and Drop (Simple implementation: click to add to center)
+    // A more complex drag from sidebar would require ghost elements. For simplicity, click palette = add to center.
+    // Wait, the prompt says "drag pressure cells... onto a map". Let's implement drag from palette.
+
+    document.querySelectorAll('.palette-item').forEach(item => {
+      item.addEventListener('pointerdown', (e) => {
+        const type = item.getAttribute('data-type');
+
+        // Create a ghost node
+        const ghost = document.createElement('div');
+        ghost.className = `weather-node node-${type}`;
+        const labels = { high: 'H', low: 'L', mountain: 'M', ocean: 'O', sun: 'S' };
+        ghost.textContent = labels[type];
+        ghost.style.position = 'fixed';
+        ghost.style.left = `${e.clientX}px`;
+        ghost.style.top = `${e.clientY}px`;
+        ghost.style.zIndex = 1000;
+        ghost.style.pointerEvents = 'none'; // pass events through
+        document.body.appendChild(ghost);
+
+        const onMove = (ev) => {
+          ghost.style.left = `${ev.clientX}px`;
+          ghost.style.top = `${ev.clientY}px`;
+        };
+
+        const onUp = (ev) => {
+          document.removeEventListener('pointermove', onMove);
+          document.removeEventListener('pointerup', onUp);
+          ghost.remove();
+
+          // Check if dropped in container
+          const rect = container.getBoundingClientRect();
+          if (ev.clientX >= rect.left && ev.clientX <= rect.right &&
+              ev.clientY >= rect.top && ev.clientY <= rect.bottom) {
+            addNode(type, ev.clientX - rect.left, ev.clientY - rect.top);
+          }
+        };
+
+        document.addEventListener('pointermove', onMove);
+        document.addEventListener('pointerup', onUp);
+      });
+    });
+
+    // Reset
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      state.nodes.forEach(n => {
+        const el = document.getElementById(`node-${n.id}`);
+        if (el) el.remove();
+      });
+      state.nodes = [];
+      updateSimulation();
+    });
+
+    // Simulation Math
+    function updateSimulation() {
+      if (state.width === 0) return; // Not initialized
+
+      const cols = state.grid.length;
+      const rows = state.grid[0].length;
+
+      let minP = Infinity, maxP = -Infinity;
+      let totalEnergy = 0;
+      let totalRain = 0;
+      let totalShadow = 0;
+
+      // Reset grid
+      for (let x = 0; x < cols; x++) {
+        for (let y = 0; y < rows; y++) {
+          state.grid[x][y].pressure = 1013;
+          state.grid[x][y].temp = 20;
+          state.grid[x][y].moisture = 0;
+        }
+      }
+
+      // Apply node influences
+      state.nodes.forEach(node => {
+        const gx = node.x / state.gridSize;
+        const gy = node.y / state.gridSize;
+
+        for (let x = 0; x < cols; x++) {
+          for (let y = 0; y < rows; y++) {
+            const dist = Math.sqrt((x - gx)**2 + (y - gy)**2);
+            const influence = Math.max(0, 1 - dist / 15); // Radius of influence ~15 grid cells (300px)
+            const cell = state.grid[x][y];
+
+            if (node.type === 'high') cell.pressure += influence * 50;
+            if (node.type === 'low') cell.pressure -= influence * 50;
+            if (node.type === 'sun') cell.temp += influence * 15;
+            if (node.type === 'ocean') {
+              cell.moisture += influence * 100;
+              cell.temp -= influence * 5; // oceans cool slightly
+            }
+          }
+        }
+      });
+
+      // Calculate vectors (gradients) and metrics
+      for (let x = 0; x < cols; x++) {
+        for (let y = 0; y < rows; y++) {
+          const cell = state.grid[x][y];
+
+          minP = Math.min(minP, cell.pressure);
+          maxP = Math.max(maxP, cell.pressure);
+
+          // Simple gradient descent for wind (High to Low pressure)
+          let dx = 0, dy = 0;
+          if (x > 0 && x < cols - 1) dx = (state.grid[x-1][y].pressure - state.grid[x+1][y].pressure) / 2;
+          if (y > 0 && y < rows - 1) dy = (state.grid[x][y-1].pressure - state.grid[x][y+1].pressure) / 2;
+
+          // Coriolis effect (slight rightward deflection in Northern Hemisphere)
+          const cx = dx * 0.8 + dy * 0.2;
+          const cy = dy * 0.8 - dx * 0.2;
+
+          cell.vx = cx;
+          cell.vy = cy;
+
+          const speed = Math.sqrt(cx*cx + cy*cy);
+          totalEnergy += speed;
+
+          // Rain occurs where moisture is high and pressure is low or hits a mountain
+          let isMountain = false;
+          state.nodes.forEach(n => {
+            if (n.type === 'mountain') {
+              const d = Math.sqrt((x - n.x/state.gridSize)**2 + (y - n.y/state.gridSize)**2);
+              if (d < 5) isMountain = true;
+            }
+          });
+
+          if (isMountain && cell.moisture > 20 && speed > 5) {
+            totalRain += cell.moisture * 0.1;
+            totalShadow += 1; // Leeward side proxy
+          } else if (cell.moisture > 50 && cell.pressure < 1000) {
+            totalRain += cell.moisture * 0.05;
+          }
+        }
+      }
+
+      state.metrics.pressure = state.nodes.length > 0 ? (maxP - minP) : 0;
+      state.metrics.energy = totalEnergy;
+      state.metrics.rain = totalRain;
+      state.metrics.shadow = (totalShadow / (cols * rows)) * 100;
+
+      updateReadouts();
+      // updateVisuals();
+      // updateAudio();
+    }
+
+    function updateReadouts() {
+      metricPressure.textContent = `${Math.round(state.metrics.pressure)} mb`;
+      metricEnergy.textContent = `${Math.round(state.metrics.energy)} J`;
+      metricRain.textContent = `${Math.round(state.metrics.rain)} mm`;
+      metricShadow.textContent = `${state.metrics.shadow.toFixed(1)}%`;
+      metricVoices.textContent = state.metrics.voices;
+    }
+
+    // --- D3 Vector Fields and Contours ---
+    const svg = d3.select("#d3-layer");
+    let d3Path = d3.geoPath();
+
+    function updateD3Visuals() {
+      if (state.width === 0) return;
+      svg.selectAll("*").remove();
+
+      const cols = state.grid.length;
+      const rows = state.grid[0].length;
+
+      // Extract 1D array of pressures for contours
+      const values = new Array(cols * rows);
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          values[y * cols + x] = state.grid[x][y].pressure;
+        }
+      }
+
+      // Draw Contours
+      const thresholds = d3.range(900, 1100, 10);
+      const contours = d3.contours()
+        .size([cols, rows])
+        .thresholds(thresholds)
+        (values);
+
+      const colorScale = d3.scaleSequential(d3.interpolateRdBu)
+        .domain([1060, 960]); // High pressure = red/orange, Low = blue
+
+      svg.selectAll("path.contour")
+        .data(contours)
+        .enter()
+        .append("path")
+        .attr("class", "contour")
+        .attr("d", d => {
+          // Manually scale the contour path since D3 outputs coordinates in grid indices
+          const pathStr = d3Path(d);
+          if (!pathStr) return null;
+          // Regex to scale numbers in the SVG path string
+          return pathStr.replace(/([-\d.]+)/g, m => parseFloat(m) * state.gridSize);
+        })
+        .attr("fill", "none")
+        .attr("stroke", d => colorScale(d.value))
+        .attr("stroke-width", 1)
+        .attr("opacity", 0.6);
+
+      // Draw Wind Vectors (sampled to avoid clutter)
+      const vectorData = [];
+      for (let x = 1; x < cols - 1; x += 2) {
+        for (let y = 1; y < rows - 1; y += 2) {
+          const cell = state.grid[x][y];
+          const speed = Math.sqrt(cell.vx**2 + cell.vy**2);
+          if (speed > 1) { // Only draw if there's significant wind
+            vectorData.push({
+              x: x * state.gridSize + state.gridSize/2,
+              y: y * state.gridSize + state.gridSize/2,
+              vx: cell.vx,
+              vy: cell.vy,
+              speed: speed
+            });
+          }
+        }
+      }
+
+      const vectors = svg.selectAll("g.vector")
+        .data(vectorData)
+        .enter()
+        .append("g")
+        .attr("class", "vector")
+        .attr("transform", d => `translate(${d.x}, ${d.y})`);
+
+      vectors.append("line")
+        .attr("x1", 0)
+        .attr("y1", 0)
+        .attr("x2", d => d.vx * 0.5)
+        .attr("y2", d => d.vy * 0.5)
+        .attr("stroke", "rgba(255,255,255,0.4)")
+        .attr("stroke-width", 1.5)
+        .attr("marker-end", "url(#arrow)");
+
+      // Arrowhead marker
+      if (svg.select("defs").empty()) {
+        svg.append("defs").append("marker")
+          .attr("id", "arrow")
+          .attr("viewBox", "0 -5 10 10")
+          .attr("refX", 8)
+          .attr("refY", 0)
+          .attr("markerWidth", 4)
+          .attr("markerHeight", 4)
+          .attr("orient", "auto")
+          .append("path")
+          .attr("d", "M0,-5L10,0L0,5")
+          .attr("fill", "rgba(255,255,255,0.4)");
+      }
+    }
+
+    // --- PixiJS Particle Density ---
+    const pixiCanvas = document.getElementById('pixi-layer');
+    const pixiApp = new PIXI.Application({
+      view: pixiCanvas,
+      resizeTo: container,
+      transparent: true,
+      backgroundAlpha: 0
+    });
+
+    // Create a particle container
+    const particleContainer = new PIXI.ParticleContainer(2000, {
+      scale: true,
+      position: true,
+      rotation: false,
+      uvs: false,
+      alpha: true
+    });
+    pixiApp.stage.addChild(particleContainer);
+
+    // Create a simple circular texture
+    const graphics = new PIXI.Graphics();
+    graphics.beginFill(0x38bdf8, 0.6); // Water drop color
+    graphics.drawCircle(0, 0, 3);
+    graphics.endFill();
+    const particleTexture = pixiApp.renderer.generateTexture(graphics);
+
+    const particles = [];
+    const maxParticles = 1000;
+
+    function initPixiParticles() {
+      // Initialize pool
+      for (let i = 0; i < maxParticles; i++) {
+        const p = new PIXI.Sprite(particleTexture);
+        p.anchor.set(0.5);
+        p.x = Math.random() * state.width;
+        p.y = Math.random() * state.height;
+        p.alpha = 0;
+        p.life = Math.random() * 60; // frames
+        p.maxLife = 60 + Math.random() * 60;
+        particleContainer.addChild(p);
+        particles.push(p);
+      }
+    }
+
+    pixiApp.ticker.add((delta) => {
+      if (state.width === 0 || state.grid.length === 0) return;
+
+      const cols = state.grid.length;
+      const rows = state.grid[0].length;
+
+      particles.forEach(p => {
+        // Find grid cell
+        const gx = Math.floor(p.x / state.gridSize);
+        const gy = Math.floor(p.y / state.gridSize);
+
+        if (gx >= 0 && gx < cols && gy >= 0 && gy < rows) {
+          const cell = state.grid[gx][gy];
+
+          // Move particle based on wind
+          p.x += cell.vx * delta * 0.1;
+          p.y += cell.vy * delta * 0.1;
+
+          // Fade based on moisture/rain density
+          const targetAlpha = Math.min(1, cell.moisture / 100);
+          p.alpha += (targetAlpha - p.alpha) * 0.1;
+        } else {
+          p.alpha = 0;
+        }
+
+        // Wrap around or respawn
+        p.life--;
+        if (p.life <= 0 || p.x < 0 || p.x > state.width || p.y < 0 || p.y > state.height) {
+          p.x = Math.random() * state.width;
+          p.y = Math.random() * state.height;
+          p.life = p.maxLife;
+          p.alpha = 0;
+        }
+      });
+    });
+
+    // Wrap updateSimulation to call visual updates
+    const originalUpdateSimulation = updateSimulation;
+    updateSimulation = function() {
+      originalUpdateSimulation();
+      updateD3Visuals();
+    };
+
+    // --- Tone.js Sonification ---
+    let synthWind, synthRain, synthStorm, synthPressure;
+    const btnAudio = document.getElementById('btn-audio');
+
+    async function initAudio() {
+      if (state.audioEnabled) return;
+      await Tone.start();
+
+      // Wind: Noise passing through a filter modulated by wind speed
+      synthWind = new Tone.Noise("brown");
+      const windFilter = new Tone.Filter(400, "lowpass").toDestination();
+      synthWind.connect(windFilter);
+      synthWind.volume.value = -Infinity;
+      synthWind.start();
+
+      // Rain: High-passed white noise or fast random blips
+      synthRain = new Tone.Noise("white");
+      const rainFilter = new Tone.Filter(5000, "highpass").toDestination();
+      synthRain.connect(rainFilter);
+      synthRain.volume.value = -Infinity;
+      synthRain.start();
+
+      // Storm Energy: Deep low-frequency rumble
+      synthStorm = new Tone.FMSynth({
+        harmonicity: 0.5,
+        modulationIndex: 10,
+        oscillator: { type: "sine" },
+        modulation: { type: "triangle" }
+      }).toDestination();
+      synthStorm.volume.value = -Infinity;
+
+      // Pressure Hum: Drone that shifts pitch with pressure contrast
+      synthPressure = new Tone.Oscillator(100, "sine").toDestination();
+      synthPressure.volume.value = -Infinity;
+      synthPressure.start();
+
+      state.audioEnabled = true;
+      btnAudio.textContent = "Audio Enabled";
+      btnAudio.classList.remove('primary');
+      btnAudio.disabled = true;
+
+      // Start continuous audio update loop
+      Tone.Transport.scheduleRepeat(() => {
+        updateAudioLevels();
+      }, "0.1s");
+      Tone.Transport.start();
+    }
+
+    btnAudio.addEventListener('click', initAudio);
+
+    function updateAudioLevels() {
+      if (!state.audioEnabled) return;
+
+      const m = state.metrics;
+      let activeVoices = 0;
+
+      // Wind (Energy determines filter cutoff and volume)
+      if (m.energy > 5) {
+        const targetVol = Tone.gainToDb(Math.min(1, m.energy / 500)); // arbitrary scale
+        synthWind.volume.rampTo(Math.max(-40, targetVol - 20), 0.1);
+        // We could adjust filter cutoff here, but kept simple
+        activeVoices++;
+      } else {
+        synthWind.volume.rampTo(-Infinity, 0.5);
+      }
+
+      // Rain
+      if (m.rain > 5) {
+        const targetVol = Tone.gainToDb(Math.min(1, m.rain / 200));
+        synthRain.volume.rampTo(Math.max(-40, targetVol - 20), 0.1);
+        activeVoices++;
+      } else {
+        synthRain.volume.rampTo(-Infinity, 0.5);
+      }
+
+      // Storm (High energy + Low pressure)
+      if (m.energy > 200 && m.pressure > 50) {
+        if (synthStorm.volume.value === -Infinity) {
+          synthStorm.triggerAttack("C1");
+        }
+        synthStorm.volume.rampTo(-10, 0.1);
+        activeVoices++;
+      } else {
+        synthStorm.volume.rampTo(-Infinity, 0.5);
+        if (synthStorm.volume.value < -80) {
+          synthStorm.triggerRelease();
+        }
+      }
+
+      // Pressure Hum (Pitch maps to pressure contrast)
+      if (m.pressure > 10) {
+        const targetFreq = 50 + m.pressure; // 50Hz base
+        synthPressure.frequency.rampTo(targetFreq, 0.1);
+        const targetVol = Tone.gainToDb(Math.min(1, m.pressure / 200));
+        synthPressure.volume.rampTo(Math.max(-40, targetVol - 30), 0.1);
+        activeVoices++;
+      } else {
+        synthPressure.volume.rampTo(-Infinity, 0.5);
+      }
+
+      state.metrics.voices = activeVoices;
+      updateReadouts(); // update the voice count
+    }
+
+    // Override resize to handle Pixi
+    const originalResize = resize;
+    resize = function() {
+      originalResize();
+      if (particles.length === 0) {
+        initPixiParticles();
+      }
+    };
+
+    // --- Toy Probe ---
+    window.__toyProbe = {
+      getState: () => {
+        const counts = {
+          high: 0, low: 0, mountain: 0, ocean: 0, sun: 0
+        };
+        state.nodes.forEach(n => counts[n.type]++);
+
+        const d3NodeCount = svg.selectAll("path.contour").size() + svg.selectAll("g.vector").size();
+
+        let visibleParticles = 0;
+        particles.forEach(p => { if (p.alpha > 0.05) visibleParticles++; });
+
+        return {
+          libsLoaded: !!window.d3 && !!window.Tone && !!window.PIXI,
+          nodeCounts: counts,
+          particleCount: visibleParticles,
+          vectorContourCount: d3NodeCount,
+          stormEnergy: state.metrics.energy,
+          audioStarted: state.audioEnabled,
+          activeVoices: state.metrics.voices
+        };
+      },
+      runDemo: async () => {
+        // Place elements
+        const cx = state.width / 2;
+        const cy = state.height / 2;
+
+        addNode('high', cx - 100, cy - 50);
+        addNode('ocean', cx - 100, cy + 50);
+        addNode('low', cx + 100, cy - 50);
+        addNode('mountain', cx + 50, cy + 50);
+
+        // Trigger perform front logic to simulate rapid movement
+        const btnPerform = document.getElementById('btn-perform');
+        btnPerform.click();
+
+        // Advance simulation time slightly to allow particles to move
+        await new Promise(r => setTimeout(r, 500));
+
+        return window.__toyProbe.getState();
+      }
+    };
+
+    // Perform Front button logic
+    document.getElementById('btn-perform').addEventListener('click', () => {
+      if (state.performing) return;
+      state.performing = true;
+
+      // Animate low pressure systems moving quickly
+      const lows = state.nodes.filter(n => n.type === 'low');
+      const startTimes = new Map();
+      const duration = 2000;
+
+      function animateLows(time) {
+        let allDone = true;
+        lows.forEach(node => {
+          if (!startTimes.has(node.id)) startTimes.set(node.id, time);
+          const elapsed = time - startTimes.get(node.id);
+          const progress = Math.min(1, elapsed / duration);
+
+          // Move towards the left
+          node.x -= 2;
+
+          const el = document.getElementById(`node-${node.id}`);
+          if (el) {
+            el.style.left = `${node.x}px`;
+          }
+
+          if (progress < 1) allDone = false;
+        });
+
+        updateSimulation();
+
+        if (!allDone) {
+          requestAnimationFrame(animateLows);
+        } else {
+          state.performing = false;
+        }
+      }
+
+      if (lows.length > 0) {
+        requestAnimationFrame(animateLows);
+      } else {
+        state.performing = false;
+      }
+    });
+
+    // Init
+    setTimeout(() => {
+      resize();
+    }, 100);
+
+  </script>
+</body>
+</html>
