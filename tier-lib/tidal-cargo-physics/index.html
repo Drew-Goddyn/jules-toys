@@ -96,8 +96,36 @@
     .canvas-container {
       flex: 1;
       position: relative;
-      background: #eef5ff; /* Water color */
+      background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 100%);
       cursor: crosshair;
+      border-left: 2px solid #93c5fd;
+    }
+    .dock-label {
+      position: absolute;
+      top: 10%;
+      right: 5%;
+      color: #065f46;
+      font-weight: bold;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 2px 5px;
+      border-radius: 3px;
+      pointer-events: none;
+      font-size: 0.8rem;
+      border: 1px dashed #065f46;
+    }
+    .loss-label {
+      position: absolute;
+      bottom: 5px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #991b1b;
+      font-weight: bold;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 2px 5px;
+      border-radius: 3px;
+      pointer-events: none;
+      font-size: 0.8rem;
+      border: 1px dashed #991b1b;
     }
     canvas {
       display: block;
@@ -165,6 +193,8 @@
     </div>
     <div class="canvas-container" id="canvas-container">
       <div class="instructions">Click/drag to place bumpers and guide cargo.</div>
+      <div class="dock-label">Docking Bay</div>
+      <div class="loss-label">Open Ocean (Loss Zone)</div>
       <!-- Matter.js canvas will be injected here -->
     </div>
   </div>
@@ -218,7 +248,7 @@
       });
 
       // Boundaries
-      const wallOptions = { isStatic: true, render: { fillStyle: '#666' } };
+      const wallOptions = { isStatic: true, render: { fillStyle: '#475569', strokeStyle: '#334155', lineWidth: 2 } };
       Composite.add(engine.world, [
         Bodies.rectangle(width / 2, -25, width, 50, wallOptions),
         Bodies.rectangle(width / 2, height + 25, width, 50, wallOptions),
@@ -226,15 +256,15 @@
         Bodies.rectangle(width + 25, height / 2, 50, height, wallOptions)
       ]);
 
-      // Harbor environment
+      // Harbor environment (Piers)
       const harborParts = [
-        Bodies.rectangle(width * 0.2, height * 0.3, 20, height * 0.6, wallOptions),
-        Bodies.rectangle(width * 0.8, height * 0.7, 20, height * 0.6, wallOptions)
+        Bodies.rectangle(width * 0.2, height * 0.3, 30, height * 0.6, wallOptions),
+        Bodies.rectangle(width * 0.8, height * 0.7, 30, height * 0.6, wallOptions)
       ];
       Composite.add(engine.world, harborParts);
 
       // Gate
-      const gateOptions = { isStatic: true, render: { fillStyle: '#ff4444' } };
+      const gateOptions = { isStatic: true, render: { fillStyle: '#ef4444', strokeStyle: '#b91c1c', lineWidth: 2 } };
       const gate = Bodies.rectangle(width * 0.5, height * 0.5, 150, 20, gateOptions);
       Composite.add(engine.world, gate);
       engine.world.plugin = engine.world.plugin || {};
@@ -244,7 +274,7 @@
       const dock = Bodies.rectangle(width * 0.9, height * 0.1, 100, 100, {
         isStatic: true,
         isSensor: true,
-        render: { fillStyle: 'rgba(0, 200, 0, 0.3)' },
+        render: { fillStyle: 'rgba(16, 185, 129, 0.3)', strokeStyle: '#059669', lineWidth: 2 },
         label: 'dock'
       });
       Composite.add(engine.world, dock);
@@ -253,7 +283,7 @@
       const lossZone = Bodies.rectangle(width * 0.5, height - 10, width, 20, {
         isStatic: true,
         isSensor: true,
-        render: { fillStyle: 'rgba(200, 0, 0, 0.3)' },
+        render: { fillStyle: 'rgba(239, 68, 68, 0.3)' },
         label: 'lossZone'
       });
       Composite.add(engine.world, lossZone);
@@ -339,18 +369,43 @@
         }
       });
 
+      // Seed initial cargo to ensure the world is active right away
+      for (let i = 0; i < 15; i++) {
+        spawnCargo(width, Math.random() * height * 0.8 + 50);
+      }
+
       Render.run(render);
       runner = Runner.create();
       Runner.run(runner, engine);
     }
 
-    function spawnCargo(width) {
+    function spawnCargo(width, initialY = 10) {
       const startX = Math.random() * (width * 0.4) + width * 0.1;
-      const cargo = Bodies.rectangle(startX, 10, 15, 15, {
-        label: 'cargo',
-        frictionAir: 0.05,
-        render: { fillStyle: '#33aa33' }
-      });
+      // Make some circular buoys and some square crates
+      const isBuoy = Math.random() > 0.5;
+      let cargo;
+
+      const renderOpts = {
+        fillStyle: isBuoy ? '#ff6600' : '#8b5a2b',
+        strokeStyle: '#000',
+        lineWidth: 1
+      };
+
+      if (isBuoy) {
+        cargo = Bodies.circle(startX, initialY, 10, {
+          label: 'cargo',
+          frictionAir: 0.05,
+          restitution: 0.6,
+          render: renderOpts
+        });
+      } else {
+        cargo = Bodies.rectangle(startX, initialY, 18, 18, {
+          label: 'cargo',
+          frictionAir: 0.05,
+          restitution: 0.2,
+          render: renderOpts
+        });
+      }
       Composite.add(engine.world, cargo);
     }
 
@@ -439,6 +494,13 @@
       .attr("stroke-width", 2);
 
     let throughputData = [];
+
+    // Seed initial D3 data so the chart isn't empty on load
+    const initDate = new Date();
+    for(let i=10; i>0; i--) {
+      throughputData.push({ time: new Date(initDate.getTime() - i * 1000), rate: Math.floor(Math.random() * 3) });
+    }
+
     let deliveriesInWindow = 0;
 
     window.addEventListener('cargoDelivered', () => {
