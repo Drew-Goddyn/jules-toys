@@ -40,6 +40,21 @@ test("generated thumbnail assets exist and beat source screenshots", () => {
   assert.ok(thumb480WebpTotal < sourceTotal * 0.45, "480w thumbnails are materially smaller than source screenshots");
 });
 
+test("generated preview assets expose PhotoSwipe-ready dimensions", () => {
+  for (const item of manifest.items) {
+    for (const format of ["avif", "webp"]) {
+      const preview = item.image.preview[format]?.[0];
+      assert.ok(preview, `${item.title} has a ${format.toUpperCase()} preview`);
+      assert.equal(typeof preview.path, "string");
+      assert.ok(preview.width > 0, `${item.title} ${format} preview has width`);
+      assert.ok(preview.height > 0, `${item.title} ${format} preview has height`);
+      assert.ok(preview.width <= item.image.width, `${item.title} ${format} preview does not exceed source width`);
+      assert.ok(preview.height <= item.image.height, `${item.title} ${format} preview does not exceed source height`);
+      assert.ok(fs.existsSync(path.join(rootDir, "public", preview.path)), `${item.title} ${format} preview exists`);
+    }
+  }
+});
+
 test("dist preserves every public toy route", () => {
   assert.ok(fs.existsSync(path.join(rootDir, "dist", "index.html")));
 
