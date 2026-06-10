@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Protocol Dream Machine</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+    }
+    .container {
+      display: grid;
+      grid-template-columns: 300px 1fr 300px;
+      grid-template-rows: auto 1fr;
+      height: 100vh;
+      gap: 10px;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+    .header {
+      grid-column: 1 / -1;
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    h1 {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+    .panel {
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      overflow-y: auto;
+    }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "preact": "https://unpkg.com/preact@10.22.1/dist/preact.module.js",
+      "preact/hooks": "https://unpkg.com/preact@10.22.1/hooks/dist/hooks.module.js",
+      "@preact/signals": "https://unpkg.com/@preact/signals@1.3.0/dist/signals.module.js",
+      "@preact/signals-core": "https://unpkg.com/@preact/signals-core@1.6.0/dist/signals-core.module.js",
+      "zod": "https://unpkg.com/zod@3.23.8/lib/index.mjs",
+      "chart.js/auto": "https://cdn.jsdelivr.net/npm/chart.js@4.4.3/auto/auto.js",
+      "@kurkle/color": "https://cdn.jsdelivr.net/npm/@kurkle/color@0.3.2/dist/color.esm.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module">
+    import { h, render, Component, createRef } from 'preact';
+    import { signal, computed, effect } from '@preact/signals';
+    import { z } from 'zod';
+    import Chart from 'chart.js/auto';
+
+    // State
+    const state = {
+      running: signal(false),
+      tickCount: signal(0),
+      agents: signal([]),
+      messages: signal([]),
+      history: signal({ ticks: [], processed: [], failed: [], inFlight: [] }),
+      ruleString: signal(JSON.stringify({ maxPayload: 100, requireAuth: true }, null, 2)),
+      ruleSchema: signal(null),
+      schemaError: signal(null),
+      outageActive: signal(false),
+      historyLimit: 50
+    };
+
+    // Schema definition for the rule
+    const ruleSchemaDef = z.object({
+      maxPayload: z.number().int().min(1).max(1000).optional(),
+      requireAuth: z.boolean().optional(),
+      strictTimeout: z.boolean().optional(),
+    });
+
+    // Validate rules whenever ruleString changes
+    const updateRuleSchema = () => {
+      try {
+        const parsedJSON = JSON.parse(state.ruleString.value);
+        const result = ruleSchemaDef.safeParse(parsedJSON);
+        if (result.success) {
+          state.ruleSchema.value = result.data;
+          state.schemaError.value = null;
+        } else {
+          state.schemaError.value = result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+          state.ruleSchema.value = null;
+        }
+      } catch (e) {
+        state.schemaError.value = "Invalid JSON format.";
+        state.ruleSchema.value = null;
+      }
+    };
+
+    // Initialize Presets
+    const presets = {
+      preset1: {
+        agents: 3,
+        rule: { maxPayload: 50, requireAuth: false }
+      },
+      preset2: {
+        agents: 8,
+        rule: { maxPayload: 200, requireAuth: true, strictTimeout: true }
+      }
+    };
+
+    // Agent class
+    class Agent {
+      constructor(id) {
+        this.id = id;
+        this.state = 'idle';
+        this.sent = 0;
+        this.received = 0;
+        this.failed = 0;
+      }
+    }
+
+    // Simulation logic
+    const createAgent = () => {
+      const id = `A${Math.floor(Math.random() * 1000)}`;
+      state.agents.value = [...state.agents.value, new Agent(id)];
+    };
+
+    const removeAgent = (id) => {
+      state.agents.value = state.agents.value.filter(a => a.id !== id);
+    };
+
+    const loadPreset = (presetName) => {
+      const p = presets[presetName];
+      if (p) {
+        state.agents.value = [];
+        for (let i = 0; i < p.agents; i++) createAgent();
+        state.ruleString.value = JSON.stringify(p.rule, null, 2);
+        updateRuleSchema();
+        state.messages.value = [];
+        state.history.value = { ticks: [], processed: [], failed: [], inFlight: [] };
+        state.tickCount.value = 0;
+      }
+    };
+
+    const injectOutage = () => {
+      state.outageActive.value = true;
+      setTimeout(() => { state.outageActive.value = false; }, 3000);
+    };
+
+    const stepSimulation = () => {
+      if (state.schemaError.value) return; // Halt on broken schema
+
+      const agents = state.agents.value;
+      let msgs = [...state.messages.value];
+      let newProcessed = 0;
+      let newFailed = 0;
+
+      // Process existing messages
+      const activeOutage = state.outageActive.value;
+      const nextMsgs = [];
+
+      msgs.forEach(m => {
+        m.ttl--;
+        if (m.ttl <= 0 || activeOutage) {
+          newFailed++;
+          const sender = agents.find(a => a.id === m.from);
+          if (sender) sender.failed++;
+        } else if (Math.random() > 0.3) {
+          // Delivered
+          newProcessed++;
+          const receiver = agents.find(a => a.id === m.to);
+          if (receiver) receiver.received++;
+        } else {
+          // In flight
+          nextMsgs.push(m);
+        }
+      });
+
+      // Generate new messages
+      if (agents.length > 1) {
+        agents.forEach(a => {
+          if (Math.random() > 0.7) {
+            const targets = agents.filter(t => t.id !== a.id);
+            const target = targets[Math.floor(Math.random() * targets.length)];
+            const payloadSize = Math.floor(Math.random() * 200);
+
+            // Basic validation check based on parsed schema
+            let valid = true;
+            if (state.ruleSchema.value) {
+              const rule = state.ruleSchema.value;
+              if (rule.maxPayload && payloadSize > rule.maxPayload) valid = false;
+              // auth and strictTimeout are conceptual for now
+            } else {
+              valid = false; // schema invalid, nothing is valid
+            }
+
+            if (valid) {
+              nextMsgs.push({
+                id: `M${Math.floor(Math.random()*10000)}`,
+                from: a.id,
+                to: target.id,
+                payload: payloadSize,
+                ttl: 3
+              });
+              a.sent++;
+            } else {
+              newFailed++;
+              a.failed++;
+            }
+          }
+        });
+      }
+
+      state.messages.value = nextMsgs;
+      state.tickCount.value++;
+
+      // Update history for chart
+      const h = state.history.value;
+      const t = state.tickCount.value;
+      const newH = {
+        ticks: [...h.ticks, t].slice(-state.historyLimit),
+        processed: [...h.processed, newProcessed].slice(-state.historyLimit),
+        failed: [...h.failed, newFailed].slice(-state.historyLimit),
+        inFlight: [...h.inFlight, nextMsgs.length].slice(-state.historyLimit),
+      };
+      state.history.value = newH;
+    };
+
+    let simInterval = null;
+    const toggleSimulation = () => {
+      state.running.value = !state.running.value;
+      if (state.running.value) {
+        simInterval = setInterval(() => {
+          if (state.running.value) stepSimulation();
+        }, 1000);
+      } else {
+        clearInterval(simInterval);
+      }
+    };
+
+    // Load initial preset
+    loadPreset('preset1');
+
+    // UI Components
+    const AgentsPanel = () => {
+      return h('div', { class: 'panel' },
+        h('h2', { style: 'margin-top:0; font-size: 1.2rem;' }, 'Agents Society'),
+        h('button', { onClick: createAgent, style: 'margin-bottom: 10px;' }, 'Add Agent'),
+        h('div', null, state.agents.value.map(a =>
+          h('div', { key: a.id, style: 'padding: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;' },
+            h('span', null, h('strong', null, a.id), ` (S: ${a.sent}, R: ${a.received}, F: ${a.failed})`),
+            h('button', { onClick: () => removeAgent(a.id) }, 'Remove')
+          )
+        ))
+      );
+    };
+
+    const ValidationPanel = () => {
+      const handleInput = (e) => {
+        state.ruleString.value = e.target.value;
+        updateRuleSchema();
+      };
+
+      return h('div', { class: 'panel', style: 'display: flex; flex-direction: column;' },
+        h('h2', { style: 'margin-top:0; font-size: 1.2rem;' }, 'Protocol Rules Schema'),
+        h('textarea', {
+          id: 'rule-input',
+          value: state.ruleString.value,
+          onInput: handleInput,
+          style: 'width: 100%; height: 150px; font-family: monospace; resize: vertical;'
+        }),
+        state.schemaError.value ?
+          h('div', { id: 'schema-error', style: 'color: red; margin-top: 10px; font-weight: bold; font-size: 0.9em;' }, state.schemaError.value) :
+          h('div', { id: 'schema-success', style: 'color: green; margin-top: 10px; font-weight: bold; font-size: 0.9em;' }, 'Schema Valid')
+      );
+    };
+
+    const EventLogPanel = () => {
+      return h('div', { class: 'panel', style: 'margin-top: 10px;' },
+        h('h2', { style: 'margin-top:0; font-size: 1.2rem;' }, 'Active Messages'),
+        h('div', { style: 'max-height: 200px; overflow-y: auto; font-size: 0.9em;' },
+          state.messages.value.map(m =>
+            h('div', { key: m.id }, `[${m.id}] ${m.from} -> ${m.to} (Payload: ${m.payload}) TTL: ${m.ttl}`)
+          )
+        )
+      );
+    };
+
+    class ChartPanel extends Component {
+      constructor() {
+        super();
+        this.canvasRef = createRef();
+        this.chart = null;
+      }
+
+      componentDidMount() {
+        const ctx = this.canvasRef.current.getContext('2d');
+        this.chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: state.history.value.ticks,
+            datasets: [
+              { label: 'Processed', data: state.history.value.processed, borderColor: 'green', tension: 0.1 },
+              { label: 'Failed', data: state.history.value.failed, borderColor: 'red', tension: 0.1 },
+              { label: 'In Flight', data: state.history.value.inFlight, borderColor: 'blue', tension: 0.1 }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            scales: { y: { beginAtZero: true } }
+          }
+        });
+
+        // Effect to update chart when history changes
+        this.unsubscribe = effect(() => {
+          if (this.chart) {
+            const h = state.history.value;
+            this.chart.data.labels = h.ticks;
+            this.chart.data.datasets[0].data = h.processed;
+            this.chart.data.datasets[1].data = h.failed;
+            this.chart.data.datasets[2].data = h.inFlight;
+            this.chart.update();
+          }
+        });
+      }
+
+      componentWillUnmount() {
+        if (this.unsubscribe) this.unsubscribe();
+        if (this.chart) this.chart.destroy();
+      }
+
+      render() {
+        return h('div', { class: 'panel', style: 'height: 100%; display: flex; flex-direction: column;' },
+          h('h2', { style: 'margin-top:0; font-size: 1.2rem;' }, 'Network Throughput'),
+          h('div', { style: 'flex-grow: 1; position: relative;' },
+            h('canvas', { ref: this.canvasRef })
+          )
+        );
+      }
+    }
+
+    const App = () => {
+      // Need a way to re-render App when state running changes for button text
+      const isRunning = state.running.value;
+
+      return h('div', { class: 'container' },
+        h('div', { class: 'header' },
+          h('h1', null, 'Protocol Dream Machine'),
+          h('div', null,
+            h('span', { style: 'margin-right: 15px; font-weight: bold; color: ' + (state.outageActive.value ? 'red' : 'black') },
+              state.outageActive.value ? 'OUTAGE ACTIVE' : `Tick: ${state.tickCount.value}`
+            ),
+            h('button', { id: 'btn-run', onClick: toggleSimulation }, isRunning ? 'Pause' : 'Run'),
+            h('button', { id: 'btn-step', onClick: stepSimulation, disabled: isRunning || state.schemaError.value }, 'Step'),
+            h('button', { id: 'btn-outage', onClick: injectOutage }, 'Inject Outage'),
+            h('button', { onClick: () => loadPreset('preset1') }, 'Preset 1'),
+            h('button', { onClick: () => loadPreset('preset2') }, 'Preset 2')
+          )
+        ),
+        h('div', { style: 'display: flex; flex-direction: column; gap: 10px;' },
+          h(AgentsPanel, null)
+        ),
+        h('div', { style: 'display: flex; flex-direction: column; gap: 10px;' },
+          h(ChartPanel, null)
+        ),
+        h('div', { style: 'display: flex; flex-direction: column; gap: 10px;' },
+          h(ValidationPanel, null),
+          h(EventLogPanel, null)
+        )
+      );
+    };
+
+    // Preact signals setup to re-render component tree automatically on signal change
+    // Using preact/hooks or signals plugin makes this native, but we can just use computed/effect
+    // However, the issue explicitly allows us to use @preact/signals which patches Preact automatically.
+
+    render(h(App), document.getElementById('app'));
+  </script>
+</body>
+</html>
