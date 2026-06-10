@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Switchboard Protocol Operator</title>
+  <style>
+    :root {
+      --bg-dark: #121214;
+      --panel-bg: #1e1e24;
+      --text-main: #e0e0e0;
+      --text-muted: #888;
+      --accent-blue: #00e5ff;
+      --accent-green: #39ff14;
+      --accent-red: #ff3333;
+      --accent-yellow: #ffb400;
+      --border-color: #333;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Courier New', Courier, monospace;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      user-select: none;
+    }
+
+    header {
+      padding: 10px 20px;
+      background-color: #000;
+      border-bottom: 2px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 1.2rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--accent-blue);
+    }
+
+    .controls {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+    }
+
+    .toggle-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    button {
+      background: var(--panel-bg);
+      border: 1px solid var(--accent-blue);
+      color: var(--accent-blue);
+      padding: 4px 10px;
+      cursor: pointer;
+      font-family: inherit;
+      text-transform: uppercase;
+      font-size: 0.8rem;
+    }
+
+    button:hover {
+      background: rgba(0, 229, 255, 0.2);
+    }
+
+    .stats {
+      display: flex;
+      gap: 15px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .stats span {
+      color: var(--text-main);
+      font-weight: bold;
+    }
+
+    .main-area {
+      display: flex;
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Left Panel: Incoming Calls */
+    .calls-panel {
+      width: 250px;
+      background: var(--panel-bg);
+      border-right: 2px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+      overflow-y: auto;
+      z-index: 10;
+    }
+
+    .calls-title {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 15px;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 5px;
+    }
+
+    .call-entry {
+      background: #2a2a30;
+      border: 1px solid #444;
+      margin-bottom: 10px;
+      padding: 8px;
+      border-radius: 4px;
+      position: relative;
+    }
+
+    .call-entry.ringing { border-color: var(--accent-yellow); box-shadow: 0 0 5px rgba(255,180,0,0.5); }
+    .call-entry.connected { border-color: var(--accent-green); box-shadow: 0 0 5px rgba(57,255,20,0.2); }
+    .call-entry.disconnected { border-color: var(--border-color); opacity: 0.5; }
+
+    .call-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+      font-size: 0.8rem;
+    }
+
+    .protocol-badge {
+      font-size: 0.7rem;
+      padding: 2px 4px;
+      background: #000;
+      border-radius: 2px;
+      color: var(--accent-blue);
+    }
+
+    .call-details {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .port.source-port {
+      width: 20px;
+      height: 20px;
+      background: #000;
+      border: 2px solid var(--text-muted);
+      border-radius: 50%;
+      position: absolute;
+      right: -22px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      z-index: 20;
+    }
+    .call-entry.ringing .source-port { border-color: var(--accent-yellow); }
+    .call-entry.connected .source-port { border-color: var(--accent-green); background: var(--accent-green); }
+
+    /* Center Panel: Switchboard Nodes */
+    .switchboard-panel {
+      flex: 1;
+      padding: 20px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, #1a1a20 0%, #121214 100%);
+    }
+
+    .nodes-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 50px;
+      z-index: 10;
+    }
+
+    .node {
+      width: 140px;
+      height: 140px;
+      background: #222;
+      border: 2px solid #444;
+      border-radius: 8px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .node.active { border-color: var(--accent-blue); box-shadow: 0 0 10px rgba(0,229,255,0.3); }
+    .node.overloaded {
+      border-color: var(--accent-red);
+      box-shadow: 0 0 15px rgba(255,51,51,0.6);
+      animation: pulse-red 0.5s infinite alternate;
+    }
+
+    @keyframes pulse-red {
+      from { box-shadow: 0 0 10px rgba(255,51,51,0.4); }
+      to { box-shadow: 0 0 20px rgba(255,51,51,0.8); }
+    }
+
+    .node-title {
+      font-size: 0.9rem;
+      color: var(--text-main);
+      margin-bottom: 5px;
+    }
+
+    .node-bandwidth {
+      font-size: 0.7rem;
+      color: var(--accent-blue);
+      margin-bottom: 15px;
+    }
+    .node.overloaded .node-bandwidth { color: var(--accent-red); font-weight: bold; }
+
+    .node-ports {
+      display: flex;
+      gap: 15px;
+      margin-top: auto;
+      margin-bottom: 10px;
+    }
+
+    .port.dest-port {
+      width: 24px;
+      height: 24px;
+      background: #111;
+      border: 2px solid #666;
+      border-radius: 50%;
+      position: relative;
+    }
+
+    .port-dropzone.can-drop {
+      border-color: var(--accent-blue);
+      background: rgba(0, 229, 255, 0.2);
+    }
+
+    /* Right Panel: Timeline & D3 Charts */
+    .timeline-panel {
+      width: 300px;
+      background: var(--panel-bg);
+      border-left: 2px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      z-index: 10;
+    }
+
+    #chart-container {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    /* Cable SVG Overlay */
+    #cables-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 15;
+    }
+
+    .cable-path {
+      fill: none;
+      stroke-width: 6;
+      stroke-linecap: round;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+    }
+    .cable-path.idle { stroke: #555; }
+    .cable-path.active { stroke: var(--accent-green); }
+    .cable-path.overloaded { stroke: var(--accent-red); stroke-dasharray: 5,5; }
+    .cable-path.dragging { stroke: var(--accent-yellow); stroke-width: 4; }
+
+    .cable-plug {
+      fill: #333;
+      stroke: #888;
+      stroke-width: 2;
+      pointer-events: all;
+      cursor: grab;
+    }
+    .cable-plug:active { cursor: grabbing; }
+
+    /* Interactable drag elements layer */
+    #draggables-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 30;
+    }
+
+    .drag-plug {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background: #fff;
+      border-radius: 50%;
+      pointer-events: all;
+      cursor: grab;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 5px rgba(0,0,0,0.5);
+      z-index: 100;
+    }
+    .drag-plug.hidden { display: none; }
+
+  </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "xstate": "https://cdn.jsdelivr.net/npm/xstate@5.18.2/+esm",
+        "interactjs": "https://cdn.jsdelivr.net/npm/interactjs@1.10.27/+esm",
+        "d3": "https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm"
+      }
+    }
+  </script>
+</head>
+<body>
+
+  <header>
+    <h1>Switchboard Protocol Operator</h1>
+    <div class="stats">
+      <div>Time: <span id="stat-time">0</span></div>
+      <div>Connected: <span id="stat-connected">0</span></div>
+      <div>Dropped: <span id="stat-dropped" style="color:var(--accent-red)">0</span></div>
+    </div>
+    <div class="controls">
+      <div class="toggle-container">
+        <label for="auto-router" style="font-size: 0.8rem; color: var(--text-muted);">Auto-Router</label>
+        <input type="checkbox" id="auto-router">
+      </div>
+      <button id="btn-demo">Run Demo</button>
+    </div>
+  </header>
+
+  <div class="main-area" id="main-area">
+    <div class="calls-panel" id="calls-panel">
+      <div class="calls-title">Incoming Calls</div>
+      <div id="calls-container"></div>
+    </div>
+
+    <div class="switchboard-panel" id="switchboard-panel">
+      <div class="nodes-grid" id="nodes-container">
+        <!-- Nodes generated by JS -->
+      </div>
+    </div>
+
+    <div class="timeline-panel" id="timeline-panel">
+      <div id="chart-container"></div>
+    </div>
+
+    <svg id="cables-layer"></svg>
+    <div id="draggables-layer"></div>
+  </div>
+
+  <script type="module">
+    import { createMachine, createActor, assign } from 'xstate';
+    import interact from 'interactjs';
+    import * as d3 from 'd3';
+
+    // --- State & Config ---
+    const STATE = {
+      timelineTick: 0,
+      connectedCalls: 0,
+      droppedCalls: 0,
+      overloadedNodes: 0,
+      activePatches: 0,
+      xstateReady: false,
+      nodes: [
+        { id: 'N1', label: 'Mainframe Alpha', maxBandwidth: 100, currentBandwidth: 0, ports: ['N1-P1', 'N1-P2'] },
+        { id: 'N2', label: 'Crypto Gateway', maxBandwidth: 80, currentBandwidth: 0, ports: ['N2-P1', 'N2-P2'] },
+        { id: 'N3', label: 'Public Exchange', maxBandwidth: 150, currentBandwidth: 0, ports: ['N3-P1', 'N3-P2'] },
+        { id: 'N4', label: 'Secure Trunk', maxBandwidth: 60, currentBandwidth: 0, ports: ['N4-P1'] },
+        { id: 'N5', label: 'Local Loop', maxBandwidth: 200, currentBandwidth: 0, ports: ['N5-P1', 'N5-P2', 'N5-P3'] },
+        { id: 'N6', label: 'Sat Uplink', maxBandwidth: 50, currentBandwidth: 0, ports: ['N6-P1'] }
+      ],
+      calls: [], // Active call objects
+      cables: [], // Visual cables
+      bandwidthHistory: [] // For D3 chart
+    };
+
+    const PROTOCOLS = ['TCP', 'UDP', 'QUIC', 'SSH'];
+
+    // --- Setup DOM ---
+    const callsContainer = document.getElementById('calls-container');
+    const nodesContainer = document.getElementById('nodes-container');
+    const svgLayer = document.getElementById('cables-layer');
+    const draggablesLayer = document.getElementById('draggables-layer');
+
+    // Initialize Nodes DOM
+    STATE.nodes.forEach(node => {
+      const nodeEl = document.createElement('div');
+      nodeEl.className = 'node';
+      nodeEl.id = `node-${node.id}`;
+
+      const title = document.createElement('div');
+      title.className = 'node-title';
+      title.innerText = node.label;
+
+      const bw = document.createElement('div');
+      bw.className = 'node-bandwidth';
+      bw.id = `bw-${node.id}`;
+      bw.innerText = `0 / ${node.maxBandwidth} GB/s`;
+
+      const portsContainer = document.createElement('div');
+      portsContainer.className = 'node-ports';
+
+      node.ports.forEach(portId => {
+        const portEl = document.createElement('div');
+        portEl.className = 'port dest-port port-dropzone';
+        portEl.id = portId;
+        portEl.dataset.nodeId = node.id;
+        portsContainer.appendChild(portEl);
+      });
+
+      nodeEl.appendChild(title);
+      nodeEl.appendChild(bw);
+      nodeEl.appendChild(portsContainer);
+      nodesContainer.appendChild(nodeEl);
+    });
+
+    // --- XState Machine for Calls ---
+    const callMachine = createMachine({
+      id: 'call',
+      initial: 'ringing',
+      context: ({ input }) => ({
+        ...input,
+        timeElapsed: 0,
+        nodeId: null,
+        portId: null
+      }),
+      states: {
+        ringing: {
+          on: {
+            TICK: {
+              actions: assign({ timeElapsed: ({context}) => context.timeElapsed + 1 }),
+              target: 'checkingTimeout'
+            },
+            CONNECT: {
+              actions: assign({
+                nodeId: ({event}) => event.nodeId,
+                portId: ({event}) => event.portId
+              }),
+              target: 'connected'
+            }
+          }
+        },
+        checkingTimeout: {
+          always: [
+            { guard: ({context}) => context.timeElapsed >= 150, target: 'disconnected' }, // Ringing timeout
+            { target: 'ringing' }
+          ]
+        },
+        connected: {
+          on: {
+            TICK: {
+              actions: assign({ duration: ({context}) => context.duration - 1 }),
+              target: 'checkingCompletion'
+            },
+            OVERLOAD: {
+              target: 'overloaded'
+            },
+            DISCONNECT: {
+              target: 'disconnected'
+            }
+          }
+        },
+        checkingCompletion: {
+          always: [
+            { guard: ({context}) => context.duration <= 0, target: 'completed' },
+            { target: 'connected' }
+          ]
+        },
+        overloaded: {
+          on: {
+            TICK: {
+              actions: assign({ duration: ({context}) => context.duration - 1 }),
+              target: 'checkingOverloadEnd'
+            },
+            RECOVER: {
+              target: 'connected'
+            },
+            DISCONNECT: {
+              target: 'disconnected'
+            }
+          }
+        },
+        checkingOverloadEnd: {
+          always: [
+            { guard: ({context}) => context.duration <= 0, target: 'disconnected' }, // Fail if overloaded until end
+            { target: 'overloaded' }
+          ]
+        },
+        completed: { type: 'final' },
+        disconnected: { type: 'final' }
+      }
+    });
+    STATE.xstateReady = true;
+
+    // --- D3 Chart Setup ---
+    const chartContainer = document.getElementById('chart-container');
+    let chartWidth, chartHeight, svgChart, xChart, yChart, areaGen, yAxisGroup, xAxisGroup;
+
+    function initChart() {
+      const rect = chartContainer.getBoundingClientRect();
+      chartWidth = rect.width - 40;
+      chartHeight = rect.height - 40;
+
+      svgChart = d3.select('#chart-container')
+        .append('svg')
+        .attr('width', rect.width)
+        .attr('height', rect.height)
+        .append('g')
+        .attr('transform', `translate(30, 20)`);
+
+      xChart = d3.scaleLinear().domain([0, 100]).range([0, chartWidth]);
+      yChart = d3.scaleLinear().domain([0, 500]).range([chartHeight, 0]);
+
+      areaGen = d3.area()
+        .x(d => xChart(d.tick))
+        .y0(chartHeight)
+        .y1(d => yChart(d.totalBandwidth))
+        .curve(d3.curveMonotoneX);
+
+      svgChart.append('path')
+        .attr('class', 'chart-area')
+        .attr('fill', 'rgba(0, 229, 255, 0.2)')
+        .attr('stroke', 'var(--accent-blue)')
+        .attr('stroke-width', 2);
+
+      yAxisGroup = svgChart.append('g').call(d3.axisLeft(yChart).ticks(5));
+      xAxisGroup = svgChart.append('g')
+        .attr('transform', `translate(0, ${chartHeight})`)
+        .call(d3.axisBottom(xChart).ticks(5));
+
+      svgChart.append("text")
+        .attr("x", chartWidth / 2)
+        .attr("y", -5)
+        .attr("text-anchor", "middle")
+        .style("fill", "var(--text-muted)")
+        .style("font-size", "10px")
+        .text("Global Bandwidth Usage");
+    }
+
+    function updateChart() {
+      const totalBw = STATE.nodes.reduce((sum, n) => sum + n.currentBandwidth, 0);
+      STATE.bandwidthHistory.push({ tick: STATE.timelineTick, totalBandwidth: totalBw });
+
+      if (STATE.bandwidthHistory.length > 100) {
+        STATE.bandwidthHistory.shift();
+      }
+
+      if (!svgChart) return;
+
+      const maxTick = Math.max(100, STATE.timelineTick);
+      const minTick = Math.max(0, maxTick - 100);
+      xChart.domain([minTick, maxTick]);
+
+      const maxBw = Math.max(500, d3.max(STATE.bandwidthHistory, d => d.totalBandwidth) || 0);
+      yChart.domain([0, maxBw * 1.2]);
+
+      svgChart.select('.chart-area')
+        .datum(STATE.bandwidthHistory)
+        .attr('d', areaGen);
+
+      xAxisGroup.call(d3.axisBottom(xChart).ticks(5));
+      yAxisGroup.call(d3.axisLeft(yChart).ticks(5));
+    }
+
+    // --- Cable Rendering ---
+    function updateCables() {
+      // Clear SVG
+      while (svgLayer.firstChild) {
+        svgLayer.removeChild(svgLayer.firstChild);
+      }
+
+      // Draw all cables based on state
+      STATE.calls.forEach(call => {
+        const srcEl = document.getElementById(`src-port-${call.id}`);
+        if (!srcEl) return;
+
+        let startX, startY, endX, endY, stateClass = 'idle';
+
+        const srcRect = srcEl.getBoundingClientRect();
+        const mainRect = document.getElementById('main-area').getBoundingClientRect();
+
+        startX = srcRect.left + srcRect.width/2 - mainRect.left;
+        startY = srcRect.top + srcRect.height/2 - mainRect.top;
+
+        const callState = call.actor.getSnapshot().value;
+
+        if (call.dragData && call.dragData.isDragging) {
+          endX = call.dragData.x - mainRect.left;
+          endY = call.dragData.y - mainRect.top;
+          stateClass = 'dragging';
+        } else if (callState === 'connected' || callState === 'overloaded') {
+          const destEl = document.getElementById(call.actor.getSnapshot().context.portId);
+          if (destEl) {
+            const destRect = destEl.getBoundingClientRect();
+            endX = destRect.left + destRect.width/2 - mainRect.left;
+            endY = destRect.top + destRect.height/2 - mainRect.top;
+            stateClass = callState === 'overloaded' ? 'overloaded' : 'active';
+          }
+        } else {
+          return; // No cable if just ringing and not dragging
+        }
+
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        const cp1x = startX + 100;
+        const cp1y = startY;
+        const cp2x = endX - 100;
+        const cp2y = endY;
+
+        path.setAttribute("d", `M ${startX} ${startY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${endX} ${endY}`);
+        path.setAttribute("class", `cable-path ${stateClass}`);
+        svgLayer.appendChild(path);
+      });
+    }
+
+    // --- InteractJS Setup ---
+    interact('.drag-plug').draggable({
+      listeners: {
+        start (event) {
+          const target = event.target;
+          const callId = target.dataset.callId;
+          const call = STATE.calls.find(c => c.id === callId);
+          if (call) {
+            const rect = target.getBoundingClientRect();
+            call.dragData = { isDragging: true, x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
+          }
+        },
+        move (event) {
+          const target = event.target;
+          const callId = target.dataset.callId;
+          const call = STATE.calls.find(c => c.id === callId);
+
+          if (call && call.dragData) {
+            const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
+            const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
+
+            target.style.transform = `translate(${x}px, ${y}px)`;
+            target.setAttribute('data-x', x);
+            target.setAttribute('data-y', y);
+
+            const rect = target.getBoundingClientRect();
+            call.dragData.x = rect.left + rect.width/2;
+            call.dragData.y = rect.top + rect.height/2;
+            updateCables();
+          }
+        },
+        end (event) {
+          const target = event.target;
+          const callId = target.dataset.callId;
+          const call = STATE.calls.find(c => c.id === callId);
+          if (call) {
+            call.dragData.isDragging = false;
+            // Snap back if not connected
+            if (call.actor.getSnapshot().value === 'ringing') {
+              target.style.transform = `translate(0px, 0px)`;
+              target.setAttribute('data-x', 0);
+              target.setAttribute('data-y', 0);
+              target.classList.add('hidden');
+            }
+            updateCables();
+          }
+        }
+      }
+    });
+
+    interact('.port-dropzone').dropzone({
+      accept: '.drag-plug',
+      overlap: 0.5,
+      ondragenter: function (event) {
+        event.target.classList.add('can-drop');
+      },
+      ondragleave: function (event) {
+        event.target.classList.remove('can-drop');
+      },
+      ondrop: function (event) {
+        event.target.classList.remove('can-drop');
+        const dragEl = event.relatedTarget;
+        const callId = dragEl.dataset.callId;
+        const destPortId = event.target.id;
+        const nodeId = event.target.dataset.nodeId;
+
+        connectCall(callId, nodeId, destPortId);
+
+        dragEl.classList.add('hidden');
+        dragEl.style.transform = `translate(0px, 0px)`;
+        dragEl.setAttribute('data-x', 0);
+        dragEl.setAttribute('data-y', 0);
+      }
+    });
+
+    function connectCall(callId, nodeId, destPortId) {
+      const call = STATE.calls.find(c => c.id === callId);
+      if (call && call.actor.getSnapshot().value === 'ringing') {
+        call.actor.send({ type: 'CONNECT', nodeId, portId: destPortId });
+        STATE.activePatches++;
+
+        const el = document.getElementById(`call-${callId}`);
+        if(el) {
+            el.classList.remove('ringing');
+            el.classList.add('connected');
+        }
+        recalcBandwidth();
+        updateCables();
+      }
+    }
+
+    // --- Game Logic ---
+    function spawnCall() {
+      const id = `C-${Math.floor(Math.random()*10000)}`;
+      const protocol = PROTOCOLS[Math.floor(Math.random()*PROTOCOLS.length)];
+      const bandwidth = Math.floor(Math.random() * 40) + 10;
+      const duration = Math.floor(Math.random() * 200) + 100;
+
+      const actor = createActor(callMachine, {
+        input: { id, protocol, bandwidth, duration }
+      }).start();
+
+      const callObj = { id, protocol, bandwidth, duration, actor, dragData: null };
+      STATE.calls.push(callObj);
+
+      // DOM
+      const el = document.createElement('div');
+      el.className = 'call-entry ringing';
+      el.id = `call-${id}`;
+
+      el.innerHTML = `
+        <div class="call-header">
+          <span>Call ${id}</span>
+          <span class="protocol-badge">${protocol}</span>
+        </div>
+        <div class="call-details">BW: ${bandwidth} GB/s | Dur: <span id="dur-${id}">${duration}</span></div>
+        <div class="port source-port" id="src-port-${id}"></div>
+      `;
+      callsContainer.appendChild(el);
+
+      // Add draggable plug
+      const plug = document.createElement('div');
+      plug.className = 'drag-plug hidden';
+      plug.id = `plug-${id}`;
+      plug.dataset.callId = id;
+      draggablesLayer.appendChild(plug);
+
+      // Wire up mousedown on source port to start drag
+      const srcPort = el.querySelector('.source-port');
+      srcPort.addEventListener('mousedown', (e) => {
+        if(callObj.actor.getSnapshot().value === 'ringing') {
+          const rect = srcPort.getBoundingClientRect();
+          const mainRect = document.getElementById('main-area').getBoundingClientRect();
+
+          plug.classList.remove('hidden');
+          plug.style.left = `${rect.left + rect.width/2 - mainRect.left}px`;
+          plug.style.top = `${rect.top + rect.height/2 - mainRect.top}px`;
+
+          // Synthesize an interact start event by focusing/clicking (Hack for native event pass)
+          // Actually, just let user grab it from there. Better: move plug to mouse pos immediately.
+          callObj.dragData = { isDragging: true, x: e.clientX, y: e.clientY };
+          updateCables();
+        }
+      });
+      // Workaround for starting drag smoothly: we position plug over port, user drags it.
+      srcPort.addEventListener('mouseenter', () => {
+         if(callObj.actor.getSnapshot().value === 'ringing') {
+            const rect = srcPort.getBoundingClientRect();
+            const mainRect = document.getElementById('main-area').getBoundingClientRect();
+            plug.classList.remove('hidden');
+            plug.style.left = `${rect.left + rect.width/2 - mainRect.left}px`;
+            plug.style.top = `${rect.top + rect.height/2 - mainRect.top}px`;
+         }
+      });
+      srcPort.addEventListener('mouseleave', (e) => {
+          // Hide if not actively dragging
+          if(callObj.dragData && !callObj.dragData.isDragging && !plug.matches(':hover')) {
+              plug.classList.add('hidden');
+          }
+      });
+    }
+
+    function recalcBandwidth() {
+      // Reset
+      STATE.nodes.forEach(n => n.currentBandwidth = 0);
+
+      // Accumulate
+      STATE.calls.forEach(call => {
+        const snap = call.actor.getSnapshot();
+        if (snap.value === 'connected' || snap.value === 'overloaded') {
+          const nodeId = snap.context.nodeId;
+          const node = STATE.nodes.find(n => n.id === nodeId);
+          if (node) {
+            node.currentBandwidth += snap.context.bandwidth;
+          }
+        }
+      });
+
+      // Check Overloads & Update UI
+      STATE.overloadedNodes = 0;
+      STATE.nodes.forEach(node => {
+        const isOverloaded = node.currentBandwidth > node.maxBandwidth;
+        const nodeEl = document.getElementById(`node-${node.id}`);
+        const bwEl = document.getElementById(`bw-${node.id}`);
+
+        bwEl.innerText = `${node.currentBandwidth} / ${node.maxBandwidth} GB/s`;
+
+        if (isOverloaded) {
+          nodeEl.classList.add('overloaded');
+          STATE.overloadedNodes++;
+        } else {
+          nodeEl.classList.remove('overloaded');
+          if (node.currentBandwidth > 0) nodeEl.classList.add('active');
+          else nodeEl.classList.remove('active');
+        }
+
+        // Inform calls of overload state
+        STATE.calls.forEach(call => {
+          const snap = call.actor.getSnapshot();
+          if (snap.context.nodeId === node.id) {
+            if (isOverloaded && snap.value === 'connected') call.actor.send({ type: 'OVERLOAD' });
+            if (!isOverloaded && snap.value === 'overloaded') call.actor.send({ type: 'RECOVER' });
+          }
+        });
+      });
+    }
+
+    function cleanupCalls() {
+      STATE.calls = STATE.calls.filter(call => {
+        const snap = call.actor.getSnapshot();
+        const el = document.getElementById(`call-${call.id}`);
+        const plug = document.getElementById(`plug-${call.id}`);
+
+        if (snap.value === 'completed') {
+          STATE.connectedCalls++;
+          STATE.activePatches--;
+          if(el) el.remove();
+          if(plug) plug.remove();
+          return false;
+        } else if (snap.value === 'disconnected') {
+          STATE.droppedCalls++;
+          if (snap.context.nodeId) STATE.activePatches--;
+          if(el) {
+            el.classList.remove('ringing', 'connected');
+            el.classList.add('disconnected');
+            setTimeout(() => el.remove(), 2000);
+          }
+          if(plug) plug.remove();
+          return false;
+        }
+
+        // Update UI for active calls
+        if(snap.value === 'connected' || snap.value === 'overloaded') {
+          const durEl = document.getElementById(`dur-${call.id}`);
+          if(durEl) durEl.innerText = snap.context.duration;
+        }
+
+        return true;
+      });
+    }
+
+    function autoRoute() {
+      const isAuto = document.getElementById('auto-router').checked;
+      if (!isAuto) return;
+
+      const ringing = STATE.calls.find(c => c.actor.getSnapshot().value === 'ringing');
+      if (ringing) {
+        // Find first available port
+        for (const node of STATE.nodes) {
+          for (const portId of node.ports) {
+            // Check if port is taken (simplification: any port can take multiple in this design, but let's just pick one)
+            // Just connect it to the first node to simulate potential overload
+            connectCall(ringing.id, node.id, portId);
+            return; // Just do one per tick
+          }
+        }
+      }
+    }
+
+    function tick() {
+      STATE.timelineTick++;
+      document.getElementById('stat-time').innerText = STATE.timelineTick;
+
+      // Spawn logic
+      if (STATE.timelineTick % 40 === 0 && STATE.calls.length < 8) {
+        spawnCall();
+      }
+
+      // Tick actors
+      STATE.calls.forEach(call => {
+        call.actor.send({ type: 'TICK' });
+      });
+
+      autoRoute();
+      cleanupCalls();
+      recalcBandwidth();
+      updateChart();
+      updateCables();
+
+      document.getElementById('stat-connected').innerText = STATE.connectedCalls;
+      document.getElementById('stat-dropped').innerText = STATE.droppedCalls;
+
+      requestAnimationFrame(tick);
+    }
+
+    // --- Probe Contract ---
+    window.__toyProbe = {
+      getState: () => ({
+        connectedCalls: STATE.connectedCalls,
+        droppedCalls: STATE.droppedCalls,
+        overloadedNodes: STATE.overloadedNodes,
+        activePatches: STATE.activePatches,
+        timelineTick: STATE.timelineTick,
+        xstateReady: STATE.xstateReady
+      }),
+      runDemo: async () => {
+        console.log("Running demo...");
+        // Ensure chart is sized
+        if(!svgChart) initChart();
+
+        // Spawn explicit calls
+        for(let i=0; i<4; i++) spawnCall();
+
+        // Wait a bit
+        await new Promise(r => setTimeout(r, 100));
+
+        // Force connect first call to N1
+        if (STATE.calls[0]) connectCall(STATE.calls[0].id, 'N1', 'N1-P1');
+
+        // Force connect second call to N1
+        if (STATE.calls[1]) connectCall(STATE.calls[1].id, 'N1', 'N1-P2');
+
+        // Force connect third call to N1 to guarantee overload
+        if (STATE.calls[2]) connectCall(STATE.calls[2].id, 'N1', 'N1-P2');
+
+        // Connect fourth to N3
+        if (STATE.calls[3]) connectCall(STATE.calls[3].id, 'N3', 'N3-P1');
+
+        // Let it run for a few ticks synchronously (advance time fast)
+        for(let i=0; i<50; i++) {
+           STATE.calls.forEach(c => c.actor.send({type: 'TICK'}));
+           STATE.timelineTick++;
+        }
+        recalcBandwidth();
+        updateCables();
+        updateChart();
+
+        await new Promise(r => setTimeout(r, 500)); // wait for visual updates
+
+        return window.__toyProbe.getState();
+      }
+    };
+
+    // Bootstrap
+    document.getElementById('btn-demo').addEventListener('click', () => {
+      window.__toyProbe.runDemo();
+    });
+
+    // Handle resize
+    window.addEventListener('resize', () => {
+       document.getElementById('chart-container').innerHTML = '';
+       initChart();
+       updateCables();
+    });
+
+    // Start
+    setTimeout(() => {
+        initChart();
+        requestAnimationFrame(tick);
+        // Initial spawn
+        spawnCall();
+        spawnCall();
+    }, 100);
+
+  </script>
+</body>
+</html>
