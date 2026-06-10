@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Softbody Factory</title>
+    <style>
+        :root {
+            --bg-color: #f5f5f5;
+            --text-color: #333;
+            --panel-bg: #fff;
+            --border-color: #ddd;
+            --btn-bg: #e0e0e0;
+            --btn-hover: #ccc;
+            --btn-active: #bbb;
+            --accent-color: #2196F3;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #ui-panel {
+            width: 300px;
+            background: var(--panel-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+            box-sizing: border-box;
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: 1.2rem;
+            margin: 0;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .section-title {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .toolbar {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px;
+        }
+
+        button {
+            background: var(--btn-bg);
+            border: 1px solid var(--border-color);
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+            touch-action: manipulation;
+        }
+
+        button:hover {
+            background: var(--btn-hover);
+        }
+
+        button.active {
+            background: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+        }
+
+        button:active {
+            background: var(--btn-active);
+        }
+
+        .full-width {
+            grid-column: span 2;
+        }
+
+        .status-panel {
+            background: #eee;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 1rem;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            background-color: #eaeaea;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 8px;
+            font-size: 2rem;
+            display: none;
+            pointer-events: none;
+            text-align: center;
+        }
+
+        .overlay-subtext {
+            font-size: 1rem;
+            margin-top: 10px;
+            color: #ccc;
+        }
+
+        textarea {
+            width: 100%;
+            height: 60px;
+            resize: none;
+            font-family: monospace;
+            font-size: 0.8rem;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui-panel">
+        <h1>Softbody Factory</h1>
+
+        <div class="status-panel">
+            <div class="status-row"><span>Score:</span> <span id="score-display">0</span></div>
+            <div class="status-row"><span>Time:</span> <span id="time-display">0</span>s</div>
+            <div class="status-row" style="font-size: 0.8rem; color: #666;">
+                <span>FPS:</span> <span id="fps-display">60</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Play Controls</div>
+            <div class="toolbar">
+                <button id="btn-play-pause">Pause</button>
+                <button id="btn-slow-mo">Slow Mo</button>
+                <button id="btn-reset" class="full-width">Reset Level</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Tools</div>
+            <div class="toolbar" id="tool-group">
+                <button class="tool-btn active" data-tool="drag">Drag/Interact</button>
+                <button class="tool-btn" data-tool="erase">Erase Object</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Build (Click & Drag)</div>
+            <div class="toolbar" id="build-group">
+                <button class="tool-btn" data-tool="softbody">Softbody Box</button>
+                <button class="tool-btn" data-tool="particles">Particles (Fluid)</button>
+                <button class="tool-btn" data-tool="platform">Platform</button>
+                <button class="tool-btn" data-tool="conveyor">Conveyor Belt</button>
+                <button class="tool-btn" data-tool="magnet">Magnet (Attract)</button>
+                <button class="tool-btn" data-tool="fan">Fan (Repel)</button>
+                <button class="tool-btn full-width" data-tool="bin">Goal Bin</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Levels & Data</div>
+            <div class="toolbar">
+                <button id="btn-level-1">Level 1</button>
+                <button id="btn-level-2">Level 2</button>
+                <button id="btn-export">Export JSON</button>
+                <button id="btn-import">Import JSON</button>
+            </div>
+            <textarea id="json-io" placeholder="JSON data here..."></textarea>
+        </div>
+
+        <div style="font-size: 0.75rem; color: #888; margin-top: auto;">
+            Tip: Select a build tool, click and drag on canvas to create. Drag items to test physics.
+        </div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="physics-canvas"></canvas>
+        <div id="overlay">
+            <div id="overlay-text">Level Complete!</div>
+            <div class="overlay-subtext">Press Reset to play again</div>
+        </div>
+    </div>
+
+    <script>
+        // --- Globals & Setup ---
+        const canvas = document.getElementById('physics-canvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        let width = canvas.width;
+        let height = canvas.height;
+
+        // UI Elements
+        const scoreDisplay = document.getElementById('score-display');
+        const timeDisplay = document.getElementById('time-display');
+        const fpsDisplay = document.getElementById('fps-display');
+        const overlay = document.getElementById('overlay');
+        const overlayText = document.getElementById('overlay-text');
+
+        // State
+        let isPaused = false;
+        let isSlowMo = false;
+        let lastTime = 0;
+        let accumulator = 0;
+        const targetFPS = 60;
+        const timeStep = 1 / targetFPS;
+        let physicsSteps = 4; // iterations for solver stability
+
+        let gameState = {
+            score: 0,
+            time: 0,
+            isGameOver: false,
+            frameCounter: 0,
+            lastFpsTime: 0
+        };
+
+        // --- Core Physics Engine ---
+        class Point {
+            constructor(x, y, radius = 5, isStatic = false, color = '#ff5722') {
+                this.x = x;
+                this.y = y;
+                this.oldx = x;
+                this.oldy = y;
+                this.radius = radius;
+                this.mass = radius; // simple mass derived from radius
+                this.isStatic = isStatic;
+                this.force = { x: 0, y: 0 };
+                this.color = color;
+                this.type = 'point'; // For collision/scoring logic
+            }
+        }
+
+        class Spring {
+            constructor(p1, p2, stiffness = 0.5, damping = 0.1) {
+                this.p1 = p1;
+                this.p2 = p2;
+                this.stiffness = stiffness;
+                this.damping = damping;
+                this.restLength = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+                this.currentStress = 0;
+            }
+
+            solve() {
+                let dx = this.p2.x - this.p1.x;
+                let dy = this.p2.y - this.p1.y;
+                let dist = Math.hypot(dx, dy);
+
+                if (dist === 0) return; // avoid div by zero
+
+                let diff = (this.restLength - dist) / dist;
+                let forceX = dx * diff * 0.5 * this.stiffness;
+                let forceY = dy * diff * 0.5 * this.stiffness;
+
+                this.currentStress = Math.abs(this.restLength - dist);
+
+                if (!this.p1.isStatic) {
+                    this.p1.x -= forceX;
+                    this.p1.y -= forceY;
+                }
+                if (!this.p2.isStatic) {
+                    this.p2.x += forceX;
+                    this.p2.y += forceY;
+                }
+            }
+        }
+
+        class Platform {
+            constructor(x, y, w, h, angle = 0) {
+                this.x = x;
+                this.y = y;
+                this.w = w;
+                this.h = h;
+                this.angle = angle;
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                ctx.fillStyle = '#607d8b';
+                ctx.fillRect(0, 0, this.w, this.h);
+                ctx.strokeStyle = '#455a64';
+                ctx.strokeRect(0, 0, this.w, this.h);
+                ctx.restore();
+            }
+        }
+
+        let points = [];
+        class Zone {
+            constructor(x, y, w, h, type, angle = 0) {
+                this.x = x;
+                this.y = y;
+                this.w = w;
+                this.h = h;
+                this.type = type; // 'magnet', 'fan', 'conveyor', 'bin'
+                this.angle = angle;
+                this.strength = 2000;
+                this.timer = 0; // For animation
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x + this.w/2, this.y + this.h/2);
+                ctx.rotate(this.angle);
+
+                let hw = this.w / 2;
+                let hh = this.h / 2;
+
+                if (this.type === 'magnet') {
+                    ctx.fillStyle = 'rgba(233, 30, 99, 0.2)';
+                    ctx.fillRect(-hw, -hh, this.w, this.h);
+                    ctx.strokeStyle = '#e91e63';
+                    ctx.strokeRect(-hw, -hh, this.w, this.h);
+
+                    // Draw pulse
+                    this.timer += 0.05;
+                    let r = Math.min(this.w, this.h) / 2 * (0.5 + 0.5 * Math.sin(this.timer));
+                    ctx.beginPath();
+                    ctx.arc(0, 0, r, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                } else if (this.type === 'fan') {
+                    ctx.fillStyle = 'rgba(0, 188, 212, 0.2)';
+                    ctx.fillRect(-hw, -hh, this.w, this.h);
+                    ctx.strokeStyle = '#00bcd4';
+                    ctx.strokeRect(-hw, -hh, this.w, this.h);
+
+                    // Draw wind lines
+                    this.timer = (this.timer + 2) % this.w;
+                    ctx.beginPath();
+                    ctx.moveTo(-hw + this.timer, -hh + 5);
+                    ctx.lineTo(-hw + this.timer + 10, -hh + 5);
+                    ctx.moveTo(-hw + ((this.timer + this.w/2) % this.w), 0);
+                    ctx.lineTo(-hw + ((this.timer + this.w/2) % this.w) + 10, 0);
+                    ctx.moveTo(-hw + this.timer, hh - 5);
+                    ctx.lineTo(-hw + this.timer + 10, hh - 5);
+                    ctx.stroke();
+                } else if (this.type === 'conveyor') {
+                    ctx.fillStyle = '#ff9800';
+                    ctx.fillRect(-hw, -hh, this.w, this.h);
+                    ctx.strokeStyle = '#f57c00';
+                    ctx.strokeRect(-hw, -hh, this.w, this.h);
+
+                    // Draw belt animation
+                    this.timer = (this.timer + 1) % 10;
+                    ctx.beginPath();
+                    for(let x = -hw + this.timer; x < hw; x += 10) {
+                        ctx.moveTo(x, -hh);
+                        ctx.lineTo(x, hh);
+                    }
+                    ctx.strokeStyle = '#fff';
+                    ctx.stroke();
+                } else if (this.type === 'bin') {
+                    ctx.fillStyle = 'rgba(76, 175, 80, 0.2)';
+                    ctx.fillRect(-hw, -hh, this.w, this.h);
+                    ctx.strokeStyle = '#4caf50';
+                    ctx.lineWidth = 3;
+                    // Draw bucket shape (open top)
+                    ctx.beginPath();
+                    ctx.moveTo(-hw, -hh);
+                    ctx.lineTo(-hw, hh);
+                    ctx.lineTo(hw, hh);
+                    ctx.lineTo(hw, -hh);
+                    ctx.stroke();
+                    ctx.lineWidth = 1;
+
+                    // Draw text
+                    ctx.fillStyle = '#4caf50';
+                    ctx.font = '16px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('GOAL', 0, 0);
+                }
+
+                ctx.restore();
+            }
+
+            applyForce(p) {
+                // Check if point is inside AABB (ignore angle for simplicity for now, or do proper check)
+                // Using simple AABB for zones to keep it performant
+                if (p.x > this.x && p.x < this.x + this.w &&
+                    p.y > this.y && p.y < this.y + this.h) {
+
+                    if (this.type === 'magnet') {
+                        let cx = this.x + this.w / 2;
+                        let cy = this.y + this.h / 2;
+                        let dx = cx - p.x;
+                        let dy = cy - p.y;
+                        let dist2 = dx*dx + dy*dy;
+                        if (dist2 > 100) { // avoid singularity
+                            let dist = Math.sqrt(dist2);
+                            let f = this.strength / dist;
+                            p.force.x += (dx / dist) * f;
+                            p.force.y += (dy / dist) * f;
+                        }
+                    } else if (this.type === 'fan') {
+                        // Fan pushes along its angle
+                        p.force.x += Math.cos(this.angle) * this.strength;
+                        p.force.y += Math.sin(this.angle) * this.strength;
+                    } else if (this.type === 'conveyor') {
+                        // Conveyor pushes sideways (ignoring strict collision, just force for simplicity)
+                        let speed = 100;
+                        let maxVel = 5;
+                        let vx = p.x - p.oldx;
+                        if (Math.abs(vx) < maxVel) {
+                            p.force.x += speed; // push right
+                            p.force.y -= gravity.y * p.mass; // counteract gravity heavily to sit on belt
+                        }
+                    } else if (this.type === 'bin') {
+                        // Scoring logic
+                        if (!p.scored && p.y > this.y + 10) { // must fall into bin
+                            p.scored = true;
+                            p.color = '#4caf50'; // turns green when scored
+                            gameState.score += 10;
+                            scoreDisplay.textContent = gameState.score;
+                            playSound('score');
+
+                            // Check win condition (e.g. score > 100)
+                            if (gameState.score >= 100 && !gameState.isGameOver) {
+                                gameState.isGameOver = true;
+                                overlayText.textContent = "Factory Complete!";
+                                overlay.style.display = 'block';
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let springs = [];
+        let platforms = [];
+        let zones = []; // Fans, Magnets, Conveyors, Bins
+
+        const gravity = { x: 0, y: 980 }; // pixels per second squared
+
+        // Utility math for OBB vs Circle
+        function checkPlatformCollision(p, platform) {
+            // Rotate point into platform's local space
+            let cos = Math.cos(-platform.angle);
+            let sin = Math.sin(-platform.angle);
+
+            let dx = p.x - platform.x;
+            let dy = p.y - platform.y;
+
+            let localX = dx * cos - dy * sin;
+            let localY = dx * sin + dy * cos;
+
+            // Find closest point on AABB (platform local space)
+            let closestX = Math.max(0, Math.min(localX, platform.w));
+            let closestY = Math.max(0, Math.min(localY, platform.h));
+
+            let distanceX = localX - closestX;
+            let distanceY = localY - closestY;
+
+            let distanceSquared = (distanceX * distanceX) + (distanceY * distanceY);
+
+            if (distanceSquared < (p.radius * p.radius)) {
+                let distance = Math.sqrt(distanceSquared);
+                let overlap = p.radius - distance;
+
+                if (distance > 0) {
+                    let normalX = distanceX / distance;
+                    let normalY = distanceY / distance;
+
+                    // Rotate normal back to world space
+                    let worldNormalX = normalX * Math.cos(platform.angle) - normalY * Math.sin(platform.angle);
+                    let worldNormalY = normalX * Math.sin(platform.angle) + normalY * Math.cos(platform.angle);
+
+                    // Resolve
+                    p.x += worldNormalX * overlap;
+                    p.y += worldNormalY * overlap;
+
+                    // Friction/bounce approximation
+                    let vx = p.x - p.oldx;
+                    let vy = p.y - p.oldy;
+
+                    // Simple hacky friction against normal
+                    p.oldx = p.x - vx * 0.8;
+                    p.oldy = p.y - vy * 0.8;
+
+                    if (Math.abs(vx) > 2 || Math.abs(vy) > 2) {
+                        if (Math.random() < 0.1) playSound('bump'); // throttle bumps
+                    }
+
+                    return true;
+                } else {
+                    // Inside the platform (deep penetration)
+                    // Push out to nearest edge
+                    let dLeft = localX;
+                    let dRight = platform.w - localX;
+                    let dTop = localY;
+                    let dBottom = platform.h - localY;
+
+                    let minD = Math.min(dLeft, dRight, dTop, dBottom);
+                    let normalX = 0, normalY = 0;
+
+                    if (minD === dLeft) normalX = -1;
+                    else if (minD === dRight) normalX = 1;
+                    else if (minD === dTop) normalY = -1;
+                    else normalY = 1;
+
+                    // Move out
+                    localX += normalX * (minD + p.radius);
+                    localY += normalY * (minD + p.radius);
+
+                    // Transform back
+                    p.x = platform.x + localX * Math.cos(platform.angle) - localY * Math.sin(platform.angle);
+                    p.y = platform.y + localX * Math.sin(platform.angle) + localY * Math.cos(platform.angle);
+
+                    // kill velocity
+                    p.oldx = p.x;
+                    p.oldy = p.y;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            width = canvas.width;
+            height = canvas.height;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function updatePhysics(dt) {
+            if (isPaused) return;
+
+            const subDt = dt / physicsSteps;
+
+            for (let step = 0; step < physicsSteps; step++) {
+                // Accumulate forces & Verlet integration
+                for (let i = 0; i < points.length; i++) {
+                    let p = points[i];
+                    if (p.isStatic) continue;
+
+                    // Gravity
+                    p.force.x += gravity.x * p.mass;
+                    p.force.y += gravity.y * p.mass;
+
+                    // Zones (Force fields)
+                    for (let j = 0; j < zones.length; j++) {
+                        zones[j].applyForce(p);
+                    }
+
+                    // Verlet step
+                    let ax = p.force.x / p.mass;
+                    let ay = p.force.y / p.mass;
+
+                    let vx = p.x - p.oldx;
+                    let vy = p.y - p.oldy;
+
+                    // Damping
+                    vx *= 0.999;
+                    vy *= 0.999;
+
+                    p.oldx = p.x;
+                    p.oldy = p.y;
+
+                    p.x += vx + ax * subDt * subDt;
+                    p.y += vy + ay * subDt * subDt;
+
+                    // Reset forces
+                    p.force.x = 0;
+                    p.force.y = 0;
+
+                    if (p.isDragged && draggedPoint === p) {
+                        p.x = mouse.x;
+                        p.y = mouse.y;
+                        p.oldx = mouse.x;
+                        p.oldy = mouse.y;
+                    }
+                }
+
+                // Solve Constraints
+                for (let i = 0; i < springs.length; i++) {
+                    springs[i].solve();
+                }
+
+                // Platforms & World bounds
+                for (let i = 0; i < points.length; i++) {
+                    let p = points[i];
+
+                    for (let j = 0; j < platforms.length; j++) {
+                        checkPlatformCollision(p, platforms[j]);
+                    }
+
+                    const bounce = 0.5;
+                    const friction = 0.8;
+
+                    if (p.x < p.radius) {
+                        let vx = p.x - p.oldx;
+                        let vy = p.y - p.oldy;
+                        p.x = p.radius;
+                        p.oldx = p.x + vx * bounce;
+                        p.oldy = p.y - vy * (1 - friction);
+                    } else if (p.x > width - p.radius) {
+                        let vx = p.x - p.oldx;
+                        let vy = p.y - p.oldy;
+                        p.x = width - p.radius;
+                        p.oldx = p.x + vx * bounce;
+                        p.oldy = p.y - vy * (1 - friction);
+                    }
+
+                    if (p.y < p.radius) {
+                        let vx = p.x - p.oldx;
+                        let vy = p.y - p.oldy;
+                        p.y = p.radius;
+                        p.oldy = p.y + vy * bounce;
+                        p.oldx = p.x - vx * (1 - friction);
+                    } else if (p.y > height - p.radius) {
+                        let vx = p.x - p.oldx;
+                        let vy = p.y - p.oldy;
+                        p.y = height - p.radius;
+                        p.oldy = p.y + vy * bounce;
+                        p.oldx = p.x - vx * (1 - friction);
+                    }
+                }
+            }
+        }
+
+        function draw() {
+            // Background
+            ctx.fillStyle = '#eaeaea';
+            ctx.fillRect(0, 0, width, height);
+
+            // Draw Drag Line / Build preview
+            if (mouse.isDown) {
+                if (draggedPoint) {
+                    ctx.beginPath();
+                    ctx.moveTo(draggedPoint.x, draggedPoint.y);
+                    ctx.lineTo(mouse.x, mouse.y);
+                    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                } else if (currentTool === 'softbody') {
+                    ctx.strokeStyle = 'rgba(139, 195, 74, 0.5)';
+                    ctx.setLineDash([5, 5]);
+                    ctx.strokeRect(mouse.startX, mouse.startY, mouse.x - mouse.startX, mouse.y - mouse.startY);
+                    ctx.setLineDash([]);
+                } else if (currentTool === 'magnet' || currentTool === 'fan' || currentTool === 'platform' || currentTool === 'conveyor' || currentTool === 'bin') {
+                    ctx.strokeStyle = 'rgba(100, 100, 100, 0.5)';
+                    ctx.setLineDash([5, 5]);
+                    ctx.strokeRect(mouse.startX, mouse.startY, mouse.x - mouse.startX, mouse.y - mouse.startY);
+                    ctx.setLineDash([]);
+                }
+            }
+
+            // Draw Zones
+            for (let i = 0; i < zones.length; i++) {
+                zones[i].draw(ctx);
+            }
+
+            // Draw Platforms
+            for (let i = 0; i < platforms.length; i++) {
+                platforms[i].draw(ctx);
+            }
+
+            // Draw springs
+            for (let i = 0; i < springs.length; i++) {
+                let s = springs[i];
+                ctx.beginPath();
+                ctx.moveTo(s.p1.x, s.p1.y);
+                ctx.lineTo(s.p2.x, s.p2.y);
+                // Color based on stress
+                let stressRatio = Math.min(s.currentStress / (s.restLength * 0.5), 1);
+                let r = Math.floor(150 + 105 * stressRatio);
+                let g = Math.floor(150 - 150 * stressRatio);
+                let b = Math.floor(150 - 150 * stressRatio);
+                ctx.strokeStyle = `rgb(${r},${g},${b})`;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            // Draw points
+            for (let i = 0; i < points.length; i++) {
+                let p = points[i];
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fillStyle = p.color || '#ff5722';
+                ctx.fill();
+            }
+        }
+
+        function gameLoop(timestamp) {
+            if (!lastTime) lastTime = timestamp;
+
+            let frameTime = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+
+            // Cap max frame time to avoid death spirals
+            if (frameTime > 0.1) frameTime = 0.1;
+
+            if (isSlowMo) frameTime *= 0.2;
+
+            accumulator += frameTime;
+
+            while (accumulator >= timeStep) {
+                updatePhysics(timeStep);
+                accumulator -= timeStep;
+            }
+
+            draw();
+
+            // FPS Counter
+            gameState.frameCounter++;
+            if (timestamp - gameState.lastFpsTime >= 1000) {
+                fpsDisplay.textContent = gameState.frameCounter;
+                gameState.frameCounter = 0;
+                gameState.lastFpsTime = timestamp;
+
+                if (!isPaused && !gameState.isGameOver) {
+                    gameState.time++;
+                    timeDisplay.textContent = gameState.time;
+                }
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- Audio ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            let now = audioCtx.currentTime;
+
+            if (type === 'score') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'bump') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(100, now);
+                osc.frequency.exponentialRampToValueAtTime(50, now + 0.1);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            }
+        }
+
+        // --- Interaction ---
+        let mouse = { x: 0, y: 0, isDown: false, startX: 0, startY: 0 };
+        let draggedPoint = null;
+        let currentTool = 'drag';
+
+        // Set up tool buttons
+        document.querySelectorAll('.tool-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentTool = btn.getAttribute('data-tool');
+            });
+        });
+
+        // Set up playback buttons
+        document.getElementById('btn-play-pause').addEventListener('click', (e) => {
+            isPaused = !isPaused;
+            e.target.textContent = isPaused ? 'Resume' : 'Pause';
+            e.target.classList.toggle('active', isPaused);
+        });
+
+        document.getElementById('btn-slow-mo').addEventListener('click', (e) => {
+            isSlowMo = !isSlowMo;
+            e.target.classList.toggle('active', isSlowMo);
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            resetLevel();
+        });
+
+        document.getElementById('btn-export').addEventListener('click', () => {
+            let data = {
+                points: points.map(p => ({ x: p.x, y: p.y, radius: p.radius, isStatic: p.isStatic, color: p.color, type: p.type })),
+                springs: springs.map(s => ({ p1: points.indexOf(s.p1), p2: points.indexOf(s.p2), stiffness: s.stiffness })),
+                platforms: platforms.map(p => ({ x: p.x, y: p.y, w: p.w, h: p.h, angle: p.angle })),
+                zones: zones.map(z => ({ x: z.x, y: z.y, w: z.w, h: z.h, type: z.type, angle: z.angle }))
+            };
+            document.getElementById('json-io').value = JSON.stringify(data);
+        });
+
+        document.getElementById('btn-import').addEventListener('click', () => {
+            try {
+                let data = JSON.parse(document.getElementById('json-io').value);
+                resetLevel();
+
+                points = data.points.map(p => {
+                    let pt = new Point(p.x, p.y, p.radius, p.isStatic, p.color);
+                    pt.type = p.type;
+                    return pt;
+                });
+
+                springs = data.springs.map(s => new Spring(points[s.p1], points[s.p2], s.stiffness));
+
+                platforms = data.platforms.map(p => new Platform(p.x, p.y, p.w, p.h, p.angle));
+
+                zones = data.zones.map(z => new Zone(z.x, z.y, z.w, z.h, z.type, z.angle));
+
+            } catch (e) {
+                alert("Invalid JSON");
+            }
+        });
+
+        document.getElementById('btn-level-1').addEventListener('click', () => {
+            resetLevel();
+            platforms.push(new Platform(100, 300, 200, 20, 0.2));
+            platforms.push(new Platform(400, 400, 200, 20, -0.2));
+            zones.push(new Zone(650, 500, 100, 100, 'bin', 0));
+            platforms.push(new Platform(645, 500, 5, 100, 0));
+            platforms.push(new Platform(750, 500, 5, 100, 0));
+            platforms.push(new Platform(645, 600, 110, 5, 0));
+            spawnSoftbody(150, 100, 60, 60, 3, 3);
+        });
+
+        document.getElementById('btn-level-2').addEventListener('click', () => {
+            resetLevel();
+            platforms.push(new Platform(100, 200, 150, 20, 0));
+            zones.push(new Zone(300, 200, 200, 20, 'conveyor', 0));
+            platforms.push(new Platform(300, 200, 200, 20, 0));
+            zones.push(new Zone(600, 100, 100, 100, 'fan', Math.PI/2)); // fan blowing down
+            zones.push(new Zone(350, 500, 100, 100, 'bin', 0));
+            platforms.push(new Platform(345, 500, 5, 100, 0));
+            platforms.push(new Platform(450, 500, 5, 100, 0));
+            platforms.push(new Platform(345, 600, 110, 5, 0));
+            spawnParticles(150, 50, 40);
+        });
+
+        function resetLevel() {
+            points = [];
+            springs = [];
+            platforms = [];
+            zones = [];
+            gameState.score = 0;
+            gameState.time = 0;
+            gameState.isGameOver = false;
+            scoreDisplay.textContent = '0';
+            timeDisplay.textContent = '0';
+            overlay.style.display = 'none';
+        }
+
+        // Mouse/Touch Events
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            let clientX = e.clientX;
+            let clientY = e.clientY;
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            }
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        canvas.addEventListener('mousedown', onPointerDown);
+        canvas.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('mouseup', onPointerUp);
+
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); onPointerDown(e); }, {passive: false});
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); onPointerMove(e); }, {passive: false});
+        window.addEventListener('touchend', onPointerUp);
+
+        function onPointerDown(e) {
+            let pos = getMousePos(e);
+            mouse.x = pos.x;
+            mouse.y = pos.y;
+            mouse.startX = pos.x;
+            mouse.startY = pos.y;
+            mouse.isDown = true;
+
+            if (currentTool === 'drag') {
+                // Find closest point to drag
+                let minDist = 20; // pick radius
+                for (let i = 0; i < points.length; i++) {
+                    let d = Math.hypot(points[i].x - mouse.x, points[i].y - mouse.y);
+                    if (d < minDist) {
+                        minDist = d;
+                        draggedPoint = points[i];
+                    }
+                }
+                if (draggedPoint) {
+                    draggedPoint.isDragged = true;
+                }
+            } else if (currentTool === 'erase') {
+                // erase point
+                let found = -1;
+                for (let i = 0; i < points.length; i++) {
+                    if (Math.hypot(points[i].x - mouse.x, points[i].y - mouse.y) < 15) {
+                        found = i;
+                        break;
+                    }
+                }
+                if (found !== -1) {
+                    // Remove attached springs
+                    let pt = points[found];
+                    springs = springs.filter(s => s.p1 !== pt && s.p2 !== pt);
+                    points.splice(found, 1);
+                }
+            }
+        }
+
+        function onPointerMove(e) {
+            if (!mouse.isDown) return;
+            let pos = getMousePos(e);
+            mouse.x = pos.x;
+            mouse.y = pos.y;
+        }
+
+        function spawnSoftbody(x, y, w, h, rows, cols) {
+            let startIdx = points.length;
+            let spacingX = w / cols;
+            let spacingY = h / rows;
+
+            // Create points
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    let px = x + c * spacingX;
+                    let py = y + r * spacingY;
+                    points.push(new Point(px, py, 6, false, '#8bc34a'));
+                }
+            }
+
+            // Create structural springs
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    let i = startIdx + r * cols + c;
+
+                    if (c < cols - 1) { // Horizontal
+                        springs.push(new Spring(points[i], points[i + 1], 0.8));
+                    }
+                    if (r < rows - 1) { // Vertical
+                        springs.push(new Spring(points[i], points[i + cols], 0.8));
+                    }
+                    if (r < rows - 1 && c < cols - 1) { // Diagonal 1
+                        springs.push(new Spring(points[i], points[i + cols + 1], 0.5));
+                    }
+                    if (r < rows - 1 && c > 0) { // Diagonal 2
+                        springs.push(new Spring(points[i], points[i + cols - 1], 0.5));
+                    }
+                }
+            }
+        }
+
+        function spawnParticles(x, y, count) {
+            for (let i = 0; i < count; i++) {
+                let px = x + (Math.random() - 0.5) * 40;
+                let py = y + (Math.random() - 0.5) * 40;
+                let p = new Point(px, py, 4, false, '#03a9f4');
+                p.type = 'particle';
+                points.push(p);
+            }
+        }
+
+        function onPointerUp(e) {
+            if (!mouse.isDown) return;
+            mouse.isDown = false;
+
+            if (draggedPoint) {
+                draggedPoint.isDragged = false;
+                draggedPoint = null;
+                return;
+            }
+
+            // Build tools
+            let dx = mouse.x - mouse.startX;
+            let dy = mouse.y - mouse.startY;
+            let dist = Math.hypot(dx, dy);
+
+            if (currentTool === 'softbody') {
+                if (dist > 20) {
+                    let rows = Math.max(2, Math.floor(Math.abs(dy) / 20));
+                    let cols = Math.max(2, Math.floor(Math.abs(dx) / 20));
+                    spawnSoftbody(Math.min(mouse.x, mouse.startX), Math.min(mouse.y, mouse.startY), Math.abs(dx), Math.abs(dy), rows, cols);
+                } else {
+                    spawnSoftbody(mouse.x - 30, mouse.y - 30, 60, 60, 3, 3);
+                }
+            } else if (currentTool === 'particles') {
+                spawnParticles(mouse.x, mouse.y, 20);
+            } else if (currentTool === 'magnet' || currentTool === 'fan') {
+                let w = Math.abs(dx);
+                let h = Math.abs(dy);
+                if (w > 20 && h > 20) {
+                    let rx = Math.min(mouse.x, mouse.startX);
+                    let ry = Math.min(mouse.y, mouse.startY);
+
+                    // Simple drag direction to set fan angle (left to right = 0, top to bottom = 90)
+                    let angle = 0;
+                    if (currentTool === 'fan') {
+                        angle = Math.atan2(dy, dx);
+                    }
+
+                    zones.push(new Zone(rx, ry, w, h, currentTool, angle));
+                } else {
+                    zones.push(new Zone(mouse.x - 50, mouse.y - 50, 100, 100, currentTool, 0));
+                }
+            } else if (currentTool === 'platform') {
+                let w = Math.abs(dx);
+                let h = Math.abs(dy);
+                if (w > 10 && h > 10) {
+                    let rx = Math.min(mouse.x, mouse.startX);
+                    let ry = Math.min(mouse.y, mouse.startY);
+                    platforms.push(new Platform(rx, ry, w, h, 0));
+                } else {
+                    platforms.push(new Platform(mouse.x - 100, mouse.y - 10, 200, 20, 0));
+                }
+            } else if (currentTool === 'conveyor') {
+                let w = Math.abs(dx);
+                let h = Math.abs(dy);
+                if (w > 10 && h > 10) {
+                    let rx = Math.min(mouse.x, mouse.startX);
+                    let ry = Math.min(mouse.y, mouse.startY);
+                    zones.push(new Zone(rx, ry, w, h, currentTool, 0));
+                    platforms.push(new Platform(rx, ry, w, h, 0)); // Visual + collision
+                } else {
+                    zones.push(new Zone(mouse.x - 50, mouse.y - 10, 100, 20, currentTool, 0));
+                    platforms.push(new Platform(mouse.x - 50, mouse.y - 10, 100, 20, 0));
+                }
+            } else if (currentTool === 'bin') {
+                let w = Math.abs(dx);
+                let h = Math.abs(dy);
+                if (w > 20 && h > 20) {
+                    let rx = Math.min(mouse.x, mouse.startX);
+                    let ry = Math.min(mouse.y, mouse.startY);
+                    zones.push(new Zone(rx, ry, w, h, currentTool, 0));
+                    // Add physical walls for the bin
+                    platforms.push(new Platform(rx - 5, ry, 5, h, 0)); // Left wall
+                    platforms.push(new Platform(rx + w, ry, 5, h, 0)); // Right wall
+                    platforms.push(new Platform(rx - 5, ry + h, w + 10, 5, 0)); // Bottom wall
+                } else {
+                    let rx = mouse.x - 40;
+                    let ry = mouse.y - 40;
+                    zones.push(new Zone(rx, ry, 80, 80, currentTool, 0));
+                    platforms.push(new Platform(rx - 5, ry, 5, 80, 0));
+                    platforms.push(new Platform(rx + 80, ry, 5, 80, 0));
+                    platforms.push(new Platform(rx - 5, ry + 80, 90, 5, 0));
+                }
+            }
+        }
+
+        // Init
+        requestAnimationFrame(gameLoop);
+
+    </script>
+</body>
+</html>
