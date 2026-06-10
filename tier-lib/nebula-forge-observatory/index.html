@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nebula Forge Observatory</title>
+    <style>
+        :root {
+            --bg: #05050a;
+            --panel-bg: rgba(10, 15, 25, 0.85);
+            --border: #1a2b4c;
+            --text: #e0e6ed;
+            --accent: #00e5ff;
+            --accent-hover: #00b3cc;
+            --warning: #ff3366;
+            --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: var(--font);
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 1.5rem;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            pointer-events: auto;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            max-width: 320px;
+            width: 100%;
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        header p {
+            font-size: 0.85rem;
+            opacity: 0.7;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            margin-top: 1.5rem;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .control-group label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #8fa4c2;
+        }
+
+        button {
+            background: rgba(0, 229, 255, 0.1);
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            padding: 0.75rem 1rem;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button:hover {
+            background: rgba(0, 229, 255, 0.2);
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.3);
+        }
+
+        button.active {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
+        button.warning {
+            color: var(--warning);
+            border-color: var(--warning);
+            background: rgba(255, 51, 102, 0.1);
+        }
+
+        button.warning:hover {
+            background: rgba(255, 51, 102, 0.2);
+            box-shadow: 0 0 15px rgba(255, 51, 102, 0.3);
+        }
+
+        button.warning.active {
+            background: var(--warning);
+            color: #fff;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 10px var(--accent);
+        }
+
+        input[type="range"]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #1a2b4c;
+            border-radius: 2px;
+        }
+
+        #inspector {
+            align-self: flex-end;
+            margin-top: auto;
+        }
+
+        .inspector-data {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            font-size: 0.9rem;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 0.5rem;
+        }
+
+        .data-label {
+            color: #8fa4c2;
+        }
+
+        .data-value {
+            font-family: monospace;
+            color: #fff;
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4caf50;
+            margin-right: 6px;
+        }
+
+        .status-dot.offline {
+            background: #ff3366;
+        }
+
+        .top-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            #ui-layer {
+                padding: 1rem;
+            }
+            .top-container {
+                flex-direction: column;
+            }
+            .panel {
+                max-width: 100%;
+            }
+            #inspector {
+                margin-top: 1rem;
+                align-self: stretch;
+            }
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--accent);
+            font-family: monospace;
+            font-size: 1.2rem;
+            z-index: 10;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+    </style>
+
+    <!-- GSAP for animations -->
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+
+    <!-- Three.js Import Map -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/"
+        }
+    }
+    </script>
+</head>
+<body>
+    <div id="loading" class="loading">INITIALIZING FORGE...</div>
+    <div id="canvas-container"></div>
+
+    <div id="ui-layer">
+        <div class="top-container">
+            <div class="panel">
+                <header>
+                    <h1>Forge Observatory</h1>
+                    <p>Sector Alpha-7 Command</p>
+                </header>
+
+                <div class="controls">
+                    <div class="control-group">
+                        <label>Production Mode</label>
+                        <button id="btn-mode">Idle</button>
+                    </div>
+
+                    <div class="control-group">
+                        <label>Output Intensity: <span id="intensity-val">50%</span></label>
+                        <input type="range" id="slider-intensity" min="10" max="100" value="50">
+                    </div>
+
+                    <div class="control-group">
+                        <label>Diagnostics</label>
+                        <button id="btn-hazard" class="warning">Hazard Scan</button>
+                    </div>
+
+                    <div class="control-group">
+                        <label>Camera</label>
+                        <button id="btn-reset">Reset View</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel" id="inspector">
+                <header>
+                    <h1>Station Inspector</h1>
+                    <p>Select a target for details</p>
+                </header>
+
+                <div class="inspector-data" style="margin-top: 1rem;">
+                    <div class="data-row">
+                        <span class="data-label">ID</span>
+                        <span class="data-value" id="insp-id">---</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Type</span>
+                        <span class="data-value" id="insp-type">---</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Status</span>
+                        <span class="data-value"><span class="status-dot" id="insp-status-dot" style="background:#555"></span><span id="insp-status">NO TARGET</span></span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Yield</span>
+                        <span class="data-value" id="insp-yield">---</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // State
+        const state = {
+            mode: 'idle', // idle, active
+            intensity: 50,
+            hazardScan: false,
+            selectedStation: null,
+            time: 0
+        };
+
+        // Station Dataset
+        const stationData = [
+            { id: "S-Alpha", type: "Energy Harvester", status: "Nominal", yield: "4.2TWh", pos: [8, 2, 4], color: 0x00e5ff },
+            { id: "S-Beta", type: "Matter Synthesizer", status: "Nominal", yield: "1.1Gt", pos: [-6, 5, -8], color: 0x00ff88 },
+            { id: "S-Gamma", type: "Cooling Relay", status: "Warning", yield: "N/A", pos: [2, -6, 7], color: 0xffaa00 },
+            { id: "S-Delta", type: "Plasma Refiner", status: "Nominal", yield: "8.9PHz", pos: [-9, -3, 2], color: 0xcc00ff },
+            { id: "S-Epsilon", type: "Command Hub", status: "Nominal", yield: "Optimum", pos: [0, 9, 0], color: 0xffffff },
+            { id: "S-Zeta", type: "Containment Field", status: "Critical", yield: "Failing", pos: [7, -7, -6], color: 0xff3366 }
+        ];
+
+        // Init Scene
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x05050a, 0.02);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(15, 10, 25);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        container.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxDistance = 60;
+        controls.minDistance = 5;
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x223344, 1);
+        scene.add(ambientLight);
+
+        const pointLight = new THREE.PointLight(0xffaa55, 500, 100);
+        scene.add(pointLight);
+
+        // Core Objects: The Star Forge
+        const forgeGroup = new THREE.Group();
+        scene.add(forgeGroup);
+
+        // Inner Core
+        const coreGeo = new THREE.IcosahedronGeometry(3, 4);
+        const coreMat = new THREE.MeshStandardMaterial({
+            color: 0xffddaa,
+            emissive: 0xff8833,
+            emissiveIntensity: 2,
+            roughness: 0.2,
+            metalness: 0.8,
+            wireframe: false
+        });
+        const core = new THREE.Mesh(coreGeo, coreMat);
+        forgeGroup.add(core);
+
+        // Outer Energy Shell
+        const shellGeo = new THREE.IcosahedronGeometry(3.5, 3);
+        const shellMat = new THREE.MeshBasicMaterial({
+            color: 0xffaa00,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.3,
+            blending: THREE.AdditiveBlending
+        });
+        const shell = new THREE.Mesh(shellGeo, shellMat);
+        forgeGroup.add(shell);
+
+        // Ring
+        const ringGeo = new THREE.TorusGeometry(6, 0.1, 16, 100);
+        const ringMat = new THREE.MeshStandardMaterial({
+            color: 0x445566,
+            emissive: 0x00e5ff,
+            emissiveIntensity: 0.5,
+            metalness: 1,
+            roughness: 0.2
+        });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = Math.PI / 2;
+        forgeGroup.add(ring);
+
+        // Stations
+        const stationsGroup = new THREE.Group();
+        scene.add(stationsGroup);
+        const stationMeshes = [];
+
+        const stationGeo = new THREE.OctahedronGeometry(1, 0);
+
+        stationData.forEach(data => {
+            const mat = new THREE.MeshStandardMaterial({
+                color: 0x334455,
+                emissive: data.color,
+                emissiveIntensity: 0.5,
+                metalness: 0.9,
+                roughness: 0.1
+            });
+            const mesh = new THREE.Mesh(stationGeo, mat);
+            mesh.position.set(...data.pos);
+            mesh.userData = data;
+
+            // Add connection line to center
+            const lineGeo = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(0,0,0),
+                new THREE.Vector3(...data.pos)
+            ]);
+            const lineMat = new THREE.LineBasicMaterial({
+                color: data.color,
+                transparent: true,
+                opacity: 0.2,
+                blending: THREE.AdditiveBlending
+            });
+            const line = new THREE.Line(lineGeo, lineMat);
+
+            stationsGroup.add(mesh);
+            stationsGroup.add(line);
+            stationMeshes.push({ mesh, line, baseColor: data.color, originalScale: 1 });
+        });
+
+        // Background Particles
+        const particleCount = 2000;
+        const particleGeo = new THREE.BufferGeometry();
+        const particlePos = new Float32Array(particleCount * 3);
+        const particleColors = new Float32Array(particleCount * 3);
+
+        for(let i = 0; i < particleCount * 3; i+=3) {
+            // spherical distribution
+            const r = 20 + Math.random() * 40;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos((Math.random() * 2) - 1);
+
+            particlePos[i] = r * Math.sin(phi) * Math.cos(theta);
+            particlePos[i+1] = r * Math.sin(phi) * Math.sin(theta);
+            particlePos[i+2] = r * Math.cos(phi);
+
+            const color = new THREE.Color();
+            color.setHSL(Math.random() * 0.2 + 0.5, 0.8, Math.random() * 0.5 + 0.1);
+            particleColors[i] = color.r;
+            particleColors[i+1] = color.g;
+            particleColors[i+2] = color.b;
+        }
+
+        particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));
+        particleGeo.setAttribute('color', new THREE.BufferAttribute(particleColors, 3));
+
+        const particleMat = new THREE.PointsMaterial({
+            size: 0.2,
+            vertexColors: true,
+            blending: THREE.AdditiveBlending,
+            transparent: true,
+            opacity: 0.6
+        });
+
+        const particles = new THREE.Points(particleGeo, particleMat);
+        scene.add(particles);
+
+        // Raycaster for interaction
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        // UI Elements
+        const btnMode = document.getElementById('btn-mode');
+        const sliderIntensity = document.getElementById('slider-intensity');
+        const intensityVal = document.getElementById('intensity-val');
+        const btnHazard = document.getElementById('btn-hazard');
+        const btnReset = document.getElementById('btn-reset');
+
+        // Inspector Elements
+        const inspId = document.getElementById('insp-id');
+        const inspType = document.getElementById('insp-type');
+        const inspStatus = document.getElementById('insp-status');
+        const inspStatusDot = document.getElementById('insp-status-dot');
+        const inspYield = document.getElementById('insp-yield');
+
+        // Logic Functions
+        function selectStation(meshWrapper) {
+            // Reset previous
+            if (state.selectedStation) {
+                gsap.to(state.selectedStation.mesh.scale, { x: 1, y: 1, z: 1, duration: 0.5, ease: "power2.out" });
+                gsap.to(state.selectedStation.mesh.material, { emissiveIntensity: state.hazardScan ? 2 : 0.5, duration: 0.5 });
+            }
+
+            if (meshWrapper) {
+                state.selectedStation = meshWrapper;
+                const data = meshWrapper.mesh.userData;
+
+                // Highlight new
+                gsap.to(meshWrapper.mesh.scale, { x: 1.5, y: 1.5, z: 1.5, duration: 0.5, ease: "back.out(1.7)" });
+                gsap.to(meshWrapper.mesh.material, { emissiveIntensity: 2, duration: 0.5 });
+
+                // Update Inspector
+                inspId.textContent = data.id;
+                inspType.textContent = data.type;
+                inspStatus.textContent = data.status;
+                inspYield.textContent = data.yield;
+
+                inspStatusDot.style.background = data.status === "Nominal" ? "#4caf50" :
+                                                 data.status === "Warning" ? "#ffaa00" : "#ff3366";
+
+                // Animate Camera Focus
+                const targetPos = new THREE.Vector3().copy(meshWrapper.mesh.position);
+
+                // Calculate an offset position for the camera
+                const offset = targetPos.clone().normalize().multiplyScalar(8);
+                const camPos = targetPos.clone().add(offset);
+                camPos.y += 3;
+
+                gsap.to(camera.position, {
+                    x: camPos.x, y: camPos.y, z: camPos.z,
+                    duration: 1.5,
+                    ease: "power3.inOut"
+                });
+
+                gsap.to(controls.target, {
+                    x: targetPos.x, y: targetPos.y, z: targetPos.z,
+                    duration: 1.5,
+                    ease: "power3.inOut",
+                    onUpdate: () => controls.update()
+                });
+
+            } else {
+                state.selectedStation = null;
+                inspId.textContent = "---";
+                inspType.textContent = "---";
+                inspStatus.textContent = "NO TARGET";
+                inspYield.textContent = "---";
+                inspStatusDot.style.background = "#555";
+            }
+        }
+
+        // Event Listeners
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        window.addEventListener('click', (event) => {
+            // Don't raycast if clicking UI
+            if (event.target.closest('.panel')) return;
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(stationMeshes.map(sm => sm.mesh));
+
+            if (intersects.length > 0) {
+                const clickedMesh = intersects[0].object;
+                const wrapper = stationMeshes.find(sm => sm.mesh === clickedMesh);
+                if (wrapper) selectStation(wrapper);
+            } else {
+                selectStation(null);
+            }
+        });
+
+        btnMode.addEventListener('click', () => {
+            if (state.mode === 'idle') {
+                state.mode = 'active';
+                btnMode.textContent = 'Active';
+                btnMode.classList.add('active');
+
+                // GSAP Animations for Active Mode
+                gsap.to(coreMat, { emissiveIntensity: 5, roughness: 0.1, duration: 1 });
+                gsap.to(shell.scale, { x: 1.2, y: 1.2, z: 1.2, duration: 1, ease: "power2.out" });
+                gsap.to(pointLight, { intensity: 1000, duration: 1 });
+                gsap.to(particleMat, { opacity: 1, size: 0.3, duration: 1 });
+                gsap.to(ringMat, { emissiveIntensity: 2, duration: 1 });
+
+                // Speed up rotation
+                gsap.to(state, { timeScale: 2, duration: 2 });
+            } else {
+                state.mode = 'idle';
+                btnMode.textContent = 'Idle';
+                btnMode.classList.remove('active');
+
+                // GSAP Animations for Idle Mode
+                gsap.to(coreMat, { emissiveIntensity: 2, roughness: 0.2, duration: 2 });
+                gsap.to(shell.scale, { x: 1, y: 1, z: 1, duration: 2, ease: "power2.out" });
+                gsap.to(pointLight, { intensity: 500, duration: 2 });
+                gsap.to(particleMat, { opacity: 0.6, size: 0.2, duration: 2 });
+                gsap.to(ringMat, { emissiveIntensity: 0.5, duration: 2 });
+
+                gsap.to(state, { timeScale: 1, duration: 2 });
+            }
+        });
+
+        sliderIntensity.addEventListener('input', (e) => {
+            const val = e.target.value;
+            intensityVal.textContent = val + '%';
+            state.intensity = parseInt(val);
+
+            const normalized = state.intensity / 100;
+
+            // Adjust line opacities
+            stationMeshes.forEach(sm => {
+                sm.line.material.opacity = 0.1 + (normalized * 0.4);
+            });
+
+            // Adjust ring scale slightly based on intensity
+            gsap.to(ring.scale, {
+                x: 0.8 + (normalized * 0.4),
+                y: 0.8 + (normalized * 0.4),
+                z: 0.8 + (normalized * 0.4),
+                duration: 0.5
+            });
+        });
+
+        btnHazard.addEventListener('click', () => {
+            state.hazardScan = !state.hazardScan;
+
+            if (state.hazardScan) {
+                btnHazard.classList.add('active');
+
+                // Scene goes dark/red
+                gsap.to(scene.fog.color, { r: 0x22/255, g: 0x05/255, b: 0x05/255, duration: 1 });
+                gsap.to(scene.fog, { density: 0.04, duration: 1 });
+                gsap.to(ambientLight.color, { r: 0x44/255, g: 0x11/255, b: 0x11/255, duration: 1 });
+
+                stationMeshes.forEach(sm => {
+                    const data = sm.mesh.userData;
+                    const isHazard = data.status === "Critical" || data.status === "Warning";
+
+                    if (isHazard) {
+                        gsap.to(sm.mesh.material, {
+                            emissive: 0xff0000,
+                            emissiveIntensity: 3,
+                            wireframe: true,
+                            duration: 0.5
+                        });
+                        // Pulsing effect
+                        gsap.to(sm.mesh.scale, {
+                            x: 1.3, y: 1.3, z: 1.3,
+                            duration: 0.5,
+                            yoyo: true,
+                            repeat: -1,
+                            ease: "sine.inOut",
+                            overwrite: "auto"
+                        });
+                    } else {
+                        gsap.to(sm.mesh.material, {
+                            emissiveIntensity: 0.1,
+                            opacity: 0.3,
+                            transparent: true,
+                            duration: 0.5
+                        });
+                    }
+                });
+            } else {
+                btnHazard.classList.remove('active');
+
+                // Restore scene
+                gsap.to(scene.fog.color, { r: 0x05/255, g: 0x05/255, b: 0x0a/255, duration: 1 });
+                gsap.to(scene.fog, { density: 0.02, duration: 1 });
+                gsap.to(ambientLight.color, { r: 0x22/255, g: 0x33/255, b: 0x44/255, duration: 1 });
+
+                stationMeshes.forEach(sm => {
+                    const isSelected = state.selectedStation === sm;
+
+                    gsap.killTweensOf(sm.mesh.scale); // Stop pulsing
+
+                    gsap.to(sm.mesh.scale, {
+                        x: isSelected ? 1.5 : 1,
+                        y: isSelected ? 1.5 : 1,
+                        z: isSelected ? 1.5 : 1,
+                        duration: 0.5,
+                        overwrite: "auto"
+                    });
+
+                    gsap.to(sm.mesh.material, {
+                        emissive: sm.baseColor,
+                        emissiveIntensity: isSelected ? 2 : 0.5,
+                        wireframe: false,
+                        opacity: 1,
+                        transparent: false,
+                        duration: 0.5
+                    });
+                });
+            }
+        });
+
+        btnReset.addEventListener('click', () => {
+            selectStation(null);
+
+            gsap.to(camera.position, {
+                x: 15, y: 10, z: 25,
+                duration: 1.5,
+                ease: "power3.inOut"
+            });
+
+            gsap.to(controls.target, {
+                x: 0, y: 0, z: 0,
+                duration: 1.5,
+                ease: "power3.inOut"
+            });
+        });
+
+        // Animation Loop
+        const clock = new THREE.Clock();
+        state.timeScale = 1;
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta() * state.timeScale;
+            state.time += delta;
+
+            controls.update();
+
+            // Core rotation
+            core.rotation.y += delta * 0.5;
+            core.rotation.x += delta * 0.2;
+
+            shell.rotation.y -= delta * 0.3;
+            shell.rotation.z += delta * 0.1;
+
+            ring.rotation.z += delta * 0.2;
+
+            // Pulsing inner core based on intensity
+            const pulse = Math.sin(state.time * 2) * 0.1 + 1;
+            core.scale.setScalar(pulse);
+
+            // Floating stations
+            stationMeshes.forEach((sm, i) => {
+                const speed = 0.5;
+                const offset = i * Math.PI / 3;
+
+                // Gentle bobbing
+                sm.mesh.position.y = sm.mesh.userData.pos[1] + Math.sin(state.time * speed + offset) * 0.5;
+
+                // Update connection line geometry
+                const positions = sm.line.geometry.attributes.position.array;
+                positions[3] = sm.mesh.position.x;
+                positions[4] = sm.mesh.position.y;
+                positions[5] = sm.mesh.position.z;
+                sm.line.geometry.attributes.position.needsUpdate = true;
+
+                // Rotate stations
+                sm.mesh.rotation.y += delta;
+                sm.mesh.rotation.x += delta * 0.5;
+            });
+
+            // Rotate particles slowly
+            particles.rotation.y += delta * 0.05;
+
+            renderer.render(scene, camera);
+        }
+
+        // Hide loading
+        document.getElementById('loading').style.opacity = '0';
+        setTimeout(() => document.getElementById('loading').style.display = 'none', 500);
+
+        animate();
+    </script>
+</body>
+</html>
