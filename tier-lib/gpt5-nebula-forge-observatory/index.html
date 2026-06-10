@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>GPT-5 Nebula Forge Observatory</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #08090d;
+      --panel: rgba(13, 18, 25, 0.82);
+      --panel-strong: rgba(17, 24, 33, 0.94);
+      --line: rgba(198, 218, 255, 0.18);
+      --text: #f2f6ff;
+      --muted: #99a9bc;
+      --cyan: #59d6ff;
+      --amber: #ffc857;
+      --green: #8cf0aa;
+      --red: #ff6d76;
+      --violet: #b898ff;
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
+      background: radial-gradient(circle at 20% 10%, rgba(86, 73, 140, 0.24), transparent 34%),
+        radial-gradient(circle at 90% 80%, rgba(0, 172, 184, 0.18), transparent 32%),
+        var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+
+    body {
+      min-height: 100vh;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      border-radius: var(--radius);
+      min-height: 38px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      border-color: rgba(89, 214, 255, 0.72);
+      background: rgba(89, 214, 255, 0.12);
+    }
+
+    button[aria-pressed="true"],
+    button.is-active {
+      border-color: rgba(255, 200, 87, 0.9);
+      background: rgba(255, 200, 87, 0.16);
+      color: #fff7df;
+    }
+
+    input,
+    select {
+      width: 100%;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      min-height: 38px;
+      padding: 0 10px;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(260px, 320px) minmax(0, 1fr) minmax(260px, 340px);
+      width: 100vw;
+      height: 100vh;
+    }
+
+    .rail,
+    .inspector {
+      position: relative;
+      z-index: 3;
+      min-height: 0;
+      overflow: auto;
+      padding: 18px;
+      background: linear-gradient(180deg, var(--panel-strong), rgba(8, 10, 14, 0.88));
+      border-color: var(--line);
+    }
+
+    .rail {
+      border-right: 1px solid var(--line);
+    }
+
+    .inspector {
+      border-left: 1px solid var(--line);
+    }
+
+    .stage {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .hud {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      bottom: 18px;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(8, 11, 17, 0.74);
+      padding: 10px;
+      backdrop-filter: blur(16px);
+    }
+
+    .metric span,
+    .label,
+    .kicker,
+    dt {
+      color: var(--muted);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 1.15rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    header {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .kicker {
+      color: var(--amber);
+    }
+
+    h1,
+    h2,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 1.35rem;
+      line-height: 1.05;
+    }
+
+    h2 {
+      font-size: 0.95rem;
+      margin-bottom: 10px;
+    }
+
+    .stack,
+    .control-group,
+    .station-list,
+    .log {
+      display: grid;
+      gap: 10px;
+    }
+
+    .control-group {
+      margin: 16px 0;
+    }
+
+    .segmented {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .segmented button {
+      padding: 0 6px;
+      font-size: 0.8rem;
+    }
+
+    .station-list button {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 9px;
+      text-align: left;
+      min-height: 44px;
+      padding: 8px 10px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--station-color, var(--cyan));
+      box-shadow: 0 0 14px var(--station-color, var(--cyan));
+    }
+
+    .station-list small,
+    dd {
+      color: var(--muted);
+    }
+
+    .readout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 12px 0 18px;
+    }
+
+    .readout div,
+    .mini-panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.05);
+      padding: 10px;
+    }
+
+    dl {
+      display: grid;
+      grid-template-columns: 92px 1fr;
+      gap: 8px 10px;
+      margin: 0;
+    }
+
+    dd {
+      margin: 0;
+    }
+
+    .bar {
+      height: 8px;
+      margin-top: 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+    }
+
+    .bar span {
+      display: block;
+      width: calc(var(--value, 0) * 1%);
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--cyan), var(--amber));
+    }
+
+    .log {
+      margin-top: 14px;
+      max-height: 150px;
+      overflow: auto;
+    }
+
+    .log p {
+      border-left: 2px solid rgba(89, 214, 255, 0.5);
+      padding: 6px 0 6px 9px;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .corner-label {
+      position: absolute;
+      top: 18px;
+      left: 18px;
+      z-index: 2;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(8, 11, 17, 0.68);
+      padding: 10px 12px;
+      backdrop-filter: blur(14px);
+      pointer-events: none;
+    }
+
+    .corner-label strong {
+      display: block;
+      font-size: 0.9rem;
+    }
+
+    .corner-label span {
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    @media (max-width: 980px) {
+      html,
+      body {
+        overflow: auto;
+      }
+
+      .app {
+        grid-template-columns: 1fr;
+        height: auto;
+        min-height: 100vh;
+      }
+
+      .rail,
+      .inspector {
+        border: 0;
+        overflow: visible;
+      }
+
+      .stage {
+        min-height: 62vh;
+      }
+
+      .hud {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 560px) {
+      .hud {
+        position: relative;
+        left: auto;
+        right: auto;
+        bottom: auto;
+        grid-template-columns: 1fr;
+        padding: 12px;
+      }
+
+      .corner-label {
+        left: 12px;
+        top: 12px;
+        right: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <aside class="rail" aria-label="Observatory controls">
+      <header>
+        <p class="kicker">GPT-5 side-by-side / Three.js + GSAP</p>
+        <h1>Nebula Forge Observatory</h1>
+      </header>
+
+      <section class="control-group" aria-labelledby="modeTitle">
+        <h2 id="modeTitle">Forge mode</h2>
+        <div class="segmented" id="modeButtons"></div>
+      </section>
+
+      <section class="control-group" aria-labelledby="outputTitle">
+        <h2 id="outputTitle">Output intensity</h2>
+        <label class="label" for="outputRange">Core draw</label>
+        <input id="outputRange" type="range" min="35" max="100" value="68">
+      </section>
+
+      <section class="control-group" aria-labelledby="filterTitle">
+        <h2 id="filterTitle">Station filter</h2>
+        <select id="stationFilter">
+          <option value="all">All stations</option>
+          <option value="reactor">Reactors</option>
+          <option value="sensor">Sensors</option>
+          <option value="logistics">Logistics</option>
+        </select>
+      </section>
+
+      <section class="control-group" aria-labelledby="stationTitle">
+        <h2 id="stationTitle">Stations</h2>
+        <div class="station-list" id="stationList"></div>
+      </section>
+
+      <section class="control-group" aria-labelledby="actionsTitle">
+        <h2 id="actionsTitle">Actions</h2>
+        <button type="button" id="hazardButton" aria-pressed="false">Hazard scan</button>
+        <button type="button" id="orbitButton" aria-pressed="true">Auto orbit</button>
+        <button type="button" id="resetButton">Reset view</button>
+      </section>
+    </aside>
+
+    <section class="stage" aria-label="3D nebula forge scene">
+      <div class="corner-label">
+        <strong id="sceneLabel">Ignition alignment</strong>
+        <span id="sceneSubLabel">Orbit the forge or select a station.</span>
+      </div>
+      <div id="canvasHost"></div>
+      <div class="hud" aria-label="Live forge metrics">
+        <div class="metric"><span>Flux</span><strong id="fluxMetric">0 TW</strong></div>
+        <div class="metric"><span>Stability</span><strong id="stabilityMetric">0%</strong></div>
+        <div class="metric"><span>Hazard</span><strong id="hazardMetric">Calm</strong></div>
+        <div class="metric"><span>Selected</span><strong id="selectedMetric">None</strong></div>
+      </div>
+    </section>
+
+    <aside class="inspector" aria-label="Station inspector">
+      <section class="stack">
+        <div>
+          <p class="kicker" id="stationRole">Station</p>
+          <h2 id="stationName">No station selected</h2>
+        </div>
+        <p id="stationSummary">The forge is idling while the observatory synchronizes.</p>
+        <div class="readout">
+          <div>
+            <span class="label">Output</span>
+            <strong id="stationOutput">0%</strong>
+            <div class="bar" style="--value:0"><span></span></div>
+          </div>
+          <div>
+            <span class="label">Risk</span>
+            <strong id="stationRisk">0%</strong>
+            <div class="bar" style="--value:0"><span></span></div>
+          </div>
+        </div>
+        <div class="mini-panel">
+          <dl>
+            <dt>Mode</dt><dd id="detailMode">Ignition</dd>
+            <dt>Orbit</dt><dd id="detailOrbit">Enabled</dd>
+            <dt>Scan</dt><dd id="detailScan">Dormant</dd>
+            <dt>Vector</dt><dd id="detailVector">0, 0, 0</dd>
+          </dl>
+        </div>
+        <div>
+          <h2>Event log</h2>
+          <div class="log" id="eventLog"></div>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+    const stations = [
+      { id: "helios", name: "Helios Crucible", role: "reactor", color: "#ffc857", pos: [-3.2, 0.5, -1.4], output: 82, risk: 42, summary: "Primary plasma kiln stabilizing the forge halo." },
+      { id: "vesper", name: "Vesper Lens", role: "sensor", color: "#59d6ff", pos: [2.8, 1.1, -1.8], output: 64, risk: 18, summary: "Long-baseline lens reading dust shear around the core." },
+      { id: "morrow", name: "Morrow Dock", role: "logistics", color: "#8cf0aa", pos: [-1.7, -0.9, 2.8], output: 58, risk: 27, summary: "Cargo spine routing cooled star-metal into shielded holds." },
+      { id: "umbra", name: "Umbra Condenser", role: "reactor", color: "#b898ff", pos: [3.1, -0.55, 2.2], output: 71, risk: 55, summary: "Shadow-matter condenser catching runaway flares." },
+      { id: "keel", name: "Keel Array", role: "sensor", color: "#ff6d76", pos: [0.15, 1.8, 3.1], output: 49, risk: 36, summary: "Magnetic keel mapping torsion waves through the cloud." }
+    ];
+
+    const modes = {
+      ignition: { label: "Ignition", core: "#ffc857", flux: 9.8, stability: 83, speed: 1.25 },
+      survey: { label: "Survey", core: "#59d6ff", flux: 6.1, stability: 94, speed: 0.65 },
+      cooling: { label: "Cooling", core: "#8cf0aa", flux: 4.4, stability: 88, speed: 0.42 }
+    };
+
+    const state = {
+      mode: "ignition",
+      selected: stations[0].id,
+      output: 68,
+      hazard: false,
+      autoOrbit: true,
+      filter: "all",
+      ticks: 0
+    };
+
+    window.forgeState = state;
+
+    const host = document.querySelector("#canvasHost");
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x08090d, 0.045);
+    const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 100);
+    camera.position.set(6.4, 4.2, 7.2);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    host.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.maxDistance = 13;
+    controls.minDistance = 4.2;
+    controls.target.set(0, 0.1, 0);
+
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    const clock = new THREE.Clock();
+    const stationMeshes = new Map();
+    const stationGroups = new Map();
+
+    scene.add(new THREE.AmbientLight(0x9db8ff, 0.45));
+    const key = new THREE.PointLight(0x59d6ff, 14, 18);
+    key.position.set(1.6, 4.8, 3.6);
+    scene.add(key);
+    const warm = new THREE.PointLight(0xffc857, 10, 15);
+    warm.position.set(-4.6, -0.8, -2.2);
+    scene.add(warm);
+
+    const forge = new THREE.Group();
+    scene.add(forge);
+
+    const coreMaterial = new THREE.MeshStandardMaterial({
+      color: modes[state.mode].core,
+      emissive: modes[state.mode].core,
+      emissiveIntensity: 1.4,
+      roughness: 0.28,
+      metalness: 0.18
+    });
+    const core = new THREE.Mesh(new THREE.IcosahedronGeometry(1.08, 5), coreMaterial);
+    forge.add(core);
+
+    const ringMaterial = new THREE.MeshStandardMaterial({
+      color: 0x59d6ff,
+      emissive: 0x1f7f99,
+      emissiveIntensity: 0.8,
+      roughness: 0.2,
+      metalness: 0.65,
+      transparent: true,
+      opacity: 0.8
+    });
+    const rings = [0, 1, 2].map((i) => {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(1.72 + i * 0.55, 0.018, 12, 180), ringMaterial.clone());
+      ring.rotation.set(Math.PI / 2 + i * 0.25, i * 0.45, 0);
+      forge.add(ring);
+      return ring;
+    });
+
+    const particleCount = 900;
+    const particleGeometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    const colors = new Float32Array(particleCount * 3);
+    for (let i = 0; i < particleCount; i += 1) {
+      const radius = 3.6 + Math.random() * 6.8;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(THREE.MathUtils.randFloatSpread(2));
+      positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+      positions[i * 3 + 1] = THREE.MathUtils.randFloatSpread(4.8);
+      positions[i * 3 + 2] = radius * Math.sin(phi) * Math.sin(theta);
+      const color = new THREE.Color(i % 3 === 0 ? "#59d6ff" : i % 3 === 1 ? "#ffc857" : "#b898ff");
+      colors.set([color.r, color.g, color.b], i * 3);
+    }
+    particleGeometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    particleGeometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    const particles = new THREE.Points(
+      particleGeometry,
+      new THREE.PointsMaterial({ size: 0.035, vertexColors: true, transparent: true, opacity: 0.72, depthWrite: false })
+    );
+    scene.add(particles);
+
+    const connectorMaterial = new THREE.LineBasicMaterial({ color: 0x8ba8c7, transparent: true, opacity: 0.36 });
+    stations.forEach((station) => {
+      const group = new THREE.Group();
+      group.position.set(...station.pos);
+      const color = new THREE.Color(station.color);
+      const body = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(0.26, 0),
+        new THREE.MeshStandardMaterial({
+          color,
+          emissive: color,
+          emissiveIntensity: 0.65,
+          roughness: 0.36,
+          metalness: 0.5
+        })
+      );
+      body.userData.stationId = station.id;
+      const halo = new THREE.Mesh(
+        new THREE.TorusGeometry(0.42, 0.018, 10, 72),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.62 })
+      );
+      halo.rotation.x = Math.PI / 2;
+      const mast = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.025, 0.04, 0.9, 8),
+        new THREE.MeshStandardMaterial({ color: 0xe4eefb, roughness: 0.3, metalness: 0.7 })
+      );
+      mast.position.y = -0.42;
+      group.add(body, halo, mast);
+      scene.add(group);
+
+      const lineGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), group.position]);
+      const line = new THREE.Line(lineGeometry, connectorMaterial.clone());
+      scene.add(line);
+
+      stationMeshes.set(station.id, body);
+      stationGroups.set(station.id, { group, halo, body, line });
+    });
+
+    const modeButtons = document.querySelector("#modeButtons");
+    Object.entries(modes).forEach(([key, mode]) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = mode.label;
+      button.dataset.mode = key;
+      button.addEventListener("click", () => setMode(key));
+      modeButtons.append(button);
+    });
+
+    const stationList = document.querySelector("#stationList");
+    const eventLog = document.querySelector("#eventLog");
+    const outputRange = document.querySelector("#outputRange");
+    const hazardButton = document.querySelector("#hazardButton");
+    const orbitButton = document.querySelector("#orbitButton");
+    const stationFilter = document.querySelector("#stationFilter");
+
+    function logEvent(message) {
+      const entry = document.createElement("p");
+      entry.textContent = message;
+      eventLog.prepend(entry);
+      while (eventLog.children.length > 7) eventLog.lastElementChild.remove();
+    }
+
+    function selectedStation() {
+      return stations.find((station) => station.id === state.selected) || stations[0];
+    }
+
+    function renderStationList() {
+      const visible = stations.filter((station) => state.filter === "all" || station.role === state.filter);
+      stationList.replaceChildren(...visible.map((station) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = station.id === state.selected ? "is-active" : "";
+        button.style.setProperty("--station-color", station.color);
+        button.innerHTML = `<span class="dot"></span><span>${station.name}<br><small>${station.role}</small></span><strong>${station.output}%</strong>`;
+        button.addEventListener("click", () => selectStation(station.id, true));
+        return button;
+      }));
+    }
+
+    function renderUi() {
+      const station = selectedStation();
+      const mode = modes[state.mode];
+      modeButtons.querySelectorAll("button").forEach((button) => {
+        button.setAttribute("aria-pressed", String(button.dataset.mode === state.mode));
+      });
+      hazardButton.setAttribute("aria-pressed", String(state.hazard));
+      orbitButton.setAttribute("aria-pressed", String(state.autoOrbit));
+      document.querySelector("#stationRole").textContent = station.role;
+      document.querySelector("#stationName").textContent = station.name;
+      document.querySelector("#stationSummary").textContent = station.summary;
+      document.querySelector("#stationOutput").textContent = `${station.output}%`;
+      document.querySelector("#stationRisk").textContent = `${Math.min(99, station.risk + (state.hazard ? 18 : 0))}%`;
+      document.querySelector("#stationOutput").nextElementSibling.style.setProperty("--value", station.output);
+      document.querySelector("#stationRisk").nextElementSibling.style.setProperty("--value", Math.min(99, station.risk + (state.hazard ? 18 : 0)));
+      document.querySelector("#detailMode").textContent = mode.label;
+      document.querySelector("#detailOrbit").textContent = state.autoOrbit ? "Enabled" : "Manual";
+      document.querySelector("#detailScan").textContent = state.hazard ? "Active" : "Dormant";
+      document.querySelector("#detailVector").textContent = station.pos.map((value) => value.toFixed(1)).join(", ");
+      document.querySelector("#sceneLabel").textContent = `${mode.label} alignment`;
+      document.querySelector("#sceneSubLabel").textContent = `${station.name} / ${station.role}`;
+      document.querySelector("#fluxMetric").textContent = `${(mode.flux * state.output / 68).toFixed(1)} TW`;
+      document.querySelector("#stabilityMetric").textContent = `${Math.max(42, mode.stability - (state.hazard ? 16 : 0) - Math.round((state.output - 68) / 7))}%`;
+      document.querySelector("#hazardMetric").textContent = state.hazard ? "Scanning" : "Calm";
+      document.querySelector("#selectedMetric").textContent = station.name.split(" ")[0];
+      renderStationList();
+
+      stationGroups.forEach(({ group, halo, body }, id) => {
+        const visible = state.filter === "all" || stations.find((station) => station.id === id).role === state.filter;
+        group.visible = visible;
+        const isSelected = id === state.selected;
+        gsap.to(group.scale, { x: isSelected ? 1.48 : 1, y: isSelected ? 1.48 : 1, z: isSelected ? 1.48 : 1, duration: 0.45, ease: "power2.out" });
+        gsap.to(halo.material, { opacity: isSelected ? 0.95 : 0.44, duration: 0.35 });
+        gsap.to(body.material, { emissiveIntensity: isSelected ? 1.55 : 0.62, duration: 0.35 });
+      });
+    }
+
+    function setMode(modeKey) {
+      if (!modes[modeKey] || state.mode === modeKey) return;
+      state.mode = modeKey;
+      const mode = modes[modeKey];
+      gsap.to(coreMaterial.color, { r: new THREE.Color(mode.core).r, g: new THREE.Color(mode.core).g, b: new THREE.Color(mode.core).b, duration: 0.8 });
+      gsap.to(coreMaterial.emissive, { r: new THREE.Color(mode.core).r, g: new THREE.Color(mode.core).g, b: new THREE.Color(mode.core).b, duration: 0.8 });
+      gsap.fromTo(core.scale, { x: 1.18, y: 1.18, z: 1.18 }, { x: 1, y: 1, z: 1, duration: 0.8, ease: "elastic.out(1, 0.45)" });
+      logEvent(`${mode.label} mode engaged.`);
+      renderUi();
+    }
+
+    function selectStation(id, focusCamera) {
+      state.selected = id;
+      const station = selectedStation();
+      if (focusCamera) {
+        const target = new THREE.Vector3(...station.pos);
+        gsap.to(controls.target, { x: target.x * 0.42, y: target.y * 0.42, z: target.z * 0.42, duration: 0.7, ease: "power2.out" });
+        gsap.to(camera.position, { x: target.x + 3.2, y: target.y + 2.3, z: target.z + 3.5, duration: 0.9, ease: "power2.inOut" });
+      }
+      logEvent(`${station.name} selected for ${stations.find((s) => s.id === id).role} telemetry.`);
+      renderUi();
+    }
+
+    outputRange.addEventListener("input", () => {
+      state.output = Number(outputRange.value);
+      gsap.to(core.scale, {
+        x: 0.8 + state.output / 100,
+        y: 0.8 + state.output / 100,
+        z: 0.8 + state.output / 100,
+        duration: 0.25
+      });
+      renderUi();
+    });
+
+    hazardButton.addEventListener("click", () => {
+      state.hazard = !state.hazard;
+      logEvent(state.hazard ? "Hazard scan lit the risk lattice." : "Hazard scan folded back into standby.");
+      renderUi();
+    });
+
+    orbitButton.addEventListener("click", () => {
+      state.autoOrbit = !state.autoOrbit;
+      renderUi();
+    });
+
+    stationFilter.addEventListener("change", () => {
+      state.filter = stationFilter.value;
+      logEvent(`Filtered to ${state.filter === "all" ? "all stations" : state.filter}.`);
+      renderUi();
+    });
+
+    document.querySelector("#resetButton").addEventListener("click", () => {
+      gsap.to(camera.position, { x: 6.4, y: 4.2, z: 7.2, duration: 0.8, ease: "power2.inOut" });
+      gsap.to(controls.target, { x: 0, y: 0.1, z: 0, duration: 0.8, ease: "power2.inOut" });
+      logEvent("View reset to the observatory rail.");
+    });
+
+    renderer.domElement.addEventListener("pointerdown", (event) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObjects([...stationMeshes.values()], false);
+      if (hits[0]?.object?.userData?.stationId) selectStation(hits[0].object.userData.stationId, true);
+    });
+
+    function resize() {
+      const { clientWidth, clientHeight } = document.querySelector(".stage");
+      renderer.setSize(clientWidth, clientHeight, false);
+      camera.aspect = clientWidth / Math.max(1, clientHeight);
+      camera.updateProjectionMatrix();
+    }
+
+    new ResizeObserver(resize).observe(document.querySelector(".stage"));
+
+    function animate() {
+      const delta = clock.getDelta();
+      const elapsed = clock.elapsedTime;
+      state.ticks += 1;
+      const mode = modes[state.mode];
+      if (state.autoOrbit) forge.rotation.y += delta * 0.12 * mode.speed;
+      core.rotation.y -= delta * 0.24 * mode.speed;
+      core.rotation.x += delta * 0.11;
+      rings.forEach((ring, index) => {
+        ring.rotation.z += delta * (0.18 + index * 0.08) * mode.speed;
+        ring.material.opacity = state.hazard ? 0.92 : 0.52 + Math.sin(elapsed + index) * 0.16;
+      });
+      particles.rotation.y += delta * 0.025 * mode.speed;
+      particles.rotation.x = Math.sin(elapsed * 0.08) * 0.08;
+      stationGroups.forEach(({ group, halo, line }, id) => {
+        const station = stations.find((item) => item.id === id);
+        group.rotation.y += delta * (0.5 + station.output / 180);
+        group.position.y = station.pos[1] + Math.sin(elapsed * 1.4 + station.output) * 0.055;
+        halo.rotation.z += delta * (state.hazard ? 2.4 : 0.8);
+        line.material.opacity = id === state.selected ? 0.86 : 0.26;
+      });
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
+
+    resize();
+    selectStation(state.selected, false);
+    logEvent("Observatory online with pinned Three.js 0.166.1 and GSAP 3.12.5.");
+    window.toyReady = true;
+    animate();
+  </script>
+</body>
+</html>
