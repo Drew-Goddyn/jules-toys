@@ -498,5 +498,55 @@ window.galleryItems = [
     kind: "GPT-5 library physics comparison",
     tags: ["GPT-5", "Rapier", "PixiJS", "GSAP", "typography", "comparison"],
     oneLine: "GPT-5 comparison: turns typed glyphs into Rapier/Pixi city bodies with punctuation anchors, shockwaves, material reinforcement, and GSAP reconstruction."
+  },
+  {
+    tier: 12,
+    title: "Birefringence: The Crystal Polarizer",
+    slug: "birefringence-crystal-polarizer",
+    path: "tier-lib/birefringence-crystal-polarizer/index.html",
+    screenshot: "tier-lib/birefringence-crystal-polarizer/screenshot.png",
+    kind: "Library optics puzzle",
+    tags: ["Jules", "PixiJS", "XState", "GSAP", "optics", "science"],
+    oneLine: "Runs a polarized-light microscope where PixiJS crystals, XState lab phases, polarizer/focus controls, scans, fractures, and anomaly isolation all update probe state."
+  },
+  {
+    tier: 12,
+    title: "Deep-Crust Seismic Tomography",
+    slug: "deep-crust-seismic-tomography",
+    path: "tier-lib/deep-crust-seismic-tomography/index.html",
+    screenshot: "tier-lib/deep-crust-seismic-tomography/screenshot.png",
+    kind: "Library geology instrument",
+    tags: ["Jules", "Tone.js", "Matter.js", "Three.js", "geology", "audio"],
+    oneLine: "Deploys thumpers and geophones, detonates Matter.js wavefronts, maps subterranean nodes, raises magma pressure, and renders a Three.js cross-section."
+  },
+  {
+    tier: 12,
+    title: "Solar Cyanotype Press",
+    slug: "solar-cyanotype-press",
+    path: "tier-lib/solar-cyanotype-press/index.html",
+    screenshot: "tier-lib/solar-cyanotype-press/screenshot.png",
+    kind: "Library printmaking simulator",
+    tags: ["Jules", "PixiJS", "Matter.js", "GSAP", "chemistry", "craft"],
+    oneLine: "Places physical objects on a cyanotype bed, accumulates blue PixiJS exposure, creates ghost silhouettes, and washes the print into a fixed final state."
+  },
+  {
+    tier: 12,
+    title: "Switchboard Protocol Operator",
+    slug: "switchboard-protocol-operator",
+    path: "tier-lib/switchboard-protocol-operator/index.html",
+    screenshot: "tier-lib/switchboard-protocol-operator/screenshot.png",
+    kind: "Library scheduling puzzle",
+    tags: ["Jules", "Interact.js", "XState", "D3", "rules", "infrastructure"],
+    oneLine: "Patches protocol cables on an operator board while XState call lifecycles, D3 bandwidth timelines, overloads, drops, and active patches evolve."
+  },
+  {
+    tier: 12,
+    title: "Rosetta Stratum",
+    slug: "rosetta-stratum",
+    path: "tier-lib/rosetta-stratum/index.html",
+    screenshot: "tier-lib/rosetta-stratum/screenshot.png",
+    kind: "Library translation engine",
+    tags: ["Jules", "Zustand", "Compromise.js", "GSAP", "language", "archive"],
+    oneLine: "Assigns glyph meanings, forks parallel translations, flags syntax paradoxes with Compromise.js, and shifts confidence in a Zustand translation desk."
   }
 ];
