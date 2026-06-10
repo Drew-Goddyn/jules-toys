@@ -277,6 +277,7 @@
                 this.dragLine = null;
                 this.loadedEvidenceType = null;
                 this.objectionCooldown = false;
+                this.trailGraphics = null;
             }
 
             preload() {
@@ -290,6 +291,16 @@
                 const cx = this.scale.width / 2;
                 const cy = this.scale.height / 2;
 
+                // Ambient rings to show gravitational field
+                const bgGraphics = this.add.graphics();
+                bgGraphics.lineStyle(1, 0x4a4a7a, 0.3);
+                bgGraphics.strokeCircle(cx, cy, 150);
+                bgGraphics.strokeCircle(cx, cy, 300);
+                bgGraphics.strokeCircle(cx, cy, 450);
+
+                // Graphics layer for trails
+                this.trailGraphics = this.add.graphics();
+
                 // Create the Judge Star (central gravity well)
                 this.judge = this.matter.add.image(cx, cy, 'judge', null, {
                     isStatic: true,
@@ -297,8 +308,6 @@
                     circleRadius: 60,
                     label: 'judge'
                 });
-
-                // Ambient particles or rings could go here
 
                 // Add graphics for drag line
                 this.dragLine = this.add.graphics();
@@ -418,6 +427,8 @@
                 });
 
                 piece.setMass(mass);
+                piece.trail = []; // Array to store recent positions
+                piece.trailColor = type === 'witness' ? 0x00aaff : (type === 'exhibit' ? 0x00ffaa : 0xff3333);
 
                 // Apply force based on drag vector (reversed, like a slingshot)
                 const forceMagnitude = 0.0005 * mass;
@@ -609,7 +620,9 @@
                 const cy = this.scale.height / 2;
                 const G = 0.05; // Gravity constant
 
-                // Apply orbital gravity
+                this.trailGraphics.clear();
+
+                // Apply orbital gravity and draw trails
                 for (let i = this.evidencePieces.length - 1; i >= 0; i--) {
                     const piece = this.evidencePieces[i];
                     if (!piece.active) continue;
@@ -621,6 +634,24 @@
                         piece.destroy();
                         this.evidencePieces.splice(i, 1);
                         continue;
+                    }
+
+                    // Trail logic
+                    if (piece.trail) {
+                        piece.trail.push(new Phaser.Math.Vector2(piece.x, piece.y));
+                        if (piece.trail.length > 30) {
+                            piece.trail.shift();
+                        }
+
+                        if (piece.trail.length > 1) {
+                            this.trailGraphics.lineStyle(2, piece.trailColor, 0.6);
+                            this.trailGraphics.beginPath();
+                            this.trailGraphics.moveTo(piece.trail[0].x, piece.trail[0].y);
+                            for (let j = 1; j < piece.trail.length; j++) {
+                                this.trailGraphics.lineTo(piece.trail[j].x, piece.trail[j].y);
+                            }
+                            this.trailGraphics.strokePath();
+                        }
                     }
 
                     // Calculate distance and direction to judge
@@ -712,8 +743,12 @@
 
                 await new Promise(r => setTimeout(r, 1000));
 
-                // Wait for simulation to run and orbits to establish
-                await new Promise(r => setTimeout(r, 2500));
+                // 3. Fire an objection to establish a second distinct orbit
+                scene.loadedEvidenceType = 'objection';
+                scene.fireEvidence(cx, cy + 250, new Phaser.Math.Vector2(-150, 0)); // Fire from bottom right, tangent horizontally
+
+                // Wait for simulation to run and orbits/trails to establish visually
+                await new Promise(r => setTimeout(r, 3500));
 
                 return window.__toyProbe.getState();
             }
