@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inkquake City</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #f8f9fa;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #1a1a1a;
+    }
+
+    #canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+    }
+
+    #ui-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 1.5rem;
+      box-sizing: border-box;
+    }
+
+    .panel {
+      pointer-events: auto;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+      padding: 1rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .top-panel {
+      align-self: flex-start;
+      max-width: 400px;
+      width: 100%;
+    }
+
+    .bottom-panel {
+      align-self: stretch;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .bottom-row {
+      display: flex;
+      gap: 1rem;
+      width: 100%;
+      max-width: 600px;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+    }
+
+    .metric-item {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid #eaeaea;
+      padding-bottom: 0.25rem;
+    }
+
+    .metric-value {
+      font-weight: 600;
+      font-family: monospace;
+    }
+
+    .sentence-display {
+      margin-top: 0.75rem;
+      font-weight: 500;
+      font-size: 0.9rem;
+      line-height: 1.4;
+      padding: 0.5rem;
+      background: #f1f3f5;
+      border-radius: 4px;
+      word-wrap: break-word;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+
+    button {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 4px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-primary { background: #1a1a1a; color: white; }
+    .btn-primary:hover { background: #333; }
+
+    .btn-secondary { background: #e9ecef; color: #1a1a1a; }
+    .btn-secondary:hover { background: #dee2e6; }
+
+    .btn-danger { background: #fa5252; color: white; }
+    .btn-danger:hover { background: #f03e3e; }
+
+    .slider-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      width: 100%;
+      max-width: 200px;
+    }
+
+    .slider-group label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    input[type="range"] {
+      width: 100%;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.4.2/pixi.min.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "@dimforge/rapier2d-compat": "https://cdn.jsdelivr.net/npm/@dimforge/rapier2d-compat@0.12.0/rapier.es.js"
+      }
+    }
+  </script>
+</head>
+<body>
+
+  <div id="canvas-container"></div>
+
+  <div id="ui-layer">
+    <div class="panel top-panel">
+      <div style="font-weight: 800; font-size: 1.2rem; margin-bottom: 1rem; letter-spacing: -0.02em;">Inkquake City</div>
+      <div class="metrics">
+        <div class="metric-item"><span>Stability:</span> <span id="metric-stability" class="metric-value">100%</span></div>
+        <div class="metric-item"><span>Collapsed:</span> <span id="metric-collapsed" class="metric-value">0</span></div>
+        <div class="metric-item"><span>Anchors:</span> <span id="metric-anchors" class="metric-value">0</span></div>
+        <div class="metric-item"><span>Glyphs:</span> <span id="metric-glyphs" class="metric-value">0</span></div>
+      </div>
+      <div class="sentence-display" id="sentence-display">Type to build your city.</div>
+    </div>
+
+    <div class="panel bottom-panel">
+      <div style="width: 100%; max-width: 600px;">
+        <input type="text" id="sentence-input" placeholder="Type a sentence to build..." value="Hello, world. The inkquake approaches!">
+      </div>
+
+      <div class="bottom-row">
+        <div class="slider-group">
+          <label for="material-slider"><span>Material Density</span> <span id="material-val">Medium</span></label>
+          <input type="range" id="material-slider" min="1" max="100" value="50">
+        </div>
+
+        <button id="btn-shockwave" class="btn-danger">Trigger Shockwave</button>
+        <button id="btn-rebuild" class="btn-primary">Rebuild Skyline</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import RAPIER from '@dimforge/rapier2d-compat';
+
+    let app;
+    let glyphs = [];
+    let world;
+    let physicsLoop;
+    const physicsScale = 50; // pixels per meter
+
+    // Globals for integration
+    window.toyState = {
+      libsLoaded: false,
+      sentence: "Hello, world. The inkquake approaches!",
+      materialDensity: 50,
+      shockwaveCount: 0,
+      stability: 100,
+      collapsedCount: 0
+    };
+
+    window.__toyProbe = {
+      getState: () => {
+        const anchorsCount = glyphs.filter(g => g.isAnchor).length;
+        return {
+          libsLoaded: window.toyState.libsLoaded,
+          sentence: window.toyState.sentence,
+          glyphCount: glyphs.length,
+          bodyCount: glyphs.filter(g => g.body).length,
+          collapsedCount: window.toyState.collapsedCount,
+          anchorCount: anchorsCount,
+          shockwaveCount: window.toyState.shockwaveCount,
+          stability: window.toyState.stability
+        };
+      },
+      runDemo: async () => {
+        // Change sentence
+        document.getElementById('sentence-input').value = "Test sentence, ready! Drop and shock.";
+        document.getElementById('sentence-input').dispatchEvent(new Event('input'));
+
+        // Wait for bodies to fall
+        await new Promise(r => setTimeout(r, 1500));
+
+        // Apply shockwave
+        document.getElementById('btn-shockwave').click();
+        await new Promise(r => setTimeout(r, 1000));
+
+        // Change material
+        document.getElementById('material-slider').value = 90;
+        document.getElementById('material-slider').dispatchEvent(new Event('input'));
+
+        // Rebuild
+        document.getElementById('btn-rebuild').click();
+        await new Promise(r => setTimeout(r, 1600)); // wait for GSAP animation (1.5s)
+
+        // Another shockwave
+        document.getElementById('btn-shockwave').click();
+        await new Promise(r => setTimeout(r, 1000));
+
+        return window.__toyProbe.getState();
+      }
+    };
+
+    async function init() {
+      await RAPIER.init();
+      console.log('Rapier loaded');
+      window.toyState.libsLoaded = !!(RAPIER.World && window.PIXI && window.gsap);
+
+      initPixi();
+
+      const input = document.getElementById('sentence-input');
+      input.addEventListener('input', (e) => {
+        window.toyState.sentence = e.target.value;
+        document.getElementById('sentence-display').innerText = e.target.value || "Type to build your city.";
+        buildCity();
+      });
+
+      const slider = document.getElementById('material-slider');
+      slider.addEventListener('input', (e) => {
+        window.toyState.materialDensity = parseInt(e.target.value);
+        document.getElementById('material-val').innerText = window.toyState.materialDensity + "%";
+        updatePhysicsMaterials();
+      });
+
+      document.getElementById('btn-shockwave').addEventListener('click', triggerShockwave);
+      document.getElementById('btn-rebuild').addEventListener('click', rebuildSkyline);
+
+      initPhysics();
+
+      // Initialize with default text
+      document.getElementById('sentence-display').innerText = window.toyState.sentence;
+      buildCity();
+
+      app.ticker.add(gameLoop);
+    }
+
+    function initPhysics() {
+      let gravity = { x: 0.0, y: 9.81 };
+      world = new RAPIER.World(gravity);
+
+      // Create ground
+      const groundBodyDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(window.innerWidth / 2 / physicsScale, (window.innerHeight - 80) / physicsScale);
+      const groundBody = world.createRigidBody(groundBodyDesc);
+      const groundColliderDesc = RAPIER.ColliderDesc.cuboid(window.innerWidth / physicsScale, 0.5);
+      world.createCollider(groundColliderDesc, groundBody);
+    }
+
+    function updatePhysicsMaterials() {
+      const densityMap = window.toyState.materialDensity / 10;
+      glyphs.forEach(g => {
+        if (!g.isAnchor && g.collider) {
+          g.collider.setDensity(densityMap);
+        }
+      });
+    }
+
+    function initPixi() {
+      app = new PIXI.Application({
+        resizeTo: window,
+        backgroundColor: 0xf8f9fa,
+        resolution: window.devicePixelRatio || 1,
+        autoDensity: true,
+        antialias: true
+      });
+      document.getElementById('canvas-container').appendChild(app.view);
+    }
+
+    function clearPhysics() {
+      glyphs.forEach(g => {
+        if (g.body) {
+          world.removeRigidBody(g.body);
+        }
+      });
+    }
+
+    function buildCity() {
+      // Clear previous glyphs
+      glyphs.forEach(g => {
+        if (g.sprite) app.stage.removeChild(g.sprite);
+      });
+      clearPhysics();
+      glyphs = [];
+
+      const text = window.toyState.sentence;
+      if (!text) return;
+
+      // Create buildings
+      const startX = 50;
+      let currentX = startX;
+      const baseY = app.screen.height - 100;
+
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        if (char === ' ') {
+          currentX += 30; // Space width
+          continue;
+        }
+
+        // Punctuation is anchor, others are buildings
+        const isAnchor = /^[.,!?;:'"()\[\]{}\-]$/.test(char);
+
+        const style = new PIXI.TextStyle({
+          fontFamily: 'Impact, "Arial Black", sans-serif',
+          fontSize: isAnchor ? 48 : 80 + Math.random() * 40,
+          fill: isAnchor ? '#fa5252' : '#1a1a1a',
+          fontWeight: 'bold',
+        });
+
+        const textSprite = new PIXI.Text(char, style);
+        textSprite.anchor.set(0.5, 1.0); // Bottom center
+
+        // Initial position
+        const startY = baseY - 500;
+        textSprite.x = currentX + textSprite.width / 2;
+        textSprite.y = startY;
+
+        app.stage.addChild(textSprite);
+
+        const w = textSprite.width / 2 / physicsScale;
+        const h = textSprite.height / 2 / physicsScale;
+
+        // Physics Body
+        const bodyDesc = isAnchor ?
+          RAPIER.RigidBodyDesc.fixed().setTranslation(textSprite.x / physicsScale, baseY / physicsScale) :
+          RAPIER.RigidBodyDesc.dynamic().setTranslation(textSprite.x / physicsScale, startY / physicsScale);
+
+        const body = world.createRigidBody(bodyDesc);
+
+        // Physics Collider
+        const density = window.toyState.materialDensity / 10;
+        const colliderDesc = RAPIER.ColliderDesc.cuboid(w, h).setDensity(isAnchor ? 10 : density).setFriction(0.5).setRestitution(0.2);
+        const collider = world.createCollider(colliderDesc, body);
+
+        // Only drop dynamic bodies via GSAP logic proxy
+        if (!isAnchor) {
+          // Pause physics for this body initially to let GSAP handle the drop
+          body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased);
+
+          gsap.to(textSprite, {
+            y: baseY,
+            alpha: 1,
+            duration: 1,
+            ease: "bounce.out",
+            delay: i * 0.05,
+            onUpdate: function() {
+              body.setNextKinematicTranslation({ x: textSprite.x / physicsScale, y: textSprite.y / physicsScale });
+            },
+            onComplete: function() {
+              body.setBodyType(RAPIER.RigidBodyType.Dynamic);
+            }
+          });
+        } else {
+          gsap.fromTo(textSprite, { alpha: 0 }, { alpha: 1, duration: 1, delay: i * 0.05 });
+        }
+
+        glyphs.push({
+          char: char,
+          sprite: textSprite,
+          body: body,
+          collider: collider,
+          isAnchor: isAnchor,
+          originalX: textSprite.x,
+          originalY: baseY,
+          width: textSprite.width,
+          height: textSprite.height,
+          collapsed: false
+        });
+
+        currentX += textSprite.width + 5;
+      }
+
+      updateUI();
+    }
+
+    function triggerShockwave() {
+      window.toyState.shockwaveCount++;
+      const center = window.innerWidth / 2 / physicsScale;
+
+      glyphs.forEach(g => {
+        if (!g.isAnchor && g.body && g.body.bodyType() === RAPIER.RigidBodyType.Dynamic) {
+          const pos = g.body.translation();
+          const dist = Math.abs(pos.x - center) + 1; // Prevent div by 0
+
+          // Random impulse upwards and outwards
+          const dirX = (pos.x > center ? 1 : -1) * (Math.random() * 20) / dist;
+          const forceY = -(Math.random() * 50 + 20) / dist;
+
+          g.body.applyImpulse({ x: dirX, y: forceY }, true);
+          g.body.applyTorqueImpulse((Math.random() - 0.5) * 5, true);
+        }
+      });
+    }
+
+    function rebuildSkyline() {
+      glyphs.forEach((g, i) => {
+        if (!g.isAnchor && g.body) {
+          g.collapsed = false;
+          // Switch to kinematic to control it
+          g.body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased);
+          g.body.setLinvel({ x: 0, y: 0 }, true);
+          g.body.setAngvel(0, true);
+
+          gsap.to(g.sprite, {
+            x: g.originalX,
+            y: g.originalY,
+            rotation: 0,
+            duration: 1.5,
+            ease: "back.out(1.2)",
+            onUpdate: function() {
+              g.body.setNextKinematicTranslation({ x: g.sprite.x / physicsScale, y: g.sprite.y / physicsScale });
+              g.body.setNextKinematicRotation(g.sprite.rotation);
+            },
+            onComplete: function() {
+              g.body.setBodyType(RAPIER.RigidBodyType.Dynamic);
+              g.body.setTranslation({ x: g.originalX / physicsScale, y: g.originalY / physicsScale }, true);
+              g.body.setRotation(0, true);
+            }
+          });
+        }
+      });
+    }
+
+    function gameLoop() {
+      if (!world) return;
+      world.step();
+
+      let totalDeviation = 0;
+      let dynamicCount = 0;
+      let collapsedCount = 0;
+
+      glyphs.forEach(g => {
+        if (g.body && g.sprite) {
+          const pos = g.body.translation();
+          const rot = g.body.rotation();
+
+          // Render via Pixi
+          g.sprite.x = pos.x * physicsScale;
+          g.sprite.y = pos.y * physicsScale;
+          g.sprite.rotation = rot;
+
+          // Check stress/collapse
+          if (!g.isAnchor) {
+            dynamicCount++;
+            const angleDev = Math.abs(rot % (Math.PI * 2));
+            const yDev = Math.abs((pos.y * physicsScale) - g.originalY);
+
+            totalDeviation += Math.min(yDev / 50 + angleDev, 5); // cap deviation
+
+            if (angleDev > Math.PI / 4 || yDev > 20) {
+              if (!g.collapsed) {
+                g.collapsed = true;
+                gsap.to(g.sprite.style, { fill: '#868e96', duration: 0.5 });
+              }
+              collapsedCount++;
+            } else {
+              if (g.collapsed) {
+                g.collapsed = false;
+                gsap.to(g.sprite.style, { fill: '#1a1a1a', duration: 0.5 });
+              }
+            }
+          }
+        }
+      });
+
+      window.toyState.collapsedCount = collapsedCount;
+      if (dynamicCount > 0) {
+        const stabilityFactor = Math.max(0, 100 - (totalDeviation / dynamicCount) * 20);
+        window.toyState.stability = Math.round(stabilityFactor);
+      } else {
+        window.toyState.stability = 100;
+      }
+
+      updateUI();
+    }
+
+    function updateUI() {
+      const anchorsCount = glyphs.filter(g => g.isAnchor).length;
+      document.getElementById('metric-glyphs').innerText = glyphs.length;
+      document.getElementById('metric-anchors').innerText = anchorsCount;
+      document.getElementById('metric-collapsed').innerText = window.toyState.collapsedCount;
+      document.getElementById('metric-stability').innerText = window.toyState.stability + "%";
+
+      const stabEl = document.getElementById('metric-stability');
+      if (window.toyState.stability < 30) stabEl.style.color = '#fa5252';
+      else if (window.toyState.stability < 70) stabEl.style.color = '#f59f00';
+      else stabEl.style.color = '#1a1a1a';
+    }
+
+    init();
+  </script>
+</body>
+</html>
