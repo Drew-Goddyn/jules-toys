@@ -228,5 +228,85 @@ window.galleryItems = [
     kind: "Turn-based canvas game",
     tags: ["salvage", "grid", "hazards", "survival"],
     oneLine: "Plays a grid-based salvage run with hull, energy, shields, scanning, moving hazards, and extraction objective."
+  },
+  {
+    tier: 9,
+    title: "Signal Drift Rally",
+    slug: "signal-drift-rally",
+    path: "tier9/signal-drift-rally/index.html",
+    screenshot: "tier9/signal-drift-rally/screenshot.png",
+    kind: "Arcade progression game",
+    tags: ["racing", "levels", "energy", "restart"],
+    oneLine: "Uses keyboard thrust and steering to collect signal nodes, complete level 1, proceed to level 2, hit game-over on energy depletion, and restart."
+  },
+  {
+    tier: 9,
+    title: "Living Printmaker",
+    slug: "living-printmaker",
+    path: "tier9/living-printmaker/index.html",
+    screenshot: "tier9/living-printmaker/screenshot.png",
+    kind: "Generative poster tool",
+    tags: ["poster", "palette", "animation", "export"],
+    oneLine: "Changes modes, palettes, title, seed, density, motion, and layers, supports undo/pause, opens JSON preset export, and downloads PNG."
+  },
+  {
+    tier: 9,
+    title: "Ant Colony Command",
+    slug: "ant-colony-command",
+    path: "tier9/ant-colony-command/index.html",
+    screenshot: "tier9/ant-colony-command/screenshot.png",
+    kind: "Emergent colony simulation",
+    tags: ["ants", "pheromones", "simulation", "milestones"],
+    oneLine: "Places food, obstacles, and pheromone beacons, stores food through ant foraging, advances score/waves, triggers rain and predator events, and pauses/resumes the sim."
+  },
+  {
+    tier: 9,
+    title: "GPT-5 Tideprint Studio",
+    slug: "gpt5-tideprint-studio",
+    path: "tier9/gpt5-tideprint-studio/index.html",
+    screenshot: "tier9/gpt5-tideprint-studio/screenshot.png",
+    kind: "GPT-5 side-by-side creative tool",
+    tags: ["GPT-5", "poster", "canvas", "export"],
+    oneLine: "GPT-5 comparison: changes modes, palettes, title, seed, layers, live motion, history, and exports local PNG/JSON presets."
+  },
+  {
+    tier: 10,
+    title: "Starship Rogue Circuit",
+    slug: "starship-rogue-circuit",
+    path: "tier10/starship-rogue-circuit/index.html",
+    screenshot: "tier10/starship-rogue-circuit/screenshot.png",
+    kind: "Procedural roguelike",
+    tags: ["roguelike", "combat", "inventory", "decks"],
+    oneLine: "Starts without load errors, picks up and uses a medkit, fires and takes damage in combat, and reaches the exit to load Deck 2."
+  },
+  {
+    tier: 10,
+    title: "Neon Orchestra Ecosystem",
+    slug: "neon-orchestra-ecosystem",
+    path: "tier10/neon-orchestra-ecosystem/index.html",
+    screenshot: "tier10/neon-orchestra-ecosystem/screenshot.png",
+    kind: "Generative audio-visual instrument",
+    tags: ["audio", "sequencer", "agents", "export"],
+    oneLine: "Starts a Web Audio orchestra, changes presets/tempo/scale, toggles voices and sequencer cells, logs events, pauses/resumes, and exports rules JSON."
+  },
+  {
+    tier: 10,
+    title: "Softbody Factory",
+    slug: "softbody-factory",
+    path: "tier10/softbody-factory/index.html",
+    screenshot: "tier10/softbody-factory/screenshot.png",
+    kind: "Physics construction sandbox",
+    tags: ["physics", "softbody", "factory", "export"],
+    oneLine: "Builds soft bodies, particles, conveyors, fans, and goal bins through the UI, runs physics scoring, toggles slow-mo, and exports layout JSON."
+  },
+  {
+    tier: 10,
+    title: "GPT-5 Rogue Relay",
+    slug: "gpt5-rogue-relay",
+    path: "tier10/gpt5-rogue-relay/index.html",
+    screenshot: "tier10/gpt5-rogue-relay/screenshot.png",
+    kind: "GPT-5 side-by-side roguelike",
+    tags: ["GPT-5", "roguelike", "combat", "inventory"],
+    oneLine: "GPT-5 comparison: generates ship decks with fog, loot, enemies, combat logs, scanner, inventory actions, damage, restart, and deck progression."
   }
 ];
