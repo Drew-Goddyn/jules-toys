@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GPT-5 Rogue Relay</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0f16;
+      --panel: #121a24;
+      --panel-2: #182332;
+      --line: #2a394d;
+      --ink: #eef6ff;
+      --muted: #92a7bc;
+      --accent: #67e8f9;
+      --accent-2: #facc15;
+      --danger: #fb7185;
+      --good: #86efac;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #122033 0, var(--bg) 46%);
+      color: var(--ink);
+      overflow: hidden;
+    }
+
+    button {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel-2);
+      color: var(--ink);
+      cursor: pointer;
+      font: inherit;
+      font-weight: 800;
+    }
+
+    button:hover { border-color: var(--accent); }
+    button.primary { background: #155e75; border-color: #22d3ee; }
+    button.danger { background: #5c1f2a; border-color: #fb7185; }
+
+    .app {
+      display: grid;
+      grid-template-columns: 286px minmax(480px, 1fr) 330px;
+      gap: 14px;
+      height: 100vh;
+      padding: 14px;
+    }
+
+    .panel {
+      min-height: 0;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgb(18 26 36 / 0.94);
+      box-shadow: 0 20px 70px rgb(0 0 0 / 0.34);
+    }
+
+    header {
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    .provenance {
+      margin-top: 8px;
+      color: var(--accent-2);
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .stats {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 10px;
+      background: #0e1520;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .bars {
+      display: grid;
+      gap: 8px;
+      padding: 0 14px 14px;
+    }
+
+    .bar {
+      display: grid;
+      gap: 5px;
+    }
+
+    .bar label {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .track {
+      height: 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #081019;
+      overflow: hidden;
+    }
+
+    .fill {
+      height: 100%;
+      width: 50%;
+      background: var(--accent);
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      padding: 14px;
+      border-top: 1px solid var(--line);
+    }
+
+    .controls button:nth-child(1) { grid-column: 2; }
+    .controls button:nth-child(2) { grid-column: 1; grid-row: 2; }
+    .controls button:nth-child(3) { grid-column: 2; grid-row: 2; }
+    .controls button:nth-child(4) { grid-column: 3; grid-row: 2; }
+    .wide {
+      grid-column: 1 / -1;
+    }
+
+    .stage {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      overflow: hidden;
+    }
+
+    .topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .board-wrap {
+      display: grid;
+      place-items: center;
+      min-height: 0;
+      padding: 16px;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(13, minmax(26px, 42px));
+      grid-template-rows: repeat(13, minmax(26px, 42px));
+      gap: 3px;
+      width: min(100%, 620px);
+      aspect-ratio: 1;
+    }
+
+    .cell {
+      display: grid;
+      place-items: center;
+      border-radius: 4px;
+      background: #05080c;
+      color: #506070;
+      font-size: clamp(13px, 2.5vw, 22px);
+      font-weight: 900;
+      user-select: none;
+    }
+
+    .floor { background: #172233; color: #38516c; }
+    .wall { background: #273142; color: #52677d; }
+    .fog { background: #03060a; color: transparent; }
+    .player { background: #0e7490; color: white; box-shadow: 0 0 18px rgb(103 232 249 / 0.45); }
+    .enemy { background: #5f1724; color: #fecdd3; }
+    .loot { background: #43320b; color: #fde68a; }
+    .exit { background: #14532d; color: #bbf7d0; }
+    .door { background: #332316; color: #f7cb6b; }
+    .seen { filter: saturate(0.72) brightness(0.7); }
+
+    .message {
+      min-height: 46px;
+      padding: 12px 14px;
+      border-top: 1px solid var(--line);
+      color: var(--accent-2);
+      font-weight: 800;
+    }
+
+    .right {
+      display: grid;
+      grid-template-rows: auto minmax(160px, 1fr) minmax(200px, 1fr);
+    }
+
+    .section {
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+      overflow: auto;
+      min-height: 0;
+    }
+
+    h2 {
+      margin: 0 0 10px;
+      font-size: 15px;
+      letter-spacing: 0;
+    }
+
+    .inventory {
+      display: grid;
+      gap: 8px;
+    }
+
+    .item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px;
+      background: #0e1520;
+    }
+
+    .item small {
+      color: var(--muted);
+      display: block;
+      margin-top: 2px;
+    }
+
+    .item button {
+      min-height: 30px;
+      padding: 0 10px;
+    }
+
+    .log {
+      display: grid;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .log div {
+      border-left: 3px solid var(--accent);
+      padding-left: 8px;
+    }
+
+    .help {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 1060px) {
+      body { overflow: auto; }
+      .app {
+        grid-template-columns: 1fr;
+        height: auto;
+        min-height: 100vh;
+      }
+      .board { grid-template-columns: repeat(13, 1fr); grid-template-rows: repeat(13, 1fr); }
+      .right { grid-template-rows: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="panel">
+      <header>
+        <h1>GPT-5 Rogue Relay</h1>
+        <div class="provenance">GPT-5 side-by-side</div>
+      </header>
+      <div class="stats">
+        <div class="stat"><strong id="deck">1</strong><span>deck</span></div>
+        <div class="stat"><strong id="score">0</strong><span>score</span></div>
+        <div class="stat"><strong id="turn">0</strong><span>turn</span></div>
+        <div class="stat"><strong id="keys">0</strong><span>keys</span></div>
+      </div>
+      <div class="bars">
+        <div class="bar"><label>Hull <span id="hpText">30/30</span></label><div class="track"><div id="hpFill" class="fill"></div></div></div>
+        <div class="bar"><label>Shield <span id="shieldText">8/8</span></label><div class="track"><div id="shieldFill" class="fill"></div></div></div>
+        <div class="bar"><label>Charge <span id="chargeText">2</span></label><div class="track"><div id="chargeFill" class="fill"></div></div></div>
+      </div>
+      <div class="controls">
+        <button data-move="0,-1">N</button>
+        <button data-move="-1,0">W</button>
+        <button data-wait="1">Wait</button>
+        <button data-move="1,0">E</button>
+        <button data-move="0,1">S</button>
+        <button id="scan" class="wide">Pulse Scanner</button>
+        <button id="newRun" class="primary wide">New Run</button>
+        <button id="restart" class="danger wide">Restart Deck</button>
+      </div>
+    </section>
+
+    <section class="panel stage">
+      <div class="topline">
+        <strong id="status">Ready</strong>
+        <span>Arrow/WASD to move, bump enemies to attack, reach relay exits.</span>
+      </div>
+      <div class="board-wrap">
+        <div id="board" class="board" aria-label="Roguelike board"></div>
+      </div>
+      <div id="message" class="message">Click New Run, then move through the derelict relay.</div>
+    </section>
+
+    <section class="panel right">
+      <div class="section">
+        <h2>Inventory</h2>
+        <div id="inventory" class="inventory"></div>
+      </div>
+      <div class="section">
+        <h2>Combat Log</h2>
+        <div id="log" class="log"></div>
+      </div>
+      <div class="section help">
+        <h2>Systems</h2>
+        Procedural decks combine fog of war, patrolling enemies, loot, keys, doors, scanners, inventory, combat, and three-deck progression. Defeat the relay core on deck 3 or lose your hull.
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const SIZE = 13;
+    const $ = (id) => document.getElementById(id);
+    const boardEl = $("board");
+    const itemTypes = [
+      { name: "Patch Foam", icon: "+", desc: "Repair 10 hull", use: (g) => { g.hp = Math.min(g.maxHp, g.hp + 10); return "Patch foam sealed the hull."; } },
+      { name: "Arc Battery", icon: "B", desc: "Gain 3 charge", use: (g) => { g.charge = Math.min(6, g.charge + 3); return "Battery overclocked the relay suit."; } },
+      { name: "Signal Blade", icon: "/", desc: "+2 attack this deck", use: (g) => { g.attack += 2; return "Signal blade tuned for close combat."; } },
+      { name: "Phase Key", icon: "K", desc: "Open relay doors", use: (g) => { g.keys += 1; return "Phase key synchronized."; } }
+    ];
+    let game;
+    let audio;
+
+    function rng(seed) {
+      let s = seed >>> 0;
+      return () => {
+        s = (s * 1664525 + 1013904223) >>> 0;
+        return s / 4294967296;
+      };
+    }
+
+    function startAudio() {
+      if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+      if (audio.state === "suspended") audio.resume();
+    }
+
+    function beep(freq, type = "sine", length = 0.08) {
+      if (!audio) return;
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.04, audio.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + length);
+      osc.connect(gain).connect(audio.destination);
+      osc.start();
+      osc.stop(audio.currentTime + length);
+    }
+
+    function log(text) {
+      game.log.unshift(text);
+      game.log = game.log.slice(0, 11);
+      $("log").innerHTML = game.log.map((entry) => `<div>${entry}</div>`).join("");
+    }
+
+    function newGame(deck = 1, carry = {}) {
+      const seed = Date.now() % 1000000 + deck * 777;
+      const rand = rng(seed);
+      const map = Array.from({ length: SIZE }, () => Array.from({ length: SIZE }, () => "#"));
+      const rooms = [];
+      for (let i = 0; i < 7; i += 1) {
+        const w = 3 + Math.floor(rand() * 4);
+        const h = 3 + Math.floor(rand() * 4);
+        const x = 1 + Math.floor(rand() * (SIZE - w - 1));
+        const y = 1 + Math.floor(rand() * (SIZE - h - 1));
+        rooms.push({ x, y, w, h, cx: Math.floor(x + w / 2), cy: Math.floor(y + h / 2) });
+        for (let yy = y; yy < y + h; yy += 1) {
+          for (let xx = x; xx < x + w; xx += 1) map[yy][xx] = ".";
+        }
+      }
+      for (let i = 1; i < rooms.length; i += 1) {
+        const a = rooms[i - 1];
+        const b = rooms[i];
+        for (let x = Math.min(a.cx, b.cx); x <= Math.max(a.cx, b.cx); x += 1) map[a.cy][x] = ".";
+        for (let y = Math.min(a.cy, b.cy); y <= Math.max(a.cy, b.cy); y += 1) map[y][b.cx] = ".";
+      }
+      const start = rooms[0];
+      const exit = rooms[rooms.length - 1];
+      map[exit.cy][exit.cx] = ">";
+      if (rooms[3]) map[rooms[3].cy][rooms[3].cx] = "D";
+      const g = {
+        deck,
+        seed,
+        map,
+        visible: Array.from({ length: SIZE }, () => Array.from({ length: SIZE }, () => false)),
+        seen: Array.from({ length: SIZE }, () => Array.from({ length: SIZE }, () => false)),
+        player: { x: start.cx, y: start.cy },
+        exit: { x: exit.cx, y: exit.cy },
+        enemies: [],
+        loot: [],
+        inventory: carry.inventory || [],
+        hp: carry.hp || 30,
+        maxHp: 30,
+        shield: carry.shield || 8,
+        maxShield: 8,
+        attack: carry.attack || 5,
+        charge: carry.charge || 2,
+        keys: carry.keys || 0,
+        score: carry.score || 0,
+        turn: 0,
+        over: false,
+        won: false,
+        log: []
+      };
+      for (let i = 1; i < rooms.length - 1; i += 1) {
+        if (rand() < 0.75) g.enemies.push({ x: rooms[i].cx, y: rooms[i].cy, hp: 7 + deck * 3, icon: deck === 3 ? "C" : "E", asleep: rand() < 0.3 });
+        if (rand() < 0.85) g.loot.push({ x: rooms[i].x, y: rooms[i].y, item: itemTypes[Math.floor(rand() * itemTypes.length)] });
+      }
+      game = g;
+      reveal(3);
+      log(`Deck ${deck} generated from seed ${seed}.`);
+      setMessage("Find the relay exit. Loot before enemies corner you.");
+      render();
+    }
+
+    function inBounds(x, y) { return x >= 0 && y >= 0 && x < SIZE && y < SIZE; }
+    function tile(x, y) { return inBounds(x, y) ? game.map[y][x] : "#"; }
+    function enemyAt(x, y) { return game.enemies.find((e) => e.x === x && e.y === y && e.hp > 0); }
+    function lootAt(x, y) { return game.loot.find((l) => l.x === x && l.y === y); }
+    function passable(x, y) { return tile(x, y) !== "#" && tile(x, y) !== "D"; }
+
+    function reveal(radius) {
+      for (let y = 0; y < SIZE; y += 1) {
+        for (let x = 0; x < SIZE; x += 1) game.visible[y][x] = false;
+      }
+      for (let dy = -radius; dy <= radius; dy += 1) {
+        for (let dx = -radius; dx <= radius; dx += 1) {
+          const x = game.player.x + dx;
+          const y = game.player.y + dy;
+          if (!inBounds(x, y)) continue;
+          if (Math.hypot(dx, dy) <= radius + 0.25) {
+            game.visible[y][x] = true;
+            game.seen[y][x] = true;
+          }
+        }
+      }
+    }
+
+    function setMessage(text) {
+      $("message").textContent = text;
+      $("status").textContent = game?.over ? (game.won ? "Run won" : "Run lost") : "Exploring";
+    }
+
+    function move(dx, dy) {
+      startAudio();
+      if (!game || game.over) return;
+      const nx = game.player.x + dx;
+      const ny = game.player.y + dy;
+      const enemy = enemyAt(nx, ny);
+      if (enemy) {
+        enemy.hp -= game.attack;
+        beep(180, "sawtooth", 0.09);
+        log(`You hit ${enemy.icon === "C" ? "the core sentinel" : "a drone"} for ${game.attack}.`);
+        if (enemy.hp <= 0) {
+          game.score += 25 + game.deck * 10;
+          log("Enemy destroyed.");
+          beep(420, "triangle", 0.1);
+        }
+        endTurn();
+        return;
+      }
+      const t = tile(nx, ny);
+      if (t === "#") return setMessage("Bulkhead blocks the route.");
+      if (t === "D") {
+        if (game.keys > 0) {
+          game.keys -= 1;
+          game.map[ny][nx] = ".";
+          log("Phase key opened the relay door.");
+          beep(520, "sine", 0.08);
+        } else {
+          return setMessage("Relay door requires a phase key.");
+        }
+      }
+      game.player.x = nx;
+      game.player.y = ny;
+      const loot = lootAt(nx, ny);
+      if (loot) {
+        game.inventory.push(loot.item);
+        game.loot = game.loot.filter((l) => l !== loot);
+        game.score += 10;
+        log(`Picked up ${loot.item.name}.`);
+        beep(660, "sine", 0.07);
+      }
+      if (t === ">") advanceDeck();
+      else endTurn();
+    }
+
+    function advanceDeck() {
+      if (game.deck >= 3) {
+        game.over = true;
+        game.won = true;
+        game.score += 250;
+        log("Relay core secured. Extraction complete.");
+        setMessage("Victory: three decks cleared. New Run starts a fresh seed.");
+        beep(740, "triangle", 0.18);
+        render();
+        return;
+      }
+      const carry = {
+        inventory: game.inventory.slice(0, 5),
+        hp: Math.min(game.maxHp, game.hp + 5),
+        shield: game.maxShield,
+        attack: game.attack,
+        charge: Math.min(6, game.charge + 1),
+        keys: game.keys,
+        score: game.score + 80
+      };
+      newGame(game.deck + 1, carry);
+      setMessage(`Deck ${game.deck} reached. Score and gear carried forward.`);
+    }
+
+    function endTurn() {
+      game.turn += 1;
+      if (game.shield < game.maxShield && game.turn % 3 === 0) game.shield += 1;
+      enemiesAct();
+      reveal(3);
+      if (game.hp <= 0) {
+        game.over = true;
+        game.won = false;
+        setMessage("Hull failed. Restart or begin a new run.");
+        beep(90, "sawtooth", 0.2);
+      } else {
+        setMessage("Turn resolved.");
+      }
+      render();
+    }
+
+    function enemiesAct() {
+      for (const e of game.enemies) {
+        if (e.hp <= 0) continue;
+        const dist = Math.abs(e.x - game.player.x) + Math.abs(e.y - game.player.y);
+        if (dist === 1) {
+          const damage = 3 + game.deck;
+          const shieldHit = Math.min(game.shield, damage);
+          game.shield -= shieldHit;
+          game.hp -= damage - shieldHit;
+          log(`Enemy struck for ${damage}; shield absorbed ${shieldHit}.`);
+          beep(120, "square", 0.06);
+          continue;
+        }
+        if (dist <= 6 || !e.asleep) {
+          e.asleep = false;
+          const options = [
+            { x: e.x + Math.sign(game.player.x - e.x), y: e.y },
+            { x: e.x, y: e.y + Math.sign(game.player.y - e.y) }
+          ].filter((p) => passable(p.x, p.y) && !enemyAt(p.x, p.y) && !(p.x === game.player.x && p.y === game.player.y));
+          if (options.length) {
+            const best = options.sort((a, b) =>
+              (Math.abs(a.x - game.player.x) + Math.abs(a.y - game.player.y)) -
+              (Math.abs(b.x - game.player.x) + Math.abs(b.y - game.player.y))
+            )[0];
+            e.x = best.x;
+            e.y = best.y;
+          }
+        }
+      }
+    }
+
+    function waitTurn() {
+      startAudio();
+      if (!game || game.over) return;
+      log("You held position and listened to the relay.");
+      endTurn();
+    }
+
+    function useItem(index) {
+      startAudio();
+      if (!game || game.over) return;
+      const item = game.inventory[index];
+      if (!item) return;
+      game.inventory.splice(index, 1);
+      log(item.use(game));
+      beep(500, "triangle", 0.08);
+      endTurn();
+    }
+
+    function scan() {
+      startAudio();
+      if (!game || game.over) return;
+      if (game.charge <= 0) return setMessage("Scanner is out of charge.");
+      game.charge -= 1;
+      reveal(6);
+      log("Pulse scanner revealed nearby rooms.");
+      beep(880, "sine", 0.12);
+      render();
+    }
+
+    function render() {
+      boardEl.innerHTML = "";
+      for (let y = 0; y < SIZE; y += 1) {
+        for (let x = 0; x < SIZE; x += 1) {
+          const cell = document.createElement("div");
+          cell.className = "cell";
+          if (!game.seen[y][x]) {
+            cell.classList.add("fog");
+          } else {
+            const t = tile(x, y);
+            cell.classList.add(t === "#" ? "wall" : t === "D" ? "door" : "floor");
+            if (!game.visible[y][x]) cell.classList.add("seen");
+            cell.textContent = t === "#" ? "" : t === ">" ? "⇥" : t === "D" ? "▣" : "";
+            const loot = lootAt(x, y);
+            const enemy = enemyAt(x, y);
+            if (loot && game.visible[y][x]) {
+              cell.className = "cell loot";
+              cell.textContent = loot.item.icon;
+            }
+            if (enemy && game.visible[y][x]) {
+              cell.className = "cell enemy";
+              cell.textContent = enemy.icon;
+            }
+          }
+          if (game.player.x === x && game.player.y === y) {
+            cell.className = "cell player";
+            cell.textContent = "@";
+          }
+          boardEl.appendChild(cell);
+        }
+      }
+      $("deck").textContent = game.deck;
+      $("score").textContent = game.score;
+      $("turn").textContent = game.turn;
+      $("keys").textContent = game.keys;
+      $("hpText").textContent = `${game.hp}/${game.maxHp}`;
+      $("shieldText").textContent = `${game.shield}/${game.maxShield}`;
+      $("chargeText").textContent = game.charge;
+      $("hpFill").style.width = `${Math.max(0, game.hp / game.maxHp * 100)}%`;
+      $("shieldFill").style.width = `${game.shield / game.maxShield * 100}%`;
+      $("chargeFill").style.width = `${game.charge / 6 * 100}%`;
+      $("inventory").innerHTML = game.inventory.map((item, index) => `
+        <div class="item">
+          <div><strong>${item.icon} ${item.name}</strong><small>${item.desc}</small></div>
+          <button type="button" data-use="${index}">Use</button>
+        </div>
+      `).join("") || "<span style='color: var(--muted)'>Inventory empty. Search rooms for gear.</span>";
+      document.querySelectorAll("[data-use]").forEach((button) => button.addEventListener("click", () => useItem(Number(button.dataset.use))));
+      $("status").textContent = game.over ? (game.won ? "Run won" : "Run lost") : "Exploring";
+      $("log").innerHTML = game.log.map((entry) => `<div>${entry}</div>`).join("");
+    }
+
+    document.querySelectorAll("[data-move]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const [dx, dy] = button.dataset.move.split(",").map(Number);
+        move(dx, dy);
+      });
+    });
+    document.querySelector("[data-wait]").addEventListener("click", waitTurn);
+    $("scan").addEventListener("click", scan);
+    $("newRun").addEventListener("click", () => {
+      startAudio();
+      newGame(1);
+      beep(440, "triangle", 0.08);
+    });
+    $("restart").addEventListener("click", () => {
+      startAudio();
+      const deck = game?.deck || 1;
+      newGame(deck);
+      setMessage(`Restarted deck ${deck}.`);
+    });
+    window.addEventListener("keydown", (event) => {
+      const key = event.key.toLowerCase();
+      const moves = { arrowup: [0, -1], w: [0, -1], arrowdown: [0, 1], s: [0, 1], arrowleft: [-1, 0], a: [-1, 0], arrowright: [1, 0], d: [1, 0] };
+      if (moves[key]) {
+        event.preventDefault();
+        move(...moves[key]);
+      }
+      if (key === " ") {
+        event.preventDefault();
+        waitTurn();
+      }
+      if (key === "q") scan();
+    });
+
+    newGame(1);
+  </script>
+</body>
+</html>
