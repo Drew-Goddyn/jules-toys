@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Argument Aquarium</title>
+    <style>
+        :root {
+            --bg-color: #001f3f;
+            --text-color: #f0f8ff;
+            --panel-bg: rgba(0, 20, 40, 0.85);
+            --border-color: #005f99;
+            --claim-color: #2ecc71;
+            --evidence-color: #3498db;
+            --doubt-color: #f1c40f;
+            --counter-color: #e74c3c;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #aquarium-container {
+            flex-grow: 1;
+            position: relative;
+            cursor: grab;
+        }
+
+        #aquarium-container:active {
+            cursor: grabbing;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .sidebar {
+            width: 320px;
+            background: var(--panel-bg);
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem;
+            box-sizing: border-box;
+            gap: 1.5rem;
+            z-index: 10;
+            overflow-y: auto;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.5);
+        }
+
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                border-left: none;
+                border-top: 1px solid var(--border-color);
+                height: 40vh;
+                box-shadow: 0 -2px 10px rgba(0,0,0,0.5);
+            }
+            #aquarium-container {
+                height: 60vh;
+            }
+        }
+
+        h2, h3 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.2rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.2rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #87ceeb;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-size: 0.9rem;
+            margin-bottom: 0.3rem;
+            color: #b0c4de;
+        }
+
+        input[type="text"], select, input[type="range"] {
+            padding: 0.6rem;
+            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+
+        input[type="text"]:focus, select:focus, input[type="range"]:focus {
+            outline: none;
+            border-color: #4da6ff;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        button {
+            padding: 0.7rem;
+            background-color: #005f99;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+            transition: background-color 0.2s, transform 0.1s;
+            margin-top: 0.5rem;
+        }
+
+        button:hover {
+            background-color: #007bb5;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        #warnings {
+            color: #ff9999;
+            font-size: 0.9rem;
+            background: rgba(200, 0, 0, 0.2);
+            padding: 0.8rem;
+            border-radius: 4px;
+            border: 1px solid #cc0000;
+            display: none;
+            margin-bottom: 1rem;
+        }
+
+        .item-details {
+            font-size: 0.9rem;
+            background: rgba(255,255,255,0.05);
+            padding: 1rem;
+            border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .item-details p {
+            margin: 0.5rem 0;
+            line-height: 1.4;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.5px;
+        }
+
+        .tag-claim { background: var(--claim-color); color: #000; }
+        .tag-evidence { background: var(--evidence-color); color: #000; }
+        .tag-doubt { background: var(--doubt-color); color: #000; }
+        .tag-counterexample { background: var(--counter-color); color: #fff; }
+
+        .node text {
+            pointer-events: none;
+            font-family: sans-serif;
+            font-size: 11px;
+            font-weight: bold;
+            text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+        }
+
+        .node circle {
+            cursor: pointer;
+            transition: stroke-width 0.2s;
+        }
+
+        .node circle:hover {
+            stroke-width: 4px;
+        }
+
+        .link {
+            stroke: rgba(255,255,255,0.3);
+            stroke-width: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div id="aquarium-container">
+        <svg id="aquarium-svg"></svg>
+    </div>
+
+    <div class="sidebar">
+        <div>
+            <h2>Add to Aquarium</h2>
+            <div id="warnings"></div>
+            <div class="form-group">
+                <label for="type">Type</label>
+                <select id="type">
+                    <option value="claim">Claim (Base Idea)</option>
+                    <option value="evidence">Evidence (Reef Builder)</option>
+                    <option value="doubt">Doubt (Bubbles Up)</option>
+                    <option value="counterexample">Counter (Predator)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="text">Text / Idea</label>
+                <input type="text" id="text" placeholder="Enter idea (min 3 chars)..." autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="strength">Strength / Confidence</label>
+                <input type="range" id="strength" min="1" max="10" value="5">
+                <div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-top:0.3rem;">
+                    <span>1</span><span id="strength-val" style="font-weight:bold;">5</span><span>10</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="linkTo">Link To (Optional)</label>
+                <select id="linkTo">
+                    <option value="">None</option>
+                </select>
+            </div>
+            <button id="add-btn">Add Organism</button>
+        </div>
+
+        <div>
+            <h2>Inspector</h2>
+            <div id="inspector-content">
+                <div class="item-details" style="text-align: center; color: #888;">
+                    Click an organism in the aquarium to view its details.
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <h2>Ecology Status</h2>
+            <div class="item-details">
+                <p><strong>Total Organisms:</strong> <span id="total-count">0</span></p>
+                <p><strong>Ecology Tension:</strong> <span id="tension-score">0</span></p>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "d3": "https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm",
+            "zod": "https://cdn.jsdelivr.net/npm/zod@3.23.8/+esm",
+            "zustand/vanilla": "https://cdn.jsdelivr.net/npm/zustand@4.5.2/esm/vanilla.mjs"
+        }
+    }
+    </script>
+    <script type="module">
+        import * as d3 from "d3";
+        import { z } from "zod";
+        import { createStore } from "zustand/vanilla";
+
+        let libsLoaded = false;
+        if (d3 && z && createStore) {
+            libsLoaded = true;
+        }
+
+        // --- 1. Zod Schema ---
+        const itemSchema = z.object({
+            id: z.string(),
+            type: z.enum(["claim", "evidence", "doubt", "counterexample"]),
+            text: z.string().min(3, "Text must be at least 3 characters long"),
+            strength: z.number().min(1).max(10),
+            linkTo: z.string().optional().nullable()
+        });
+
+        // --- 2. Zustand Store ---
+        const store = createStore((set, get) => ({
+            items: [],
+            links: [],
+            validationIssues: [],
+            validationIssueCount: 0,
+            tensionScore: 0,
+            selectedId: null,
+
+            addItemRaw: (itemData) => {
+                const parsed = itemSchema.safeParse(itemData);
+                if (!parsed.success) {
+                    const issues = parsed.error.issues.map(i => i.message);
+                    set((state) => ({
+                        validationIssues: issues,
+                        validationIssueCount: state.validationIssueCount + issues.length
+                    }));
+                    return false;
+                }
+
+                const newItem = parsed.data;
+                const state = get();
+                const newItems = [...state.items, newItem];
+
+                let newLinks = [...state.links];
+                if (newItem.linkTo && state.items.some(i => i.id === newItem.linkTo)) {
+                    newLinks.push({ source: newItem.id, target: newItem.linkTo });
+                }
+
+                let tension = 0;
+                newItems.forEach(i => {
+                    if (i.type === 'doubt' || i.type === 'counterexample') tension += i.strength;
+                });
+
+                set({
+                    items: newItems,
+                    links: newLinks,
+                    tensionScore: tension,
+                    validationIssues: []
+                });
+
+                updateSimulation();
+                return true;
+            },
+
+            selectItem: (id) => set({ selectedId: id }),
+            clearWarnings: () => set({ validationIssues: [] })
+        }));
+
+        // --- 3. D3 Setup ---
+        const svg = d3.select("#aquarium-svg");
+        const container = document.getElementById("aquarium-container");
+        let width = container.clientWidth;
+        let height = container.clientHeight;
+
+        const g = svg.append("g");
+
+        const zoom = d3.zoom()
+            .scaleExtent([0.1, 4])
+            .on("zoom", (event) => {
+                g.attr("transform", event.transform);
+            });
+
+        svg.call(zoom);
+
+        window.addEventListener("resize", () => {
+            width = container.clientWidth;
+            height = container.clientHeight;
+            simulation.alpha(0.3).restart();
+        });
+
+        const colorScale = {
+            "claim": "var(--claim-color)",
+            "evidence": "var(--evidence-color)",
+            "doubt": "var(--doubt-color)",
+            "counterexample": "var(--counter-color)"
+        };
+
+        // Custom forces
+        // Evidence: sinks to bottom (reef)
+        function forceSinking() {
+            let nodes;
+            function force(alpha) {
+                for (let i = 0, n = nodes.length; i < n; ++i) {
+                    let node = nodes[i];
+                    if (node.type === "evidence") {
+                        node.vy += alpha * 1.5 * (node.strength / 10);
+                        // Floor constraint
+                        if (node.y > height / 2 - 30) {
+                            node.y = height / 2 - 30;
+                            node.vy *= -0.2;
+                        }
+                    }
+                }
+            }
+            force.initialize = function(_) { nodes = _; };
+            return force;
+        }
+
+        // Doubt: bubbles upward
+        function forceBubbling() {
+            let nodes;
+            function force(alpha) {
+                for (let i = 0, n = nodes.length; i < n; ++i) {
+                    let node = nodes[i];
+                    if (node.type === "doubt") {
+                        node.vy -= alpha * 1.5 * (node.strength / 10);
+                        // Ceiling constraint
+                        if (node.y < -height / 2 + 30) {
+                            node.y = -height / 2 + 30;
+                            node.vy *= -0.2;
+                        }
+                    }
+                }
+            }
+            force.initialize = function(_) { nodes = _; };
+            return force;
+        }
+
+        // Counterexample: hunts claims
+        function forceHunting() {
+            let nodes;
+            function force(alpha) {
+                let claims = nodes.filter(n => n.type === "claim");
+                if (claims.length === 0) return;
+
+                for (let i = 0, n = nodes.length; i < n; ++i) {
+                    let node = nodes[i];
+                    if (node.type === "counterexample") {
+                        // find nearest claim
+                        let target = claims[0];
+                        let minDist = Infinity;
+                        for (let j = 0; j < claims.length; j++) {
+                            let c = claims[j];
+                            let dx = c.x - node.x;
+                            let dy = c.y - node.y;
+                            let dist = dx*dx + dy*dy;
+                            if (dist < minDist) {
+                                minDist = dist;
+                                target = c;
+                            }
+                        }
+
+                        if (target) {
+                            node.vx += (target.x - node.x) * alpha * 0.02 * (node.strength / 10);
+                            node.vy += (target.y - node.y) * alpha * 0.02 * (node.strength / 10);
+                        }
+                    }
+                }
+            }
+            force.initialize = function(_) { nodes = _; };
+            return force;
+        }
+
+        let simulationNodes = [];
+        let simulationLinks = [];
+
+        const simulation = d3.forceSimulation(simulationNodes)
+            .force("link", d3.forceLink(simulationLinks).id(d => d.id).distance(120))
+            .force("charge", d3.forceManyBody().strength(-300))
+            .force("center", d3.forceCenter(width / 2, height / 2).strength(0.05))
+            .force("collide", d3.forceCollide().radius(d => 25 + d.strength * 2).iterations(2))
+            .force("sinking", forceSinking())
+            .force("bubbling", forceBubbling())
+            .force("hunting", forceHunting())
+            .on("tick", ticked);
+
+        let linkSelection = g.append("g").attr("class", "links").selectAll(".link");
+        let nodeSelection = g.append("g").attr("class", "nodes").selectAll(".node");
+
+        function updateSimulation() {
+            const state = store.getState();
+
+            // Sync nodes
+            const oldNodes = new Map(simulationNodes.map(d => [d.id, d]));
+            simulationNodes = state.items.map(d => {
+                const old = oldNodes.get(d.id);
+                return old ? { ...old, ...d } : { ...d, x: width/2 + (Math.random()-0.5)*100, y: height/2 + (Math.random()-0.5)*100, vx: 0, vy: 0 };
+            });
+
+            // Sync links
+            simulationLinks = state.links.map(d => {
+                return { source: d.source, target: d.target };
+            });
+
+            simulation.nodes(simulationNodes);
+            simulation.force("link").links(simulationLinks);
+
+            // Update links
+            linkSelection = linkSelection.data(simulationLinks, d => d.source.id + "-" + d.target.id);
+            linkSelection.exit().remove();
+            const linkEnter = linkSelection.enter().append("line")
+                .attr("class", "link");
+            linkSelection = linkEnter.merge(linkSelection);
+
+            // Update nodes
+            nodeSelection = nodeSelection.data(simulationNodes, d => d.id);
+            nodeSelection.exit().remove();
+
+            const nodeEnter = nodeSelection.enter().append("g")
+                .attr("class", "node")
+                .call(d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                    .on("end", dragended))
+                .on("click", (event, d) => {
+                    store.getState().selectItem(d.id);
+                    event.stopPropagation();
+                });
+
+            nodeEnter.append("circle")
+                .attr("r", d => 15 + d.strength * 1.5)
+                .attr("fill", d => colorScale[d.type])
+                .attr("stroke", "#fff")
+                .attr("stroke-width", 2);
+
+            nodeEnter.append("text")
+                .text(d => d.text.length > 15 ? d.text.substring(0, 15) + "..." : d.text)
+                .attr("dy", d => 20 + d.strength * 1.5)
+                .attr("text-anchor", "middle")
+                .attr("fill", "#fff");
+
+            nodeSelection = nodeEnter.merge(nodeSelection);
+
+            simulation.alpha(0.8).restart();
+        }
+
+        // Deselect when clicking background
+        svg.on("click", () => {
+            store.getState().selectItem(null);
+        });
+
+        function ticked() {
+            linkSelection
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
+
+            nodeSelection
+                .attr("transform", d => `translate(${d.x},${d.y})`);
+        }
+
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+
+        // --- UI Binding ---
+        const typeSelect = document.getElementById("type");
+        const textInput = document.getElementById("text");
+        const strengthInput = document.getElementById("strength");
+        const strengthVal = document.getElementById("strength-val");
+        const linkToSelect = document.getElementById("linkTo");
+        const addBtn = document.getElementById("add-btn");
+        const warningsDiv = document.getElementById("warnings");
+        const inspectorContent = document.getElementById("inspector-content");
+        const totalCountSpan = document.getElementById("total-count");
+        const tensionScoreSpan = document.getElementById("tension-score");
+
+        strengthInput.addEventListener("input", (e) => {
+            strengthVal.textContent = e.target.value;
+        });
+
+        textInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") addBtn.click();
+        });
+
+        addBtn.addEventListener("click", () => {
+            const id = "item_" + Date.now() + Math.floor(Math.random()*1000);
+            const type = typeSelect.value;
+            const text = textInput.value;
+            const strength = parseInt(strengthInput.value, 10);
+            const linkTo = linkToSelect.value === "" ? null : linkToSelect.value;
+
+            const success = store.getState().addItemRaw({
+                id, type, text, strength, linkTo
+            });
+
+            if (success) {
+                textInput.value = "";
+                strengthInput.value = "5";
+                strengthVal.textContent = "5";
+                textInput.focus();
+            }
+        });
+
+        // Store subscription
+        store.subscribe((state, prevState) => {
+            // Update warnings
+            if (state.validationIssues.length > 0) {
+                warningsDiv.style.display = "block";
+                warningsDiv.innerHTML = state.validationIssues.map(msg => `⚠️ ${msg}`).join("<br>");
+            } else {
+                warningsDiv.style.display = "none";
+            }
+
+            // Update LinkTo dropdown
+            if (state.items !== prevState.items) {
+                const currentVal = linkToSelect.value;
+                linkToSelect.innerHTML = '<option value="">None</option>';
+                state.items.forEach(item => {
+                    const opt = document.createElement("option");
+                    opt.value = item.id;
+                    opt.textContent = `${item.type}: ${item.text.substring(0, 20)}...`;
+                    linkToSelect.appendChild(opt);
+                });
+                if (state.items.some(i => i.id === currentVal)) {
+                    linkToSelect.value = currentVal;
+                }
+            }
+
+            // Update Inspector
+            if (state.selectedId !== prevState.selectedId || state.items !== prevState.items || state.links !== prevState.links) {
+                if (state.selectedId) {
+                    const item = state.items.find(i => i.id === state.selectedId);
+                    if (item) {
+                        const sheltered = state.links.filter(l => l.target === item.id || l.target.id === item.id).length;
+                        const tensionLinked = state.links.filter(l =>
+                            (l.target === item.id || l.target.id === item.id) &&
+                            (state.items.find(i => i.id === (l.source.id || l.source))?.type === 'doubt' ||
+                             state.items.find(i => i.id === (l.source.id || l.source))?.type === 'counterexample')
+                        ).length;
+
+                        inspectorContent.innerHTML = `
+                            <div class="item-details">
+                                <span class="tag tag-${item.type}">${item.type}</span>
+                                <p><strong>Text:</strong> ${item.text}</p>
+                                <p><strong>Strength:</strong> ${item.strength}/10</p>
+                                <p><strong>Sheltered Ideas:</strong> ${sheltered} linked</p>
+                                <p><strong>Tension Pressure:</strong> ${tensionLinked} conflicts</p>
+                                <p><strong>Status:</strong> <span style="color:#2ecc71;">✓ Validated Organism</span></p>
+                            </div>
+                        `;
+
+                        // Highlight selected node
+                        nodeSelection.select("circle").attr("stroke", d => d.id === state.selectedId ? "#ffff00" : "#fff");
+                    }
+                } else {
+                    inspectorContent.innerHTML = `<div class="item-details" style="text-align: center; color: #888;">Click an organism in the aquarium to view its details.</div>`;
+                    nodeSelection.select("circle").attr("stroke", "#fff");
+                }
+            }
+
+            // Update Ecology Status
+            totalCountSpan.textContent = state.items.length;
+            tensionScoreSpan.textContent = state.tensionScore;
+        });
+
+        // --- 4. Functional Verification Hook ---
+        window.__toyProbe = {
+            getState: () => {
+                const state = store.getState();
+                let counts = { claim: 0, evidence: 0, doubt: 0, counterexample: 0 };
+                state.items.forEach(i => {
+                    if (counts[i.type] !== undefined) counts[i.type]++;
+                });
+
+                return {
+                    libsLoaded,
+                    itemCounts: counts,
+                    validationIssueCount: state.validationIssueCount,
+                    linksCount: state.links.length,
+                    tensionScore: state.tensionScore,
+                    zoomActive: true,
+                    simulationActive: simulation.alpha() > 0
+                };
+            },
+            runDemo: async () => {
+                // Add valid claim
+                store.getState().addItemRaw({
+                    id: "demo_claim_1",
+                    type: "claim",
+                    text: "The universe is expanding",
+                    strength: 8
+                });
+
+                // Add valid evidence
+                store.getState().addItemRaw({
+                    id: "demo_evidence_1",
+                    type: "evidence",
+                    text: "Redshift of distant galaxies",
+                    strength: 9,
+                    linkTo: "demo_claim_1"
+                });
+
+                // Add valid doubt
+                store.getState().addItemRaw({
+                    id: "demo_doubt_1",
+                    type: "doubt",
+                    text: "What about dark matter?",
+                    strength: 6,
+                    linkTo: "demo_claim_1"
+                });
+
+                // Add valid counterexample
+                store.getState().addItemRaw({
+                    id: "demo_counter_1",
+                    type: "counterexample",
+                    text: "Static universe models",
+                    strength: 4,
+                    linkTo: "demo_claim_1"
+                });
+
+                // Add invalid attempt
+                store.getState().addItemRaw({
+                    id: "demo_invalid",
+                    type: "claim",
+                    text: "No", // too short (fails Zod min(3))
+                    strength: 5
+                });
+
+                // Advance simulation artificially
+                simulation.alpha(1).restart();
+                for (let i = 0; i < 60; ++i) {
+                    simulation.tick();
+                }
+
+                return window.__toyProbe.getState();
+            }
+        };
+
+    </script>
+</body>
+</html>
