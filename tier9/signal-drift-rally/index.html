@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Signal Drift Rally</title>
+<style>
+    :root {
+        --bg: #0b0c10;
+        --neon-cyan: #66fcf1;
+        --dark-cyan: #45a29e;
+        --light-grey: #c5c6c7;
+        --danger: #ff4c4c;
+        --warning: #f2a900;
+        --win: #4caf50;
+    }
+    body, html {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background-color: var(--bg);
+        color: var(--light-grey);
+        font-family: 'Courier New', Courier, monospace;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        touch-action: none; /* Prevent zooming/scrolling on mobile */
+    }
+    #game-container {
+        position: relative;
+        width: 100%;
+        max-width: 800px;
+        aspect-ratio: 4 / 3;
+        background: #111;
+        box-shadow: 0 0 20px rgba(102, 252, 241, 0.2);
+        overflow: hidden;
+    }
+    canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+    }
+    #ui-layer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .hud-top {
+        display: flex;
+        justify-content: space-between;
+        padding: 15px 20px;
+        font-size: 1.2rem;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        text-shadow: 0 0 5px var(--neon-cyan);
+    }
+    .hud-stat {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    #energy-bar {
+        width: 100px;
+        height: 10px;
+        background: #333;
+        border: 1px solid var(--light-grey);
+    }
+    #energy-fill {
+        width: 100%;
+        height: 100%;
+        background: var(--neon-cyan);
+        transition: width 0.1s;
+    }
+    .screen {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(11, 12, 16, 0.85);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        pointer-events: auto;
+        text-align: center;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+    .screen.active {
+        opacity: 1;
+        z-index: 10;
+    }
+    h1 {
+        color: var(--neon-cyan);
+        font-size: 3rem;
+        margin: 0 0 20px 0;
+        text-transform: uppercase;
+        letter-spacing: 5px;
+        text-shadow: 0 0 15px var(--neon-cyan);
+    }
+    p {
+        font-size: 1.2rem;
+        max-width: 80%;
+        margin-bottom: 30px;
+        line-height: 1.5;
+    }
+    button {
+        background: transparent;
+        color: var(--neon-cyan);
+        border: 2px solid var(--neon-cyan);
+        padding: 15px 30px;
+        font-size: 1.5rem;
+        font-family: inherit;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 0 10px rgba(102, 252, 241, 0.3);
+    }
+    button:hover, button:active {
+        background: var(--neon-cyan);
+        color: var(--bg);
+        box-shadow: 0 0 20px var(--neon-cyan);
+    }
+    #controls {
+        position: absolute;
+        bottom: 20px;
+        left: 0;
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        padding: 0 30px;
+        box-sizing: border-box;
+        pointer-events: none;
+    }
+    .d-pad, .action-buttons {
+        display: flex;
+        gap: 10px;
+        pointer-events: auto;
+    }
+    .ctrl-btn {
+        width: 60px;
+        height: 60px;
+        background: rgba(102, 252, 241, 0.1);
+        border: 1px solid var(--dark-cyan);
+        color: var(--neon-cyan);
+        font-size: 1.5rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-radius: 50%;
+        user-select: none;
+    }
+    .ctrl-btn:active {
+        background: rgba(102, 252, 241, 0.4);
+    }
+    .hidden {
+        display: none !important;
+    }
+</style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="game-canvas"></canvas>
+
+    <div id="ui-layer">
+        <div class="hud-top">
+            <div class="hud-stat">
+                Level <span id="ui-level">1</span>
+            </div>
+            <div class="hud-stat">
+                Energy
+                <div id="energy-bar"><div id="energy-fill"></div></div>
+            </div>
+            <div class="hud-stat">
+                Nodes <span id="ui-score">0</span>/<span id="ui-target">5</span>
+            </div>
+        </div>
+
+        <div id="controls">
+            <div class="d-pad">
+                <div class="ctrl-btn" id="btn-left">◀</div>
+                <div class="ctrl-btn" id="btn-right">▶</div>
+            </div>
+            <div class="action-buttons">
+                <div class="ctrl-btn" id="btn-thrust">▲</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screens -->
+    <div id="screen-start" class="screen active">
+        <h1>Signal Drift<br>Rally</h1>
+        <p>Pilot your courier hovercraft through shifting signal gates. Avoid hazards and collect nodes to advance.</p>
+        <p>Controls: Arrows / WASD or On-Screen buttons to rotate and thrust.</p>
+        <button id="btn-start">Start Game</button>
+    </div>
+
+    <div id="screen-level-complete" class="screen hidden">
+        <h1 style="color: var(--win); text-shadow: 0 0 15px var(--win);">Sector Cleared</h1>
+        <p>Signal secured. Moving to next sector...</p>
+        <button id="btn-next-level">Proceed</button>
+    </div>
+
+    <div id="screen-game-over" class="screen hidden">
+        <h1 style="color: var(--danger); text-shadow: 0 0 15px var(--danger);">Signal Lost</h1>
+        <p>Hull integrity compromised or energy depleted.</p>
+        <button id="btn-restart">Retry</button>
+    </div>
+
+    <div id="screen-win" class="screen hidden">
+        <h1 style="color: var(--warning); text-shadow: 0 0 15px var(--warning);">Mission Accomplished</h1>
+        <p>All sectors traversed. Delivery successful.</p>
+        <button id="btn-play-again">Play Again</button>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById('game-canvas');
+const ctx = canvas.getContext('2d');
+
+// UI Elements
+const screens = {
+    start: document.getElementById('screen-start'),
+    levelComplete: document.getElementById('screen-level-complete'),
+    gameOver: document.getElementById('screen-game-over'),
+    win: document.getElementById('screen-win')
+};
+const uiLevel = document.getElementById('ui-level');
+const uiScore = document.getElementById('ui-score');
+const uiTarget = document.getElementById('ui-target');
+const energyFill = document.getElementById('energy-fill');
+
+// Audio Context
+let audioCtx;
+
+function playSound(type) {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    const now = audioCtx.currentTime;
+
+    if (type === 'collect') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
+        gainNode.gain.setValueAtTime(0.5, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        osc.start(now);
+        osc.stop(now + 0.1);
+    } else if (type === 'hit') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(100, now);
+        osc.frequency.exponentialRampToValueAtTime(50, now + 0.2);
+        gainNode.gain.setValueAtTime(0.5, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+        osc.start(now);
+        osc.stop(now + 0.2);
+    } else if (type === 'clear') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.setValueAtTime(400, now + 0.1);
+        osc.frequency.setValueAtTime(500, now + 0.2);
+        gainNode.gain.setValueAtTime(0.3, now);
+        gainNode.gain.linearRampToValueAtTime(0, now + 0.4);
+        osc.start(now);
+        osc.stop(now + 0.4);
+    }
+}
+
+// Game State
+let gameState = 'start'; // start, playing, levelComplete, gameOver, win
+let currentLevel = 1;
+const maxLevels = 4;
+let lastTime = 0;
+let animationId;
+let shakeTime = 0;
+
+let nodes = [];
+let hazards = [];
+let particles = [];
+let nodesCollected = 0;
+let nodesTarget = 0;
+
+// Input State
+const keys = {
+    ArrowLeft: false, ArrowRight: false, ArrowUp: false,
+    a: false, d: false, w: false
+};
+const btns = {
+    left: false, right: false, thrust: false
+};
+
+// Player Entity
+const player = {
+    x: 0, y: 0,
+    vx: 0, vy: 0,
+    angle: -Math.PI / 2, // Pointing up
+    radius: 12,
+    speed: 400,
+    friction: 0.96, // Drift factor
+    rotationSpeed: 4,
+    energy: 100,
+    maxEnergy: 100,
+    drainRate: 5 // Energy lost per second
+};
+
+function resizeCanvas() {
+    canvas.width = canvas.parentElement.clientWidth;
+    canvas.height = canvas.parentElement.clientHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+function showScreen(screenName) {
+    Object.values(screens).forEach(s => {
+        s.classList.remove('active');
+        s.classList.add('hidden');
+    });
+    if (screens[screenName]) {
+        screens[screenName].classList.remove('hidden');
+        // Force reflow
+        void screens[screenName].offsetWidth;
+        screens[screenName].classList.add('active');
+    }
+}
+
+function initGame() {
+    currentLevel = 1;
+    gameState = 'playing';
+    showScreen('none'); // Hide all screens
+    initLevel(currentLevel);
+    if (!animationId) {
+        lastTime = performance.now();
+        animationId = requestAnimationFrame(gameLoop);
+    }
+}
+
+function initLevel(level) {
+    uiLevel.textContent = level;
+    nodesCollected = 0;
+    uiScore.textContent = nodesCollected;
+
+    // Scale challenge per level, level 1 requires 3 nodes, max 9.
+    nodesTarget = level * 2 + 1;
+    uiTarget.textContent = nodesTarget;
+
+    // Adjust energy drain per level
+    player.drainRate = 2 + (level * 1.5);
+
+    // Reset player
+    player.x = canvas.width / 2;
+    player.y = canvas.height - 50;
+    player.vx = 0;
+    player.vy = 0;
+    player.angle = -Math.PI / 2;
+    player.energy = player.maxEnergy;
+    updateEnergyBar();
+
+    nodes = [];
+    hazards = [];
+    particles = [];
+
+    // Spawn nodes
+    for (let i = 0; i < nodesTarget; i++) {
+        nodes.push({
+            x: Math.random() * (canvas.width - 60) + 30,
+            y: Math.random() * (canvas.height - 100) + 30,
+            radius: 15,
+            collected: false,
+            pulse: Math.random() * Math.PI * 2
+        });
+    }
+
+    // Spawn hazards
+    const numHazards = level * 2;
+    for (let i = 0; i < numHazards; i++) {
+        hazards.push({
+            x: Math.random() * (canvas.width - 60) + 30,
+            y: Math.random() * (canvas.height - 150) + 30, // Keep away from start
+            width: Math.random() * 40 + 20,
+            height: Math.random() * 40 + 20,
+            vx: (Math.random() - 0.5) * 100 * (1 + level * 0.2),
+            vy: (Math.random() - 0.5) * 100 * (1 + level * 0.2)
+        });
+    }
+}
+
+function spawnParticles(x, y, color) {
+    for (let i = 0; i < 15; i++) {
+        particles.push({
+            x: x, y: y,
+            vx: (Math.random() - 0.5) * 200,
+            vy: (Math.random() - 0.5) * 200,
+            life: 1.0,
+            color: color
+        });
+    }
+}
+
+function updateEnergyBar() {
+    const pct = Math.max(0, (player.energy / player.maxEnergy) * 100);
+    energyFill.style.width = pct + '%';
+    if (pct < 20) {
+        energyFill.style.backgroundColor = 'var(--danger)';
+    } else {
+        energyFill.style.backgroundColor = 'var(--neon-cyan)';
+    }
+}
+
+function nextLevel() {
+    currentLevel++;
+    if (currentLevel > maxLevels) {
+        gameState = 'win';
+        showScreen('win');
+    } else {
+        gameState = 'playing';
+        showScreen('none');
+        initLevel(currentLevel);
+    }
+}
+
+function gameOver() {
+    gameState = 'gameOver';
+    showScreen('gameOver');
+}
+
+function update(deltaTime) {
+    if (gameState !== 'playing') return;
+
+    // Screen shake update
+    if (shakeTime > 0) {
+        shakeTime -= deltaTime;
+    }
+
+    // Input processing
+    const rotatingLeft = keys.ArrowLeft || keys.a || btns.left;
+    const rotatingRight = keys.ArrowRight || keys.d || btns.right;
+    const thrusting = keys.ArrowUp || keys.w || btns.thrust;
+
+    if (rotatingLeft) player.angle -= player.rotationSpeed * deltaTime;
+    if (rotatingRight) player.angle += player.rotationSpeed * deltaTime;
+
+    if (thrusting) {
+        player.vx += Math.cos(player.angle) * player.speed * deltaTime;
+        player.vy += Math.sin(player.angle) * player.speed * deltaTime;
+        // Drain extra energy when thrusting
+        player.energy -= player.drainRate * 2 * deltaTime;
+    }
+
+    // Base energy drain
+    player.energy -= player.drainRate * deltaTime;
+    updateEnergyBar();
+
+    if (player.energy <= 0) {
+        gameOver();
+        return;
+    }
+
+    // Apply friction (drifting)
+    player.vx *= player.friction;
+    player.vy *= player.friction;
+
+    // Move
+    player.x += player.vx * deltaTime;
+    player.y += player.vy * deltaTime;
+
+    // Boundary collision
+    if (player.x < player.radius) {
+        player.x = player.radius;
+        player.vx *= -0.5;
+        triggerShake(0.1);
+    } else if (player.x > canvas.width - player.radius) {
+        player.x = canvas.width - player.radius;
+        player.vx *= -0.5;
+        triggerShake(0.1);
+    }
+
+    if (player.y < player.radius) {
+        player.y = player.radius;
+        player.vy *= -0.5;
+        triggerShake(0.1);
+    } else if (player.y > canvas.height - player.radius) {
+        player.y = canvas.height - player.radius;
+        player.vy *= -0.5;
+        triggerShake(0.1);
+    }
+
+    // Update Entities
+    // Nodes
+    nodes.forEach(node => {
+        if (node.collected) return;
+        node.pulse += deltaTime * 5;
+
+        // Collision with player
+        const dx = player.x - node.x;
+        const dy = player.y - node.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < player.radius + node.radius) {
+            node.collected = true;
+            nodesCollected++;
+            uiScore.textContent = nodesCollected;
+
+            // Energy reward shrinks slightly on higher levels
+            const reward = Math.max(10, 35 - (currentLevel * 5));
+            player.energy = Math.min(player.maxEnergy, player.energy + reward);
+
+            playSound('collect');
+            spawnParticles(node.x, node.y, 'var(--neon-cyan)');
+
+            if (nodesCollected >= nodesTarget) {
+                gameState = 'levelComplete';
+                playSound('clear');
+                showScreen('levelComplete');
+            }
+        }
+    });
+
+    // Hazards
+    hazards.forEach(hazard => {
+        hazard.x += hazard.vx * deltaTime;
+        hazard.y += hazard.vy * deltaTime;
+
+        if (hazard.x < 0 || hazard.x + hazard.width > canvas.width) hazard.vx *= -1;
+        if (hazard.y < 0 || hazard.y + hazard.height > canvas.height) hazard.vy *= -1;
+
+        // Simple AABB collision with circular player
+        // Find closest point on rect to circle center
+        const testX = Math.max(hazard.x, Math.min(player.x, hazard.x + hazard.width));
+        const testY = Math.max(hazard.y, Math.min(player.y, hazard.y + hazard.height));
+
+        const distX = player.x - testX;
+        const distY = player.y - testY;
+        const distance = Math.sqrt((distX*distX) + (distY*distY));
+
+        if (distance <= player.radius) {
+            // Hit hazard
+            player.energy -= 20; // Penalty
+            player.vx *= -1; // Bounce
+            player.vy *= -1;
+            player.x += player.vx * deltaTime; // Push out slightly
+            player.y += player.vy * deltaTime;
+            triggerShake(0.2);
+            playSound('hit');
+            spawnParticles(player.x, player.y, 'var(--danger)');
+        }
+    });
+
+    // Particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.x += p.vx * deltaTime;
+        p.y += p.vy * deltaTime;
+        p.life -= deltaTime * 2;
+        if (p.life <= 0) {
+            particles.splice(i, 1);
+        }
+    }
+}
+
+function triggerShake(duration) {
+    shakeTime = duration;
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (gameState !== 'playing') return;
+
+    ctx.save();
+
+    if (shakeTime > 0) {
+        const dx = (Math.random() - 0.5) * 10;
+        const dy = (Math.random() - 0.5) * 10;
+        ctx.translate(dx, dy);
+    }
+
+    // Draw Player
+    ctx.translate(player.x, player.y);
+    ctx.rotate(player.angle);
+
+    // Thrust flame
+    const thrusting = keys.ArrowUp || keys.w || btns.thrust;
+    if (thrusting) {
+        ctx.fillStyle = (Math.random() > 0.5) ? 'var(--warning)' : 'var(--danger)';
+        ctx.beginPath();
+        ctx.moveTo(-player.radius, 0);
+        ctx.lineTo(-player.radius - 15 - Math.random() * 10, -5);
+        ctx.lineTo(-player.radius - 20 - Math.random() * 10, 0);
+        ctx.lineTo(-player.radius - 15 - Math.random() * 10, 5);
+        ctx.fill();
+    }
+
+    // Hovercraft body
+    ctx.fillStyle = 'var(--bg)';
+    ctx.strokeStyle = 'var(--neon-cyan)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(player.radius, 0); // Nose
+    ctx.lineTo(-player.radius, player.radius * 0.8);
+    ctx.lineTo(-player.radius + 5, 0);
+    ctx.lineTo(-player.radius, -player.radius * 0.8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Cockpit
+    ctx.fillStyle = 'var(--dark-cyan)';
+    ctx.beginPath();
+    ctx.arc(0, 0, player.radius * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+
+    // Draw Nodes
+    nodes.forEach(node => {
+        if (node.collected) return;
+        ctx.save();
+        ctx.translate(node.x, node.y);
+
+        const pulseMod = Math.sin(node.pulse) * 3;
+
+        ctx.strokeStyle = 'var(--neon-cyan)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, node.radius + pulseMod, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(102, 252, 241, 0.3)';
+        ctx.beginPath();
+        ctx.arc(0, 0, node.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+    });
+
+    // Draw Hazards
+    ctx.fillStyle = 'var(--danger)';
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1;
+    hazards.forEach(hazard => {
+        ctx.fillRect(hazard.x, hazard.y, hazard.width, hazard.height);
+        ctx.strokeRect(hazard.x, hazard.y, hazard.width, hazard.height);
+    });
+
+    // Draw Particles
+    particles.forEach(p => {
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.life;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+    });
+}
+
+function gameLoop(timestamp) {
+    const deltaTime = Math.min(timestamp - lastTime, 50) / 1000; // Cap dt to 50ms, convert to seconds
+    lastTime = timestamp;
+
+    update(deltaTime);
+    draw();
+
+    animationId = requestAnimationFrame(gameLoop);
+}
+
+// Input Handling
+window.addEventListener('keydown', (e) => {
+    if (keys.hasOwnProperty(e.key)) {
+        keys[e.key] = true;
+    }
+});
+window.addEventListener('keyup', (e) => {
+    if (keys.hasOwnProperty(e.key)) {
+        keys[e.key] = false;
+    }
+});
+
+// Touch/Mouse Controls
+const setupBtn = (id, prop) => {
+    const el = document.getElementById(id);
+    el.addEventListener('mousedown', () => btns[prop] = true);
+    el.addEventListener('mouseup', () => btns[prop] = false);
+    el.addEventListener('mouseleave', () => btns[prop] = false);
+    el.addEventListener('touchstart', (e) => { e.preventDefault(); btns[prop] = true; }, {passive: false});
+    el.addEventListener('touchend', (e) => { e.preventDefault(); btns[prop] = false; }, {passive: false});
+};
+setupBtn('btn-left', 'left');
+setupBtn('btn-right', 'right');
+setupBtn('btn-thrust', 'thrust');
+
+// Event Listeners for UI
+document.getElementById('btn-start').addEventListener('click', initGame);
+document.getElementById('btn-restart').addEventListener('click', initGame);
+document.getElementById('btn-play-again').addEventListener('click', initGame);
+document.getElementById('btn-next-level').addEventListener('click', nextLevel);
+
+// Initial setup
+showScreen('start');
+
+</script>
+
+</body>
+</html>
