@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gallery Wall</title>
+<style>
+  :root {
+    --bg-color: #f8f8f8;
+    --text-color: #222;
+    --border-color: #ddd;
+    --card-bg: #fff;
+    --accent: #444;
+    --hover-bg: #eee;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: system-ui, -apple-system, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  header {
+    position: sticky;
+    top: 0;
+    background: var(--bg-color);
+    z-index: 10;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  .search-container input {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    font-size: 1rem;
+    width: 300px;
+    background: var(--card-bg);
+  }
+
+  .filters {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .filter-chip {
+    padding: 0.4rem 0.8rem;
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    background: var(--card-bg);
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+  }
+
+  .filter-chip:hover {
+    background: var(--hover-bg);
+  }
+
+  .filter-chip.active {
+    background: var(--text-color);
+    color: var(--bg-color);
+    border-color: var(--text-color);
+  }
+
+  main {
+    flex: 1;
+    padding: 2rem;
+    padding-bottom: 120px; /* space for the detail strip */
+  }
+
+  .gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 2rem;
+  }
+
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+  }
+
+  .card-image-wrapper {
+    position: relative;
+    width: 100%;
+    padding-top: 75%; /* 4:3 Aspect Ratio */
+    background: #eaeaea;
+    overflow: hidden;
+  }
+
+  .card-image-wrapper img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .card-info {
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--border-color);
+  }
+
+  .card-title {
+    font-weight: 500;
+    font-size: 1rem;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card-tier {
+    font-size: 0.75rem;
+    background: var(--bg-color);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    color: #666;
+  }
+
+  .details-strip {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--card-bg);
+    border-top: 1px solid var(--border-color);
+    padding: 1rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.05);
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 20;
+  }
+
+  .details-strip.visible {
+    transform: translateY(0);
+  }
+
+  .details-image {
+    width: 120px;
+    height: 80px;
+    border-radius: 4px;
+    object-fit: cover;
+    border: 1px solid var(--border-color);
+  }
+
+  .details-info {
+    flex: 1;
+  }
+
+  .details-title {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.25rem;
+  }
+
+  .details-tier {
+    font-size: 0.85rem;
+    color: #666;
+  }
+
+  .details-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #999;
+    padding: 0.5rem;
+  }
+
+  .close-btn:hover {
+    color: var(--text-color);
+  }
+
+  .open-link {
+    background: var(--text-color);
+    color: var(--bg-color);
+    text-decoration: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    font-weight: 500;
+    transition: background 0.2s;
+  }
+
+  .open-link:hover {
+    background: #000;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <h1>Gallery Wall</h1>
+    <div class="search-container">
+      <input type="text" id="searchInput" placeholder="Search toys...">
+    </div>
+  </div>
+  <div class="filters" id="tierFilters">
+    <button class="filter-chip active" data-tier="all">All Tiers</button>
+    <button class="filter-chip" data-tier="T1">T1</button>
+    <button class="filter-chip" data-tier="T2">T2</button>
+    <button class="filter-chip" data-tier="T3">T3</button>
+    <button class="filter-chip" data-tier="T4">T4</button>
+    <button class="filter-chip" data-tier="T5">T5</button>
+    <button class="filter-chip" data-tier="T6">T6</button>
+    <button class="filter-chip" data-tier="T7">T7</button>
+    <button class="filter-chip" data-tier="T8">T8</button>
+  </div>
+</header>
+
+<main>
+  <div class="gallery-grid" id="galleryGrid">
+        <div class="card" data-tier="T1" data-title="forecast tile">
+      <div class="card-image-wrapper">
+        <img src="../../tier1/forecast-tile/screenshot.png" alt="Forecast Tile" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlYWVhZWEiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBTY3JlZW5zaG90PC90ZXh0Pjwvc3ZnPg=='">
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">Forecast Tile</h3>
+        <span class="card-tier">T1</span>
+      </div>
+    </div>
+    <div class="card" data-tier="T1" data-title="passport stamp">
+      <div class="card-image-wrapper">
+        <img src="../../tier1/passport-stamp/screenshot.png" alt="Passport Stamp" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlYWVhZWEiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBTY3JlZW5zaG90PC90ZXh0Pjwvc3ZnPg=='">
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">Passport Stamp</h3>
+        <span class="card-tier">T1</span>
+      </div>
+    </div>
+    <div class="card" data-tier="T1" data-title="signal card">
+      <div class="card-image-wrapper">
+        <img src="../../tier1/signal-card/screenshot.png" alt="Signal Card" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlYWVhZWEiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBTY3JlZW5zaG90PC90ZXh0Pjwvc3ZnPg=='">
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">Signal Card</h3>
+        <span class="card-tier">T1</span>
+      </div>
+    </div>
+    <div class="card" data-tier="T2" data-title="migration river">
+      <div class="card-image-wrapper">
+        <img src="../../tier2/migration-river/screenshot.png" alt="Migration River" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlYWVhZWEiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBTY3JlZW5zaG90PC90ZXh0Pjwvc3ZnPg=='">
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">Migration River</h3>
+        <span class="card-tier">T2</span>
+      </div>
+    </div>
+    <div class="card" data-tier="T2" data-title="orchard map">
+      <div class="card-image-wrapper">
+        <img src="../../tier2/orchard-map/screenshot.png" alt="Orchard Map" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlYWVhZWEiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBTY3JlZW5zaG90PC90ZXh0Pjwvc3ZnPg=='">
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">Orchard Map</h3>
+        <span class="card-tier">T2</span>
+      </div>
+    </div>
+    <div class="card" data-tier="T2" data-title="subway cutaway">
+      <div class="card-image-wrapper">
+        <img src="../../tier2/subway-cutaway/screenshot.png" alt="Subway Cutaway" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlYWVhZWEiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBTY3JlZW5zaG90PC90ZXh0Pjwvc3ZnPg=='">
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">Subway Cutaway</h3>
+        <span class="card-tier">T2</span>
+      </div>
+    </div>
+    <div class="card" data-tier="T3" data-title="lunar postcards">
+      <div class="card-image-wrapper">
+        <img src="../../tier3/lunar-postcards/screenshot.png" alt="Lunar Postcards" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlYWVhZWEiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBTY3JlZW5zaG90PC90ZXh0Pjwvc3ZnPg=='">
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">Lunar Postcards</h3>
+        <span class="card-tier">T3</span>
+      </div>
+    </div>
+    <div class="card" data-tier="T3" data-title="traffic ballet">
+      <div class="card-image-wrapper">
+        <img src="../../tier3/traffic-ballet/screenshot.png" alt="Traffic Ballet" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlYWVhZWEiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBTY3JlZW5zaG90PC90ZXh0Pjwvc3ZnPg=='">
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">Traffic Ballet</h3>
+        <span class="card-tier">T3</span>
+      </div>
+    </div>
+    <div class="card" data-tier="T3" data-title="weather console">
+      <div class="card-image-wrapper">
+        <img src="../../tier3/weather-console/screenshot.png" alt="Weather Console" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlYWVhZWEiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBTY3JlZW5zaG90PC90ZXh0Pjwvc3ZnPg=='">
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">Weather Console</h3>
+        <span class="card-tier">T3</span>
+      </div>
+    </div>
+    <div class="card" data-tier="T4" data-title="recipe risk">
+      <div class="card-image-wrapper">
+        <img src="../../tier4/recipe-risk/screenshot.png" alt="Recipe Risk" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlYWVhZWEiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBTY3JlZW5zaG90PC90ZXh0Pjwvc3ZnPg=='">
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">Recipe Risk</h3>
+        <span class="card-tier">T4</span>
+      </div>
+    </div>
+    <div class="card" data-tier="T4" data-title="sequencer map">
+      <div class="card-image-wrapper">
+        <img src="../../tier4/sequencer-map/screenshot.png" alt="Sequencer Map" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlYWVhZWEiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBTY3JlZW5zaG90PC90ZXh0Pjwvc3ZnPg=='">
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">Sequencer Map</h3>
+        <span class="card-tier">T4</span>
+      </div>
+    </div>
+    <div class="card" data-tier="T5" data-title="dream vending">
+      <div class="card-image-wrapper">
+        <img src="../../tier5/dream-vending/screenshot.png" alt="Dream Vending" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlYWVhZWEiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBTY3JlZW5zaG90PC90ZXh0Pjwvc3ZnPg=='">
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">Dream Vending</h3>
+        <span class="card-tier">T5</span>
+      </div>
+    </div>
+    <div class="card" data-tier="T5" data-title="emotion post office">
+      <div class="card-image-wrapper">
+        <img src="../../tier5/emotion-post-office/screenshot.png" alt="Emotion Post Office" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlYWVhZWEiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBTY3JlZW5zaG90PC90ZXh0Pjwvc3ZnPg=='">
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">Emotion Post Office</h3>
+        <span class="card-tier">T5</span>
+      </div>
+    </div>
+    <div class="card" data-tier="T5" data-title="pocket city">
+      <div class="card-image-wrapper">
+        <img src="../../tier5/pocket-city/screenshot.png" alt="Pocket City" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlYWVhZWEiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBTY3JlZW5zaG90PC90ZXh0Pjwvc3ZnPg=='">
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">Pocket City</h3>
+        <span class="card-tier">T5</span>
+      </div>
+    </div>
+    <div class="card" data-tier="T6" data-title="catalogue studio">
+      <div class="card-image-wrapper">
+        <img src="../../tier6/catalogue-studio/screenshot.png" alt="Catalogue Studio" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlYWVhZWEiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBTY3JlZW5zaG90PC90ZXh0Pjwvc3ZnPg=='">
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">Catalogue Studio</h3>
+        <span class="card-tier">T6</span>
+      </div>
+    </div>
+    <div class="card" data-tier="T6" data-title="incident atlas">
+      <div class="card-image-wrapper">
+        <img src="../../tier6/incident-atlas/screenshot.png" alt="Incident Atlas" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlYWVhZWEiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBTY3JlZW5zaG90PC90ZXh0Pjwvc3ZnPg=='">
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">Incident Atlas</h3>
+        <span class="card-tier">T6</span>
+      </div>
+    </div>
+    <div class="card" data-tier="T6" data-title="kitchen command">
+      <div class="card-image-wrapper">
+        <img src="../../tier6/kitchen-command/screenshot.png" alt="Kitchen Command" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlYWVhZWEiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBTY3JlZW5zaG90PC90ZXh0Pjwvc3ZnPg=='">
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">Kitchen Command</h3>
+        <span class="card-tier">T6</span>
+      </div>
+    </div>
+    <div class="card" data-tier="T7" data-title="market algorithm">
+      <div class="card-image-wrapper">
+        <img src="../../tier7/market-algorithm/screenshot.png" alt="Market Algorithm" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlYWVhZWEiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBTY3JlZW5zaG90PC90ZXh0Pjwvc3ZnPg=='">
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">Market Algorithm</h3>
+        <span class="card-tier">T7</span>
+      </div>
+    </div>
+    <div class="card" data-tier="T7" data-title="rail signal">
+      <div class="card-image-wrapper">
+        <img src="../../tier7/rail-signal/screenshot.png" alt="Rail Signal" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlYWVhZWEiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBTY3JlZW5zaG90PC90ZXh0Pjwvc3ZnPg=='">
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">Rail Signal</h3>
+        <span class="card-tier">T7</span>
+      </div>
+    </div>
+    <div class="card" data-tier="T7" data-title="reef particles">
+      <div class="card-image-wrapper">
+        <img src="../../tier7/reef-particles/screenshot.png" alt="Reef Particles" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlYWVhZWEiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBTY3JlZW5zaG90PC90ZXh0Pjwvc3ZnPg=='">
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">Reef Particles</h3>
+        <span class="card-tier">T7</span>
+      </div>
+    </div>
+    <div class="card" data-tier="T8" data-title="biome forge">
+      <div class="card-image-wrapper">
+        <img src="../../tier8/biome-forge/screenshot.png" alt="Biome Forge" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlYWVhZWEiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBTY3JlZW5zaG90PC90ZXh0Pjwvc3ZnPg=='">
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">Biome Forge</h3>
+        <span class="card-tier">T8</span>
+      </div>
+    </div>
+    <div class="card" data-tier="T8" data-title="orbital foundry">
+      <div class="card-image-wrapper">
+        <img src="../../tier8/orbital-foundry/screenshot.png" alt="Orbital Foundry" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlYWVhZWEiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBTY3JlZW5zaG90PC90ZXh0Pjwvc3ZnPg=='">
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">Orbital Foundry</h3>
+        <span class="card-tier">T8</span>
+      </div>
+    </div>
+    <div class="card" data-tier="T8" data-title="salvage run">
+      <div class="card-image-wrapper">
+        <img src="../../tier8/salvage-run/screenshot.png" alt="Salvage Run" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlYWVhZWEiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBTY3JlZW5zaG90PC90ZXh0Pjwvc3ZnPg=='">
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">Salvage Run</h3>
+        <span class="card-tier">T8</span>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="details-strip" id="detailsStrip">
+  <img src="" alt="Preview" class="details-image" id="detailImage">
+  <div class="details-info">
+    <h2 class="details-title" id="detailTitle">Title</h2>
+    <div class="details-tier" id="detailTier">Tier</div>
+  </div>
+  <div class="details-actions">
+    <a href="#" class="open-link" id="detailOpenLink">Open Toy</a>
+    <button class="close-btn" id="closeDetail">&times;</button>
+  </div>
+</div>
+
+
+<script>
+  const searchInput = document.getElementById('searchInput');
+  const filterChips = document.querySelectorAll('.filter-chip');
+  const cards = document.querySelectorAll('.card');
+  const detailsStrip = document.getElementById('detailsStrip');
+  const detailImage = document.getElementById('detailImage');
+  const detailTitle = document.getElementById('detailTitle');
+  const detailTier = document.getElementById('detailTier');
+  const detailOpenLink = document.getElementById('detailOpenLink');
+  const closeDetailBtn = document.getElementById('closeDetail');
+
+  let currentTierFilter = 'all';
+  let currentSearchQuery = '';
+
+  function filterCards() {
+    cards.forEach(card => {
+      const cardTier = card.dataset.tier;
+      const cardTitle = card.dataset.title;
+
+      const matchesTier = currentTierFilter === 'all' || cardTier === currentTierFilter;
+      const matchesSearch = cardTitle.includes(currentSearchQuery);
+
+      if (matchesTier && matchesSearch) {
+        card.classList.remove('hidden');
+      } else {
+        card.classList.add('hidden');
+      }
+    });
+  }
+
+  filterChips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      filterChips.forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      currentTierFilter = chip.dataset.tier;
+      filterCards();
+    });
+  });
+
+  searchInput.addEventListener('input', (e) => {
+    currentSearchQuery = e.target.value.toLowerCase().trim();
+    filterCards();
+  });
+
+  cards.forEach(card => {
+    card.addEventListener('click', () => {
+      const imgPath = card.querySelector('img').src;
+      const title = card.querySelector('.card-title').textContent;
+      const tier = card.querySelector('.card-tier').textContent;
+
+      const titleSlug = title.toLowerCase().replace(/ /g, '-');
+      const linkPath = `../../tier${tier.replace('T', '')}/${titleSlug}/index.html`;
+
+      detailImage.src = imgPath;
+      detailTitle.textContent = title;
+      detailTier.textContent = tier;
+      detailOpenLink.href = linkPath;
+
+      detailsStrip.classList.add('visible');
+    });
+  });
+
+  closeDetailBtn.addEventListener('click', () => {
+    detailsStrip.classList.remove('visible');
+  });
+</script>
+</body>
+</html>
