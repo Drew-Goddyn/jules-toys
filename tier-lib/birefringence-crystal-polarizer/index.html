@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Birefringence: The Crystal Polarizer</title>
+  <style>
+    :root {
+      --bg-color: #0a0a0c;
+      --panel-bg: #111114;
+      --border-color: #2a2a35;
+      --text-main: #e0e0e8;
+      --text-dim: #7a7a8c;
+      --accent-color: #4a9eff;
+      --accent-hover: #6eb3ff;
+      --warn-color: #ff4a4a;
+      --font-mono: 'Courier New', Courier, monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    header {
+      background-color: var(--panel-bg);
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+
+    h1 {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .status-badge {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 4px 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background-color: rgba(0,0,0,0.5);
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      position: relative;
+    }
+
+    #viewport-container {
+      flex: 1;
+      position: relative;
+      background-color: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    #canvas-container {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+    }
+
+    .reticle {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .reticle::before, .reticle::after {
+      content: '';
+      position: absolute;
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .reticle::before {
+      top: 50%;
+      left: 0;
+      width: 100%;
+      height: 1px;
+    }
+
+    .reticle::after {
+      top: 0;
+      left: 50%;
+      width: 1px;
+      height: 100%;
+    }
+
+    .reticle-circle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 300px;
+      height: 300px;
+      border: 1px dashed rgba(255, 255, 255, 0.15);
+      border-radius: 50%;
+    }
+
+    .scan-line {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 6;
+      box-shadow: 0 0 10px var(--accent-color);
+    }
+
+    .crosshair-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 20px;
+      height: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+    }
+
+    .crosshair-center::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 2px;
+      height: 2px;
+      background-color: rgba(255, 255, 255, 0.5);
+    }
+
+    aside {
+      width: 320px;
+      background-color: var(--panel-bg);
+      border-left: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      z-index: 10;
+    }
+
+    .panel-section {
+      padding: 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .panel-header {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .control-group {
+      margin-bottom: 16px;
+    }
+
+    .control-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    .control-value {
+      font-family: var(--font-mono);
+      color: var(--accent-color);
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      background: transparent;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 16px;
+      width: 16px;
+      border-radius: 50%;
+      background: var(--text-main);
+      cursor: pointer;
+      margin-top: -6px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.5);
+    }
+
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 4px;
+      cursor: pointer;
+      background: var(--border-color);
+      border-radius: 2px;
+    }
+
+    input[type=range]:focus {
+      outline: none;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      flex: 1;
+      background-color: transparent;
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      padding: 8px 12px;
+      font-family: var(--font-sans);
+      font-size: 13px;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      background-color: rgba(255,255,255,0.05);
+      border-color: var(--text-dim);
+    }
+
+    button:active {
+      background-color: rgba(255,255,255,0.1);
+    }
+
+    button.active {
+      background-color: rgba(74, 158, 255, 0.15);
+      border-color: var(--accent-color);
+      color: var(--accent-color);
+    }
+
+    button.primary {
+      background-color: var(--accent-color);
+      color: #000;
+      border-color: var(--accent-color);
+      font-weight: 600;
+    }
+
+    button.primary:hover {
+      background-color: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .log-panel {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      background-color: #08080a;
+    }
+
+    .log-entry {
+      margin-bottom: 6px;
+      line-height: 1.4;
+    }
+
+    .log-entry.warn {
+      color: var(--warn-color);
+    }
+
+    .log-entry.success {
+      color: #4aff8a;
+    }
+
+    .readout-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .readout-item {
+      background-color: rgba(0,0,0,0.3);
+      border: 1px solid var(--border-color);
+      padding: 8px;
+      border-radius: 4px;
+    }
+
+    .readout-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .readout-value {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      color: var(--text-main);
+    }
+
+    .fracture-warn {
+      color: var(--warn-color);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.6; }
+      100% { opacity: 1; }
+    }
+
+    .loading-overlay {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background-color: var(--bg-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: opacity 0.5s;
+    }
+
+    .loading-spinner {
+      width: 40px; height: 40px;
+      border: 2px solid var(--border-color);
+      border-top-color: var(--accent-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "pixi.js": "https://cdn.jsdelivr.net/npm/pixi.js@7.4.2/+esm",
+        "xstate": "https://cdn.jsdelivr.net/npm/xstate@4.38.3/+esm"
+      }
+    }
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+</head>
+<body>
+  <div class="loading-overlay" id="loading-overlay">
+    <div class="loading-spinner"></div>
+  </div>
+
+  <header>
+    <h1>Birefringence: The Crystal Polarizer</h1>
+    <div class="status-badge" id="machine-status">INITIALIZING</div>
+  </header>
+
+  <main>
+    <div id="viewport-container">
+      <div id="canvas-container"></div>
+      <div class="reticle"></div>
+      <div class="reticle-circle"></div>
+      <div class="crosshair-center"></div>
+      <div class="scan-line" id="scan-line"></div>
+    </div>
+
+    <aside>
+      <div class="panel-section">
+        <div class="panel-header">Thermodynamics</div>
+        <div class="button-row">
+          <button id="btn-heat">HEAT</button>
+          <button id="btn-cool">COOL</button>
+          <button id="btn-anneal">ANNEAL</button>
+        </div>
+        <div style="margin-top: 15px;">
+          <div class="control-label">
+            <span>Core Temp</span>
+            <span class="control-value" id="val-temp">20.0 °C</span>
+          </div>
+          <div style="width: 100%; height: 4px; background: var(--border-color); border-radius: 2px; overflow: hidden;">
+            <div id="temp-bar" style="width: 20%; height: 100%; background: var(--text-dim); transition: width 0.1s, background-color 0.3s;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-header">Optics</div>
+        <div class="control-group">
+          <div class="control-label">
+            <span>Polarizer Angle</span>
+            <span class="control-value" id="val-angle">0°</span>
+          </div>
+          <input type="range" id="slider-angle" min="0" max="360" value="0">
+        </div>
+        <div class="control-group">
+          <div class="control-label">
+            <span>Focal Depth</span>
+            <span class="control-value" id="val-focus">0.0 µm</span>
+          </div>
+          <input type="range" id="slider-focus" min="-50" max="50" value="0">
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-header">Analysis</div>
+        <div class="readout-grid">
+          <div class="readout-item">
+            <div class="readout-label">Lattice Density</div>
+            <div class="readout-value" id="val-density">1.000</div>
+          </div>
+          <div class="readout-item">
+            <div class="readout-label">Anomalies</div>
+            <div class="readout-value" id="val-anomalies">0</div>
+          </div>
+          <div class="readout-item" style="grid-column: span 2;">
+            <div class="readout-label">Structural Integrity</div>
+            <div class="readout-value" id="val-fractures">STABLE (0 fractures)</div>
+          </div>
+        </div>
+        <button id="btn-scan" class="primary" style="width: 100%; margin-top: 15px;">INITIATE SCAN</button>
+      </div>
+
+      <div class="log-panel" id="log-panel">
+        <div class="log-entry">System initialized.</div>
+        <div class="log-entry">Microscope online. Awaiting sample...</div>
+      </div>
+    </aside>
+  </main>
+
+  <script type="module">
+    import * as PIXI from 'pixi.js';
+    import { createMachine, interpret, assign } from 'xstate';
+
+    // --- DOM Elements ---
+    const UI = {
+      statusBadge: document.getElementById('machine-status'),
+      btnHeat: document.getElementById('btn-heat'),
+      btnCool: document.getElementById('btn-cool'),
+      btnAnneal: document.getElementById('btn-anneal'),
+      btnScan: document.getElementById('btn-scan'),
+      sliderAngle: document.getElementById('slider-angle'),
+      sliderFocus: document.getElementById('slider-focus'),
+      valAngle: document.getElementById('val-angle'),
+      valFocus: document.getElementById('val-focus'),
+      valTemp: document.getElementById('val-temp'),
+      tempBar: document.getElementById('temp-bar'),
+      valDensity: document.getElementById('val-density'),
+      valAnomalies: document.getElementById('val-anomalies'),
+      valFractures: document.getElementById('val-fractures'),
+      logPanel: document.getElementById('log-panel'),
+      scanLine: document.getElementById('scan-line'),
+      canvasContainer: document.getElementById('canvas-container'),
+      loadingOverlay: document.getElementById('loading-overlay')
+    };
+
+    // --- State & Config ---
+    const CONFIG = {
+      MAX_TEMP: 1000,
+      MIN_TEMP: -200,
+      ROOM_TEMP: 20,
+      TARGET_ANOMALY_ANGLE: 135,
+      TARGET_ANOMALY_FOCUS: 25,
+      TARGET_TOLERANCE: 15,
+      NUM_CRYSTALS: 80,
+      NUM_ANOMALIES: 3
+    };
+
+    const simState = {
+      temperature: CONFIG.ROOM_TEMP,
+      targetTemperature: CONFIG.ROOM_TEMP,
+      polarizationAngle: 0,
+      focusDepth: 0,
+      latticeDensity: 1.0,
+      fractureCount: 0,
+      isolatedAnomalies: 0,
+      anomaliesDiscovered: new Set(),
+      crystals: [],
+      fractureLines: []
+    };
+
+    // --- Logging ---
+    function logMessage(msg, type = 'normal') {
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      const time = new Date().toISOString().substring(11, 19);
+      entry.textContent = `[${time}] ${msg}`;
+      UI.logPanel.appendChild(entry);
+      UI.logPanel.scrollTop = UI.logPanel.scrollHeight;
+    }
+
+    // --- XState Machine ---
+    const machine = createMachine({
+      id: 'crystalPolarizer',
+      initial: 'idle',
+      context: {},
+      states: {
+        idle: {
+          on: {
+            HEAT: 'heating',
+            COOL: 'cooling',
+            ANNEAL: 'annealing',
+            SCAN: 'scanning',
+            FRACTURE: 'fractured'
+          }
+        },
+        heating: {
+          on: {
+            STOP: 'idle',
+            FRACTURE: 'fractured'
+          }
+        },
+        cooling: {
+          on: {
+            STOP: 'idle',
+            FRACTURE: 'fractured'
+          }
+        },
+        annealing: {
+          on: {
+            STOP: 'idle'
+          }
+        },
+        scanning: {
+          on: {
+            COMPLETE: 'idle'
+          }
+        },
+        fractured: {
+          on: {
+            ANNEAL: 'annealing',
+            RECOVER: 'idle'
+          }
+        }
+      }
+    });
+
+    const service = interpret(machine).onTransition((state) => {
+      UI.statusBadge.textContent = state.value.toUpperCase();
+
+      // Update UI buttons based on state
+      UI.btnHeat.className = state.value === 'heating' ? 'active' : '';
+      UI.btnCool.className = state.value === 'cooling' ? 'active' : '';
+      UI.btnAnneal.className = state.value === 'annealing' ? 'active' : '';
+
+      const isBusy = state.value === 'scanning';
+      UI.btnScan.disabled = isBusy;
+      UI.btnScan.textContent = isBusy ? 'SCANNING...' : 'INITIATE SCAN';
+
+      if (state.value === 'fractured') {
+        UI.statusBadge.style.color = 'var(--warn-color)';
+        UI.statusBadge.style.borderColor = 'var(--warn-color)';
+      } else {
+        UI.statusBadge.style.color = '';
+        UI.statusBadge.style.borderColor = '';
+      }
+    }).start();
+
+    // --- PixiJS Setup ---
+    const app = new PIXI.Application({
+      resizeTo: UI.canvasContainer,
+      backgroundColor: 0x0a0a0c,
+      antialias: true,
+      resolution: window.devicePixelRatio || 1
+    });
+
+    UI.canvasContainer.appendChild(app.view);
+
+    const container = new PIXI.Container();
+    app.stage.addChild(container);
+
+    // Custom shader for birefringence interference colors
+    // It uses polarization angle and focus depth to calculate interference patterns
+    const birefringenceFrag = `
+      varying vec2 vTextureCoord;
+      uniform sampler2D uSampler;
+      uniform float uTime;
+      uniform float uAngle;
+      uniform float uFocus;
+      uniform float uDensity;
+      uniform float uTemperature;
+
+      // HSL to RGB conversion
+      vec3 hsl2rgb(vec3 c) {
+        vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0, 0.0, 1.0);
+        return c.z + c.y * (rgb-0.5)*(1.0-abs(2.0*c.z-1.0));
+      }
+
+      void main(void) {
+        vec4 color = texture2D(uSampler, vTextureCoord);
+
+        if (color.a == 0.0) {
+          gl_FragColor = color;
+          return;
+        }
+
+        // Base structural value from sprite
+        float structure = color.r;
+        float anomaly = color.g; // Anomaly channel
+
+        // Calculate interference based on angle, structure, and density
+        float angleRad = uAngle * 3.14159 / 180.0;
+
+        // Retardation calculation (Michel-Lévy chart approximation)
+        float retardation = structure * uDensity * 500.0 + (uTemperature * 0.5);
+
+        // Polarization intensity based on Malus's law with structural offset
+        float intensity = pow(sin(angleRad * 2.0 + structure * 10.0), 2.0);
+
+        // Color mapping based on retardation
+        float hue = mod(retardation / 1000.0 - uFocus * 0.01, 1.0);
+        float saturation = 0.8 + 0.2 * intensity;
+        float lightness = 0.2 + 0.6 * intensity;
+
+        vec3 finalColor = hsl2rgb(vec3(hue, saturation, lightness));
+
+        // Anomaly reveals itself at specific angle and focus
+        float targetAngle = 135.0;
+        float targetFocus = 25.0;
+
+        float angleDiff = min(abs(uAngle - targetAngle), 360.0 - abs(uAngle - targetAngle));
+        float focusDiff = abs(uFocus - targetFocus);
+
+        float revealFactor = max(0.0, 1.0 - (angleDiff / 15.0) - (focusDiff / 15.0));
+
+        if (anomaly > 0.0) {
+          vec3 anomalyColor = mix(finalColor, vec3(1.0, 0.8, 0.2), revealFactor * anomaly);
+          // Highlight anomalies slightly even when not revealed
+          anomalyColor += vec3(0.1, 0.1, 0.1) * anomaly;
+          finalColor = anomalyColor;
+        }
+
+        // Apply focus blur effect (simulated by dimming/fading based on depth vs structure)
+        float focusMismatch = abs(uFocus * 0.02 - (structure - 0.5));
+        float blurAlpha = clamp(1.0 - focusMismatch * 2.0, 0.2, 1.0);
+
+        gl_FragColor = vec4(finalColor * color.a * blurAlpha, color.a * blurAlpha);
+      }
+    `;
+
+    const birefringenceFilter = new PIXI.Filter(null, birefringenceFrag, {
+      uTime: 0,
+      uAngle: 0,
+      uFocus: 0,
+      uDensity: 1.0,
+      uTemperature: 20.0
+    });
+
+    container.filters = [birefringenceFilter];
+
+    // Background gradient for microscope field
+    const bgGraphics = new PIXI.Graphics();
+    app.stage.addChildAt(bgGraphics, 0);
+
+    function updateBackground() {
+      const w = app.screen.width;
+      const h = app.screen.height;
+      bgGraphics.clear();
+      bgGraphics.beginFill(0x050508);
+      bgGraphics.drawRect(0, 0, w, h);
+      bgGraphics.endFill();
+
+      // Vignette effect
+      bgGraphics.beginFill(0x000000, 0.6);
+      bgGraphics.drawCircle(w/2, h/2, Math.min(w, h) * 0.8);
+      bgGraphics.beginHole();
+      bgGraphics.drawCircle(w/2, h/2, Math.min(w, h) * 0.4);
+      bgGraphics.endHole();
+      bgGraphics.endFill();
+    }
+
+    // --- Crystal Generation ---
+    const crystalGraphics = new PIXI.Graphics();
+    container.addChild(crystalGraphics);
+
+    const fractureGraphics = new PIXI.Graphics();
+    app.stage.addChild(fractureGraphics); // Drawn on top of filters
+
+    function generateCrystals() {
+      simState.crystals = [];
+      const w = app.screen.width || 800;
+      const h = app.screen.height || 600;
+      const cx = w / 2;
+      const cy = h / 2;
+
+      // Generate normal crystals
+      for (let i = 0; i < CONFIG.NUM_CRYSTALS; i++) {
+        // Distribute more towards center
+        const r = Math.random() * Math.min(w, h) * 0.4 * Math.sqrt(Math.random());
+        const theta = Math.random() * Math.PI * 2;
+
+        simState.crystals.push({
+          x: cx + r * Math.cos(theta),
+          y: cy + r * Math.sin(theta),
+          width: 20 + Math.random() * 80,
+          height: 10 + Math.random() * 30,
+          rotation: Math.random() * Math.PI,
+          structure: 0.1 + Math.random() * 0.8, // Used for color mapping
+          isAnomaly: false,
+          scale: 0 // For intro animation
+        });
+      }
+
+      // Inject anomalies
+      for (let i = 0; i < CONFIG.NUM_ANOMALIES; i++) {
+        const r = 50 + Math.random() * Math.min(w, h) * 0.2;
+        const theta = Math.random() * Math.PI * 2;
+
+        simState.crystals.push({
+          x: cx + r * Math.cos(theta),
+          y: cy + r * Math.sin(theta),
+          width: 30 + Math.random() * 20,
+          height: 30 + Math.random() * 20,
+          rotation: Math.random() * Math.PI,
+          structure: 0.5,
+          isAnomaly: true,
+          id: `ANOMALY-${1000 + i}`,
+          discovered: false,
+          scale: 0
+        });
+      }
+
+      drawCrystals();
+
+      // Animate growth
+      gsap.to(simState.crystals, {
+        scale: 1,
+        duration: 2,
+        stagger: 0.01,
+        ease: "power2.out",
+        onUpdate: drawCrystals
+      });
+    }
+
+    function drawCrystals() {
+      crystalGraphics.clear();
+
+      simState.crystals.forEach(c => {
+        // R channel = structure, G channel = anomaly flag
+        const r = Math.floor(c.structure * 255);
+        const g = c.isAnomaly ? 255 : 0;
+        const color = (r << 16) + (g << 8) + 0;
+
+        crystalGraphics.beginFill(color, 1.0);
+
+        crystalGraphics.setTransform(
+          c.x, c.y,
+          c.scale * simState.latticeDensity,
+          c.scale * simState.latticeDensity,
+          c.rotation, 0, 0,
+          c.width/2, c.height/2
+        );
+
+        // Draw geometric shapes
+        if (c.isAnomaly) {
+          // Hexagon for anomalies
+          crystalGraphics.moveTo(c.width/2, 0);
+          for (let i = 1; i <= 6; i++) {
+            crystalGraphics.lineTo(
+              c.width/2 + c.width/2 * Math.cos(i * Math.PI / 3),
+              c.height/2 + c.height/2 * Math.sin(i * Math.PI / 3)
+            );
+          }
+        } else {
+          // Random shard shapes
+          crystalGraphics.drawRect(0, 0, c.width, c.height);
+        }
+
+        crystalGraphics.endFill();
+      });
+
+      // Reset transform
+      crystalGraphics.setTransform(0,0,1,1,0,0,0,0,0);
+    }
+
+    function drawFractures() {
+      fractureGraphics.clear();
+      if (simState.fractureLines.length === 0) return;
+
+      fractureGraphics.lineStyle(2, 0x000000, 0.8);
+
+      simState.fractureLines.forEach(f => {
+        fractureGraphics.moveTo(f.x1, f.y1);
+
+        // Draw jagged line
+        let cx = f.x1;
+        let cy = f.y1;
+        const segments = 5;
+        const dx = (f.x2 - f.x1) / segments;
+        const dy = (f.y2 - f.y1) / segments;
+
+        for (let i = 1; i <= segments; i++) {
+          const jitterX = (Math.random() - 0.5) * 10 * f.severity;
+          const jitterY = (Math.random() - 0.5) * 10 * f.severity;
+          const nx = i === segments ? f.x2 : cx + dx + jitterX;
+          const ny = i === segments ? f.y2 : cy + dy + jitterY;
+
+          fractureGraphics.lineTo(nx, ny);
+          cx = nx;
+          cy = ny;
+        }
+      });
+    }
+
+    function createFracture() {
+      const w = app.screen.width;
+      const h = app.screen.height;
+      const cx = w / 2;
+      const cy = h / 2;
+
+      const angle = Math.random() * Math.PI * 2;
+      const r1 = Math.random() * 50;
+      const r2 = 100 + Math.random() * Math.min(w, h) * 0.4;
+
+      const fracture = {
+        x1: cx + r1 * Math.cos(angle),
+        y1: cy + r1 * Math.sin(angle),
+        x2: cx + r2 * Math.cos(angle),
+        y2: cy + r2 * Math.sin(angle),
+        severity: Math.random()
+      };
+
+      simState.fractureLines.push(fracture);
+      simState.fractureCount++;
+
+      // Visual flash
+      gsap.to(birefringenceFilter.uniforms, {
+        uTemperature: "+=50",
+        duration: 0.1,
+        yoyo: true,
+        repeat: 1
+      });
+
+      // Camera shake
+      gsap.to(container, {
+        x: (Math.random() - 0.5) * 10,
+        y: (Math.random() - 0.5) * 10,
+        duration: 0.05,
+        yoyo: true,
+        repeat: 5,
+        onComplete: () => {
+          container.x = 0;
+          container.y = 0;
+        }
+      });
+
+      updateUI();
+      drawFractures();
+      logMessage(`WARNING: Lattice fractured! Structural integrity compromised.`, 'warn');
+      service.send('FRACTURE');
+    }
+
+    // --- Simulation Loop ---
+    let lastTempChangeTime = 0;
+
+    app.ticker.add((delta) => {
+      birefringenceFilter.uniforms.uTime += 0.01 * delta;
+
+      const currentState = service.state.value;
+
+      // Temperature mechanics
+      if (currentState === 'heating') {
+        simState.targetTemperature = Math.min(simState.targetTemperature + 5 * delta, CONFIG.MAX_TEMP);
+      } else if (currentState === 'cooling') {
+        simState.targetTemperature = Math.max(simState.targetTemperature - 5 * delta, CONFIG.MIN_TEMP);
+      } else if (currentState === 'annealing') {
+        // Slowly return to room temp
+        simState.targetTemperature += (CONFIG.ROOM_TEMP - simState.targetTemperature) * 0.01 * delta;
+      }
+
+      // Smooth temperature transition
+      const oldTemp = simState.temperature;
+      simState.temperature += (simState.targetTemperature - simState.temperature) * 0.1 * delta;
+
+      // Fracture logic: cooling too fast from high temp
+      if (currentState === 'cooling' && oldTemp > 300) {
+        const rate = oldTemp - simState.temperature;
+        if (rate > 2.0 && Math.random() < 0.05) {
+          createFracture();
+        }
+      }
+
+      // Annealing logic: heal fractures
+      if (currentState === 'annealing' && simState.temperature > 400 && simState.fractureLines.length > 0) {
+        if (Math.random() < 0.01) {
+          simState.fractureLines.pop();
+          simState.fractureCount = Math.max(0, simState.fractureCount - 1);
+          drawFractures();
+          logMessage("Annealing process fused a lattice fracture.");
+          if (simState.fractureCount === 0) {
+            logMessage("Structural integrity restored.", "success");
+            service.send('RECOVER');
+          }
+        }
+      }
+
+      // Update lattice density based on temp
+      // Hot = less dense (expands), Cold = more dense (contracts)
+      const baseDensity = 1.0;
+      const tempDelta = simState.temperature - CONFIG.ROOM_TEMP;
+      simState.latticeDensity = baseDensity - (tempDelta * 0.0005);
+
+      // Only redraw crystals if density changed significantly to save perf
+      if (Math.abs(tempDelta) > 0.1) {
+        drawCrystals();
+      }
+
+      // Update uniforms
+      birefringenceFilter.uniforms.uAngle = simState.polarizationAngle;
+      birefringenceFilter.uniforms.uFocus = simState.focusDepth;
+      birefringenceFilter.uniforms.uDensity = simState.latticeDensity;
+      birefringenceFilter.uniforms.uTemperature = simState.temperature;
+
+      // Update UI periodically
+      lastTempChangeTime += delta;
+      if (lastTempChangeTime > 5) {
+        updateUI();
+        lastTempChangeTime = 0;
+      }
+    });
+
+    // --- UI Interactions ---
+    function updateUI() {
+      UI.valTemp.textContent = `${simState.temperature.toFixed(1)} °C`;
+
+      // Temperature bar styling
+      const tempPercent = (simState.temperature - CONFIG.MIN_TEMP) / (CONFIG.MAX_TEMP - CONFIG.MIN_TEMP) * 100;
+      UI.tempBar.style.width = `${Math.max(0, Math.min(100, tempPercent))}%`;
+
+      if (simState.temperature > 600) {
+        UI.tempBar.style.backgroundColor = '#ff4a4a';
+        UI.valTemp.style.color = '#ff4a4a';
+      } else if (simState.temperature < 0) {
+        UI.tempBar.style.backgroundColor = '#4a9eff';
+        UI.valTemp.style.color = '#4a9eff';
+      } else {
+        UI.tempBar.style.backgroundColor = 'var(--text-dim)';
+        UI.valTemp.style.color = 'var(--accent-color)';
+      }
+
+      UI.valDensity.textContent = simState.latticeDensity.toFixed(3);
+      UI.valAnomalies.textContent = `${simState.isolatedAnomalies} / ${CONFIG.NUM_ANOMALIES}`;
+
+      if (simState.fractureCount > 0) {
+        UI.valFractures.textContent = `COMPROMISED (${simState.fractureCount})`;
+        UI.valFractures.className = 'readout-value fracture-warn';
+      } else {
+        UI.valFractures.textContent = `STABLE`;
+        UI.valFractures.className = 'readout-value';
+      }
+    }
+
+    UI.sliderAngle.addEventListener('input', (e) => {
+      simState.polarizationAngle = parseFloat(e.target.value);
+      UI.valAngle.textContent = `${simState.polarizationAngle.toFixed(0)}°`;
+    });
+
+    UI.sliderFocus.addEventListener('input', (e) => {
+      simState.focusDepth = parseFloat(e.target.value);
+      UI.valFocus.textContent = `${simState.focusDepth.toFixed(1)} µm`;
+    });
+
+    // Button controls
+    const setupButton = (btn, action, stopState) => {
+      let isPressed = false;
+
+      const startAction = () => {
+        if (service.state.value === 'scanning') return;
+        isPressed = true;
+        service.send(action);
+        if (action === 'HEAT') logMessage(`Heating unit engaged. Target: ${CONFIG.MAX_TEMP}°C`);
+        if (action === 'COOL') logMessage(`Cooling unit engaged. Target: ${CONFIG.MIN_TEMP}°C`);
+        if (action === 'ANNEAL') logMessage(`Annealing cycle started. Normalizing lattice...`);
+      };
+
+      const stopAction = () => {
+        if (isPressed) {
+          isPressed = false;
+          service.send('STOP');
+          logMessage(`${action.toLowerCase()} cycle terminated.`);
+        }
+      };
+
+      btn.addEventListener('mousedown', startAction);
+      btn.addEventListener('mouseup', stopAction);
+      btn.addEventListener('mouseleave', stopAction);
+
+      // Touch support
+      btn.addEventListener('touchstart', (e) => { e.preventDefault(); startAction(); });
+      btn.addEventListener('touchend', stopAction);
+    };
+
+    setupButton(UI.btnHeat, 'HEAT');
+    setupButton(UI.btnCool, 'COOL');
+    setupButton(UI.btnAnneal, 'ANNEAL');
+
+    // Scanning Mechanism
+    UI.btnScan.addEventListener('click', () => {
+      if (service.state.value === 'scanning') return;
+
+      service.send('SCAN');
+      logMessage(`Initiating optical anomaly scan...`);
+
+      const h = app.screen.height;
+      UI.scanLine.style.opacity = 1;
+
+      gsap.fromTo(UI.scanLine,
+        { top: 0 },
+        {
+          top: h,
+          duration: 2.5,
+          ease: "linear",
+          onComplete: () => {
+            UI.scanLine.style.opacity = 0;
+            evaluateScan();
+            service.send('COMPLETE');
+          }
+        }
+      );
+    });
+
+    function evaluateScan() {
+      // Check if conditions are right to reveal anomalies
+      const angleDiff = minAngleDiff(simState.polarizationAngle, CONFIG.TARGET_ANOMALY_ANGLE);
+      const focusDiff = Math.abs(simState.focusDepth - CONFIG.TARGET_ANOMALY_FOCUS);
+
+      let foundThisScan = 0;
+
+      if (angleDiff <= CONFIG.TARGET_TOLERANCE && focusDiff <= CONFIG.TARGET_TOLERANCE) {
+        // Conditions met
+        simState.crystals.filter(c => c.isAnomaly && !c.discovered).forEach(c => {
+          c.discovered = true;
+          simState.anomaliesDiscovered.add(c.id);
+          simState.isolatedAnomalies++;
+          foundThisScan++;
+          logMessage(`ANOMALY ISOLATED: Structure ${c.id} logged.`, 'success');
+
+          // Visual ping
+          const pt = new PIXI.Point(c.x, c.y);
+          const ping = document.createElement('div');
+          ping.style.position = 'absolute';
+          ping.style.left = `${pt.x}px`;
+          ping.style.top = `${pt.y}px`;
+          ping.style.width = '20px';
+          ping.style.height = '20px';
+          ping.style.border = '2px solid #4a9eff';
+          ping.style.borderRadius = '50%';
+          ping.style.transform = 'translate(-50%, -50%)';
+          ping.style.pointerEvents = 'none';
+          UI.canvasContainer.appendChild(ping);
+
+          gsap.to(ping, {
+            width: 60,
+            height: 60,
+            opacity: 0,
+            duration: 1,
+            onComplete: () => ping.remove()
+          });
+        });
+      }
+
+      if (foundThisScan === 0) {
+        logMessage(`Scan complete. No new structural anomalies detected at current optical configuration.`);
+      }
+
+      updateUI();
+    }
+
+    function minAngleDiff(a, b) {
+      const diff = Math.abs(a - b) % 360;
+      return Math.min(diff, 360 - diff);
+    }
+
+    // Handle resize
+    window.addEventListener('resize', () => {
+      app.resize();
+      updateBackground();
+      // Redraw fractures to scale might be complex, simple clear for now
+      if (simState.fractureLines.length > 0) {
+        drawFractures();
+      }
+    });
+
+    // --- Keyboard Controls ---
+    window.addEventListener('keydown', (e) => {
+      if (service.state.value === 'scanning') return;
+
+      if (e.key === 'ArrowUp' || e.key === 'w') {
+        service.send('HEAT');
+        UI.btnHeat.classList.add('active');
+      } else if (e.key === 'ArrowDown' || e.key === 's') {
+        service.send('COOL');
+        UI.btnCool.classList.add('active');
+      } else if (e.key === 'a') {
+        service.send('ANNEAL');
+        UI.btnAnneal.classList.add('active');
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.key === 'ArrowUp' || e.key === 'w') {
+        service.send('STOP');
+        UI.btnHeat.classList.remove('active');
+      } else if (e.key === 'ArrowDown' || e.key === 's') {
+        service.send('STOP');
+        UI.btnCool.classList.remove('active');
+      } else if (e.key === 'a') {
+        service.send('STOP');
+        UI.btnAnneal.classList.remove('active');
+      }
+    });
+
+    // --- Initialization & Verification Contract ---
+    window.onload = () => {
+      updateBackground();
+      generateCrystals();
+      updateUI();
+
+      setTimeout(() => {
+        UI.loadingOverlay.style.opacity = '0';
+        setTimeout(() => UI.loadingOverlay.remove(), 500);
+        window.__pixiReady = true;
+      }, 1000);
+    };
+
+    window.__toyProbe = {
+      getState: () => ({
+        stageState: service.state.value,
+        currentPolarizationAngle: simState.polarizationAngle,
+        currentFocusDepth: simState.focusDepth,
+        latticeFractureCount: simState.fractureCount,
+        isolatedAnomalies: simState.isolatedAnomalies,
+        pixiReady: window.__pixiReady || false
+      }),
+      runDemo: async () => {
+        return new Promise(resolve => {
+          // Drive state changes for testing/demo
+
+          // 1. Adjust optics to reveal anomalies
+          simState.polarizationAngle = CONFIG.TARGET_ANOMALY_ANGLE;
+          simState.focusDepth = CONFIG.TARGET_ANOMALY_FOCUS;
+          UI.sliderAngle.value = CONFIG.TARGET_ANOMALY_ANGLE;
+          UI.sliderFocus.value = CONFIG.TARGET_ANOMALY_FOCUS;
+          UI.valAngle.textContent = `${CONFIG.TARGET_ANOMALY_ANGLE}°`;
+          UI.valFocus.textContent = `${CONFIG.TARGET_ANOMALY_FOCUS} µm`;
+
+          // 2. Heat to show density change
+          simState.temperature = 400;
+          simState.targetTemperature = 400;
+
+          // 3. Trigger scan to log anomalies
+          UI.btnScan.click();
+
+          // Wait for scan to complete
+          const checkScan = setInterval(() => {
+            if (service.state.value !== 'scanning') {
+              clearInterval(checkScan);
+
+              // 4. Force a fracture for visual interest in screenshot
+              createFracture();
+
+              // Give it a tiny moment to render fracture
+              setTimeout(() => {
+                resolve(window.__toyProbe.getState());
+              }, 100);
+            }
+          }, 500);
+        });
+      }
+    };
+  </script>
+</body>
+</html>
