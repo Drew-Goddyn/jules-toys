@@ -782,7 +782,7 @@
           </div>
           <div class="stat">
             <dt class="meta-label">Ladder</dt>
-            <dd><strong>T1-T8</strong><span>ambition tiers</span></dd>
+            <dd><strong id="statLadder">T1-T8</strong><span>ambition tiers</span></dd>
           </div>
           <div class="stat">
             <dt class="meta-label">Runtime</dt>
@@ -870,7 +870,6 @@
 
   <script src="gallery-data.js"></script>
   <script>
-    const tiers = ["all", 1, 2, 3, 4, 5, 6, 7, 8];
     const requiredFields = ["tier", "title", "slug", "path", "screenshot", "kind", "tags", "oneLine"];
     const dataError = document.querySelector("#dataError");
     const rawItems = Array.isArray(window.galleryItems) ? window.galleryItems : [];
@@ -884,6 +883,10 @@
         : "Gallery data is missing or empty.";
     }
     const items = invalidItems.length ? [] : [...rawItems];
+    const itemTiers = [...new Set(items.map((item) => item.tier))]
+      .filter((tier) => Number.isFinite(tier))
+      .sort((a, b) => a - b);
+    const tiers = ["all", ...itemTiers];
     const searchInput = document.querySelector("#searchInput");
     const sortSelect = document.querySelector("#sortSelect");
     const resetFilters = document.querySelector("#resetFilters");
@@ -1015,9 +1018,11 @@
         5: "Multi-feature widget",
         6: "Cohesive mini-app",
         7: "Real logic/mechanics",
-        8: "Apex cohesion + logic"
+        8: "Apex cohesion + logic",
+        9: "Substantial complete experience",
+        10: "Wow/max multi-system build"
       };
-      tierLadder.replaceChildren(...[8, 7, 6, 5, 4, 3, 2, 1].map((tier) => {
+      tierLadder.replaceChildren(...[...itemTiers].reverse().map((tier) => {
         const row = document.createElement("button");
         row.type = "button";
         row.className = "ladder-row";
@@ -1026,7 +1031,7 @@
         row.innerHTML = `
           <strong>${tierName(tier)}</strong>
           <em>${counts.get(tier) || 0}</em>
-          <span>${labels[tier]}</span>
+          <span>${labels[tier] || "Ambition tier"}</span>
           <span class="bar" aria-hidden="true"></span>
         `;
         row.addEventListener("click", () => {
@@ -1075,6 +1080,10 @@
     sortSelect.addEventListener("input", renderGallery);
 
     document.querySelector("#statTotal").textContent = items.length;
+    const statLadder = document.querySelector("#statLadder");
+    if (itemTiers.length) {
+      statLadder.textContent = `T${itemTiers[0]}-T${itemTiers[itemTiers.length - 1]}`;
+    }
     renderTierButtons();
     renderLadder();
     renderGallery();
