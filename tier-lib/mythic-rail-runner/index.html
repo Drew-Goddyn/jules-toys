@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Mythic Rail Runner</title>
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: #111;
+    color: #fff;
+    font-family: monospace;
+    overflow: hidden;
+    touch-action: none;
+  }
+  #game-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  canvas {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+  }
+  #ui-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .hud {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-size: 1.2rem;
+    text-shadow: 1px 1px 2px #000;
+  }
+  .hud-top {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+  }
+  .controls {
+    display: flex;
+    justify-content: space-between;
+    padding: 20px;
+    pointer-events: auto;
+  }
+  .btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid #fff;
+    color: #fff;
+    padding: 15px 20px;
+    font-family: inherit;
+    font-size: 1rem;
+    text-transform: uppercase;
+    cursor: pointer;
+    user-select: none;
+    border-radius: 8px;
+  }
+  .btn:active {
+    background: rgba(255, 255, 255, 0.5);
+  }
+  #btn-phase {
+    background: rgba(0, 255, 255, 0.2);
+    border-color: #0ff;
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.80.1/phaser.min.js"></script>
+</head>
+<body>
+
+<div id="game-container"></div>
+
+<div id="ui-layer">
+  <div class="hud">
+    <div class="hud-top">
+      <div id="score-display">Score: 0</div>
+      <div id="charge-display">Charge: 0/100</div>
+    </div>
+    <div id="phase-status" style="font-size: 0.9rem; color: #0ff; text-align: right; margin-top: 5px; height: 1.2rem;"></div>
+  </div>
+  <div class="controls">
+    <button class="btn" id="btn-left">&lt; Left</button>
+    <button class="btn" id="btn-phase">Phase</button>
+    <button class="btn" id="btn-right">Right &gt;</button>
+  </div>
+</div>
+
+<script>
+  class BootScene extends Phaser.Scene {
+    constructor() { super('BootScene'); }
+    preload() {
+      let graphics = this.make.graphics({x: 0, y: 0, add: false});
+
+      // Train Detail
+      graphics.fillStyle(0x1a1a1a, 1);
+      graphics.fillRect(5, 0, 30, 60);
+      graphics.fillStyle(0x00aaff, 1);
+      graphics.fillRect(10, 10, 20, 40);
+      graphics.fillStyle(0x00e5ff, 1); // Headlight
+      graphics.fillCircle(20, 5, 8);
+      graphics.generateTexture('train', 40, 60);
+      graphics.clear();
+
+      // Hazard: Signal Spirit
+      graphics.fillStyle(0xff1100, 0.8);
+      graphics.fillCircle(20, 20, 20);
+      graphics.fillStyle(0xff8800, 1);
+      graphics.fillCircle(20, 20, 10);
+      graphics.generateTexture('hazard', 40, 40);
+      graphics.clear();
+
+      // Hazard: Barricade
+      graphics.fillStyle(0xffaa00, 1);
+      graphics.fillRect(0, 10, 40, 10);
+      graphics.fillStyle(0x222222, 1);
+      graphics.fillRect(10, 10, 5, 10);
+      graphics.fillRect(25, 10, 5, 10);
+      graphics.generateTexture('barricade', 40, 40);
+      graphics.clear();
+
+      // Relic
+      graphics.fillStyle(0xffcc00, 1);
+      graphics.fillTriangle(20, 0, 40, 35, 0, 35);
+      graphics.fillStyle(0xffffff, 0.6);
+      graphics.fillTriangle(20, 5, 30, 25, 10, 25);
+      graphics.generateTexture('relic', 40, 40);
+      graphics.clear();
+
+      // Track Tie
+      graphics.fillStyle(0x331a00, 1);
+      graphics.fillRect(0, 0, 120, 10);
+      graphics.fillStyle(0x442200, 1);
+      graphics.fillRect(0, 2, 120, 6);
+      graphics.generateTexture('tie', 120, 10);
+      graphics.clear();
+
+      // Lantern
+      graphics.fillStyle(0x000000, 1);
+      graphics.fillRect(0, 0, 10, 10);
+      graphics.fillStyle(0x00ff00, 1);
+      graphics.fillCircle(5, 5, 4);
+      graphics.generateTexture('lantern', 10, 10);
+      graphics.clear();
+    }
+    create() {
+      this.scene.start('MenuScene');
+    }
+  }
+
+  class MenuScene extends Phaser.Scene {
+    constructor() { super('MenuScene'); }
+    create() {
+      this.add.text(400, 200, 'MYTHIC RAIL RUNNER', { fontSize: '48px', fill: '#fff' }).setOrigin(0.5);
+      this.add.text(400, 300, 'Press SPACE or tap to Start', { fontSize: '24px', fill: '#aaa' }).setOrigin(0.5);
+
+      this.input.on('pointerdown', () => this.scene.start('PlayScene'));
+      this.input.keyboard.on('keydown-SPACE', () => this.scene.start('PlayScene'));
+
+      document.getElementById('ui-layer').style.display = 'none';
+    }
+  }
+
+  class GameOverScene extends Phaser.Scene {
+    constructor() { super('GameOverScene'); }
+    init(data) {
+      this.score = data.score || 0;
+      this.win = data.win || false;
+    }
+    create() {
+      const title = this.win ? 'YOU SURVIVED' : 'GAME OVER';
+      const color = this.win ? '#00ff00' : '#ff0000';
+
+      this.add.text(400, 200, title, { fontSize: '48px', fill: color }).setOrigin(0.5);
+      this.add.text(400, 300, 'Score: ' + this.score, { fontSize: '32px', fill: '#fff' }).setOrigin(0.5);
+      this.add.text(400, 400, 'Press SPACE or tap to Restart', { fontSize: '24px', fill: '#aaa' }).setOrigin(0.5);
+
+      this.input.on('pointerdown', () => this.scene.start('PlayScene'));
+      this.input.keyboard.on('keydown-SPACE', () => this.scene.start('PlayScene'));
+
+      document.getElementById('ui-layer').style.display = 'none';
+    }
+  }
+
+  class PlayScene extends Phaser.Scene {
+    constructor() { super('PlayScene'); }
+
+    create() {
+      document.getElementById('ui-layer').style.display = 'flex';
+
+      this.score = 0;
+      this.charge = 0;
+      this.isPhasing = false;
+      this.laneWidth = 200;
+      this.lanes = [200, 400, 600]; // X coordinates for lanes
+      this.currentLane = 1; // Middle lane
+      this.gameSpeed = 5;
+
+      // Background scenery
+      this.cameras.main.setBackgroundColor('#0a0a0a');
+
+      // Lane Labels
+      this.add.text(200, 20, 'LANE 1', { fontSize: '14px', fill: '#333' }).setOrigin(0.5);
+      this.add.text(400, 20, 'LANE 2', { fontSize: '14px', fill: '#333' }).setOrigin(0.5);
+      this.add.text(600, 20, 'LANE 3', { fontSize: '14px', fill: '#333' }).setOrigin(0.5);
+
+      // Draw Tracks
+      this.tracks = this.add.graphics();
+      this.tracks.lineStyle(4, 0x555555);
+      for(let lane of this.lanes) {
+        this.tracks.moveTo(lane - 40, 0);
+        this.tracks.lineTo(lane - 40, 600);
+        this.tracks.moveTo(lane + 40, 0);
+        this.tracks.lineTo(lane + 40, 600);
+      }
+      this.tracks.strokePath();
+
+      // Track ties
+      this.ties = [];
+      for(let i=0; i<15; i++) {
+        for(let lane of this.lanes) {
+          let tie = this.add.image(lane, i * 40, 'tie');
+          tie.setDepth(-1);
+          this.ties.push(tie);
+        }
+      }
+
+      // Animated Lanterns
+      this.lanterns = [];
+      for(let i=0; i<8; i++) {
+        let leftLantern = this.add.image(80, i * 80, 'lantern');
+        let rightLantern = this.add.image(720, i * 80, 'lantern');
+
+        this.tweens.add({
+          targets: [leftLantern, rightLantern],
+          alpha: 0.5,
+          duration: 800,
+          yoyo: true,
+          repeat: -1,
+          delay: i * 100
+        });
+
+        this.lanterns.push(leftLantern, rightLantern);
+      }
+
+      // Player
+      this.player = this.physics.add.sprite(this.lanes[this.currentLane], 500, 'train');
+      this.player.setCollideWorldBounds(true);
+
+      // Groups
+      this.hazards = this.physics.add.group();
+      this.relics = this.physics.add.group();
+
+      // Controls
+      this.cursors = this.input.keyboard.createCursorKeys();
+      this.spacebar = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
+      this.canMove = true;
+      window.gameScene = this;
+      this.updateUI();
+
+      // Win condition timer
+      this.winTimer = this.time.delayedCall(30000, () => {
+        this.scene.start('GameOverScene', { score: this.score, win: true });
+      });
+
+      // Spawners
+      this.time.addEvent({ delay: 1000, callback: this.spawnHazard, callbackScope: this, loop: true });
+      this.time.addEvent({ delay: 1500, callback: this.spawnRelic, callbackScope: this, loop: true });
+
+      // Collisions
+      this.physics.add.overlap(this.player, this.relics, this.collectRelic, null, this);
+      this.physics.add.overlap(this.player, this.hazards, this.hitHazard, null, this);
+    }
+
+    update() {
+      for(let tie of this.ties) {
+        tie.y += this.gameSpeed;
+        if(tie.y > 600) tie.y -= 600;
+      }
+      for(let lantern of this.lanterns) {
+        lantern.y += this.gameSpeed;
+        if(lantern.y > 600) lantern.y -= 600;
+      }
+      this.hazards.getChildren().forEach(h => {
+        h.y += this.gameSpeed;
+        if (h.y > 650) {
+           h.destroy();
+           this.score += 10;
+           this.updateUI();
+        }
+      });
+      this.relics.getChildren().forEach(r => {
+        r.y += this.gameSpeed;
+        if (r.y > 650) r.destroy();
+      });
+
+      if (this.canMove) {
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.left)) this.moveLeft();
+        if (Phaser.Input.Keyboard.JustDown(this.cursors.right)) this.moveRight();
+      }
+      if (Phaser.Input.Keyboard.JustDown(this.spacebar)) this.triggerPhase();
+    }
+
+    moveLeft() {
+      if (this.currentLane > 0) {
+        this.currentLane--;
+        this.tweens.add({
+          targets: this.player,
+          x: this.lanes[this.currentLane],
+          duration: 150,
+          ease: 'Power2'
+        });
+      }
+    }
+
+    moveRight() {
+      if (this.currentLane < 2) {
+        this.currentLane++;
+        this.tweens.add({
+          targets: this.player,
+          x: this.lanes[this.currentLane],
+          duration: 150,
+          ease: 'Power2'
+        });
+      }
+    }
+
+    triggerPhase() {
+      if (this.charge >= 50 && !this.isPhasing) {
+        this.charge -= 50;
+        this.isPhasing = true;
+        this.player.setAlpha(0.5);
+        this.player.setTint(0x00ffff);
+        this.updateUI();
+
+        document.getElementById('phase-status').innerText = 'PHASE ACTIVE';
+        document.getElementById('phase-status').style.color = '#0ff';
+
+        this.time.delayedCall(2000, () => {
+          this.isPhasing = false;
+          this.player.setAlpha(1);
+          this.player.clearTint();
+
+          document.getElementById('phase-status').innerText = 'PHASE COOLDOWN';
+          document.getElementById('phase-status').style.color = '#f00';
+
+          this.time.delayedCall(1000, () => {
+             document.getElementById('phase-status').innerText = '';
+          });
+        });
+      }
+    }
+
+    spawnHazard() {
+      let lane = Phaser.Math.RND.pick(this.lanes);
+      let isBarricade = Phaser.Math.RND.frac() > 0.6;
+      let type = isBarricade ? 'barricade' : 'hazard';
+      let hazard = this.hazards.create(lane, -50, type);
+
+      if (!isBarricade) {
+        this.tweens.add({
+          targets: hazard,
+          x: hazard.x + Phaser.Math.RND.pick([-20, 20]),
+          duration: 1000,
+          yoyo: true,
+          repeat: -1
+        });
+      }
+    }
+
+    spawnRelic() {
+      let lane = Phaser.Math.RND.pick(this.lanes);
+      this.relics.create(lane, -50, 'relic');
+    }
+
+    collectRelic(player, relic) {
+      this.tweens.add({
+        targets: this.player,
+        alpha: 0.3,
+        yoyo: true,
+        duration: 100,
+        repeat: 1
+      });
+
+      relic.destroy();
+      this.score += 50;
+      this.charge = Math.min(100, this.charge + 20);
+      this.updateUI();
+    }
+
+    hitHazard(player, hazard) {
+      if (this.isPhasing) return;
+      this.physics.pause();
+      this.player.setTint(0xff0000);
+      document.getElementById('ui-layer').style.display = 'none'; // Force hide
+      this.time.delayedCall(1000, () => {
+        this.scene.start('GameOverScene', { score: this.score, win: false });
+      });
+    }
+
+    updateUI() {
+      document.getElementById('score-display').innerText = 'Score: ' + this.score;
+      document.getElementById('charge-display').innerText = 'Charge: ' + this.charge + '/100';
+    }
+  }
+
+  document.getElementById('btn-left').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (window.gameScene && window.gameScene.scene.isActive()) window.gameScene.moveLeft();
+  });
+  document.getElementById('btn-right').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (window.gameScene && window.gameScene.scene.isActive()) window.gameScene.moveRight();
+  });
+  document.getElementById('btn-phase').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (window.gameScene && window.gameScene.scene.isActive()) window.gameScene.triggerPhase();
+  });
+
+  window.addEventListener('load', () => {
+    const config = {
+      type: Phaser.AUTO,
+      parent: 'game-container',
+      width: 800,
+      height: 600,
+      scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH
+      },
+      physics: {
+        default: 'arcade',
+        arcade: { gravity: { y: 0 }, debug: false }
+      },
+      scene: [BootScene, MenuScene, PlayScene, GameOverScene]
+    };
+    window.game = new Phaser.Game(config);
+  });
+</script>
+</body>
+</html>
