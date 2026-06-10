@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solar Cyanotype Press</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f4f1ea;
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        #ui-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .panel {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 4px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+            pointer-events: auto;
+            margin-bottom: 10px;
+        }
+        h1 {
+            margin: 0 0 10px 0;
+            font-size: 1.2rem;
+            color: #333;
+        }
+        .stat {
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        button {
+            background-color: #eee;
+            border: 1px solid #999;
+            padding: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background-color: #ddd;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            color: #777;
+        }
+
+        #canvas-container {
+            flex-grow: 1;
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        #sun-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #fff 0%, #ffcc00 40%, transparent 70%);
+            z-index: 5;
+            pointer-events: none;
+            opacity: 0.8;
+            transform-origin: center;
+        }
+    </style>
+    <!-- Dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.3.2/pixi.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+</head>
+<body>
+
+    <div id="ui-container">
+        <div class="panel">
+            <h1>Solar Cyanotype Press</h1>
+            <div class="stat" id="stat-objects">Objects: 0</div>
+            <div class="stat" id="stat-sun">Sun Angle: 0°</div>
+            <div class="stat" id="stat-exposure">Exposure: 0%</div>
+            <div class="stat" id="stat-state">State: Setup</div>
+
+            <div class="controls">
+                <button id="btn-add-fern">Add Fern</button>
+                <button id="btn-add-flower">Add Flower</button>
+                <button id="btn-add-glass">Add Glass Block</button>
+                <button id="btn-wash" disabled>Wash & Fix Print</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="sun-indicator"></div>
+    <div id="canvas-container"></div>
+
+    <script>
+        // State
+        const state = {
+            objectsOnBed: 0,
+            sunAngleDegrees: 15,
+            exposureAccumulationValue: 0,
+            ghostSilhouetteCount: 0,
+            isFixedByWash: false,
+            pixiReady: false,
+            exposureRunning: true, // Auto runs during day
+            width: window.innerWidth,
+            height: window.innerHeight,
+            sunRadius: 400 // Path radius for sun arc
+        };
+
+        // DOM elements
+        const statObjects = document.getElementById('stat-objects');
+        const statSun = document.getElementById('stat-sun');
+        const statExposure = document.getElementById('stat-exposure');
+        const statState = document.getElementById('stat-state');
+        const btnAddFern = document.getElementById('btn-add-fern');
+        const btnAddFlower = document.getElementById('btn-add-flower');
+        const btnAddGlass = document.getElementById('btn-add-glass');
+        const btnWash = document.getElementById('btn-wash');
+        const sunIndicator = document.getElementById('sun-indicator');
+        const canvasContainer = document.getElementById('canvas-container');
+
+        // Physics
+        const Engine = Matter.Engine,
+              Render = Matter.Render,
+              Runner = Matter.Runner,
+              Bodies = Matter.Bodies,
+              Composite = Matter.Composite,
+              Mouse = Matter.Mouse,
+              MouseConstraint = Matter.MouseConstraint,
+              Events = Matter.Events;
+
+        const engine = Engine.create();
+        // Zero gravity for top-down table view
+        engine.world.gravity.y = 0;
+        engine.world.gravity.x = 0;
+
+        // Visuals (PixiJS)
+        const app = new PIXI.Application({
+            resizeTo: window,
+            backgroundColor: 0xeeebd6, // Unexposed paper color (pale yellowish)
+            resolution: window.devicePixelRatio || 1,
+            autoDensity: true
+        });
+        canvasContainer.appendChild(app.view);
+
+        // Render Targets for Accumulation
+        // Base paper layer (accumulates blue)
+        const paperRenderTexture = PIXI.RenderTexture.create({ width: state.width, height: state.height });
+        const paperSprite = new PIXI.Sprite(paperRenderTexture);
+        app.stage.addChild(paperSprite);
+
+        // Clear base initially
+        const clearGraphics = new PIXI.Graphics();
+        clearGraphics.beginFill(0xeeebd6);
+        clearGraphics.drawRect(0, 0, state.width, state.height);
+        clearGraphics.endFill();
+        app.renderer.render(clearGraphics, { renderTexture: paperRenderTexture });
+
+        // Shadow masking layer (renders black shadows to block exposure)
+        const shadowRenderTexture = PIXI.RenderTexture.create({ width: state.width, height: state.height });
+
+        // Container for objects above paper
+        const objectContainer = new PIXI.Container();
+        app.stage.addChild(objectContainer);
+
+        // Graphics to draw exposure pulse
+        const exposureGraphics = new PIXI.Graphics();
+        // Graphics to draw current frame shadows
+        const shadowGraphics = new PIXI.Graphics();
+
+        // Object Tracking
+        const bodies = [];
+        const pixiGraphics = new Map(); // body.id -> PIXI.Graphics
+
+        // Filter out shadow areas
+        // To accumulate, we take the exposure color (pale blue), mask it with inverted shadows, and add it
+        const exposureBrush = new PIXI.Graphics();
+        exposureBrush.beginFill(0x0a3c6b, 0.005); // Very faint prussian blue
+        exposureBrush.drawRect(0, 0, state.width, state.height);
+        exposureBrush.endFill();
+
+        // Pulse rendering setup
+        const pulseRenderTexture = PIXI.RenderTexture.create({ width: state.width, height: state.height });
+        const pulseSprite = new PIXI.Sprite(pulseRenderTexture);
+
+        const accumBrush = new PIXI.Graphics();
+        accumBrush.beginFill(0x0a3c6b, 0.015); // Slightly stronger blue per frame to make it visible
+        accumBrush.drawRect(0, 0, 4000, 4000); // oversized
+        accumBrush.endFill();
+
+        const shadowDrawContainer = new PIXI.Container();
+
+        // Add walls (invisible to pixi, keep objects on table)
+        const wallOptions = { isStatic: true, restitution: 0.5 };
+        Composite.add(engine.world, [
+            Bodies.rectangle(state.width/2, -50, state.width, 100, wallOptions),
+            Bodies.rectangle(state.width/2, state.height+50, state.width, 100, wallOptions),
+            Bodies.rectangle(-50, state.height/2, 100, state.height, wallOptions),
+            Bodies.rectangle(state.width+50, state.height/2, 100, state.height, wallOptions)
+        ]);
+
+        // Mouse interaction
+        const mouse = Mouse.create(app.view);
+        const mouseConstraint = MouseConstraint.create(engine, {
+            mouse: mouse,
+            constraint: {
+                stiffness: 0.2,
+                render: { visible: false }
+            }
+        });
+        Composite.add(engine.world, mouseConstraint);
+
+        // Keep mouse in sync with scrolling if needed
+        mouseConstraint.mouse.element.removeEventListener("mousewheel", mouseConstraint.mouse.mousewheel);
+        mouseConstraint.mouse.element.removeEventListener("DOMMouseScroll", mouseConstraint.mouse.mousewheel);
+
+        // Track dragging to detect ghosts
+        let isDragging = false;
+        Events.on(mouseConstraint, 'startdrag', () => { isDragging = true; });
+        Events.on(mouseConstraint, 'enddrag', () => { isDragging = false; });
+
+        // Detect ghosting (moving objects significantly while exposing)
+        let lastPositions = new Map();
+
+        // Object definitions
+        function addObject(type) {
+            if (state.isFixedByWash) return;
+
+            const x = state.width/2 + (Math.random() * 200 - 100);
+            const y = state.height/2 + (Math.random() * 200 - 100);
+
+            let body, graphics;
+            graphics = new PIXI.Graphics();
+
+            if (type === 'fern') {
+                // Approximate fern shape (complex polygon or just a long capsule)
+                body = Bodies.rectangle(x, y, 40, 150, {
+                    frictionAir: 0.1, density: 0.001,
+                    render: { type: 'fern' }
+                });
+                // Draw physical look
+                graphics.beginFill(0x2d4c1e, 0.8);
+                graphics.drawEllipse(0, 0, 20, 75);
+                // leaves
+                for(let i=-60; i<=60; i+=20) {
+                    graphics.drawEllipse(0, i, 35, 8);
+                }
+                graphics.endFill();
+            } else if (type === 'flower') {
+                body = Bodies.circle(x, y, 40, {
+                    frictionAir: 0.05, density: 0.002,
+                    render: { type: 'flower' }
+                });
+                graphics.beginFill(0x8b3a3a, 0.9);
+                graphics.drawCircle(0, 0, 20); // center
+                graphics.beginFill(0xcd6969, 0.8);
+                for(let i=0; i<8; i++) {
+                    const angle = (i/8) * Math.PI * 2;
+                    graphics.drawEllipse(Math.cos(angle)*25, Math.sin(angle)*25, 15, 15);
+                }
+                graphics.endFill();
+            } else if (type === 'glass') {
+                body = Bodies.rectangle(x, y, 100, 100, {
+                    frictionAir: 0.2, density: 0.01, // Heavier
+                    render: { type: 'glass' }
+                });
+                graphics.beginFill(0x99ccff, 0.3); // transparent glass
+                graphics.lineStyle(2, 0xffffff, 0.5);
+                graphics.drawRect(-50, -50, 100, 100);
+                graphics.endFill();
+            }
+
+            Composite.add(engine.world, body);
+            bodies.push(body);
+            pixiGraphics.set(body.id, graphics);
+            objectContainer.addChild(graphics);
+
+            lastPositions.set(body.id, {x: body.position.x, y: body.position.y});
+
+            state.objectsOnBed++;
+            updateUI();
+        }
+
+        // Sun animation
+        gsap.to(state, {
+            sunAngleDegrees: 165, // Dawn to dusk
+            duration: 60,
+            ease: "none",
+            onUpdate: () => {
+                const rad = state.sunAngleDegrees * Math.PI / 180;
+                // Position sun indicator
+                const cx = state.width / 2;
+                const cy = state.height; // base at bottom
+                sunIndicator.style.left = `${cx - Math.cos(rad) * state.sunRadius - 30}px`;
+                sunIndicator.style.top = `${cy - Math.sin(rad) * state.sunRadius - 30}px`;
+
+                // Shadows get longer when sun is lower
+                // Altitude is sin(rad), Azimuth is cos(rad)
+            }
+        });
+
+        // Add initial objects
+        addObject('fern');
+        addObject('flower');
+
+        // Buttons
+        btnAddFern.onclick = () => addObject('fern');
+        btnAddFlower.onclick = () => addObject('flower');
+        btnAddGlass.onclick = () => addObject('glass');
+
+        btnWash.onclick = async () => {
+            if (state.isFixedByWash) return;
+            state.exposureRunning = false;
+            state.isFixedByWash = true;
+
+            btnAddFern.disabled = true;
+            btnAddFlower.disabled = true;
+            btnAddGlass.disabled = true;
+            btnWash.disabled = true;
+
+            statState.innerText = "State: Washing...";
+
+            // Remove physical objects visually
+            gsap.to(objectContainer, { alpha: 0, duration: 1.5 });
+
+            // Water wash effect (blue color shift and contrast pop)
+            const washOverlay = new PIXI.Graphics();
+            washOverlay.beginFill(0xccffff, 0.5);
+            washOverlay.drawRect(0, 0, state.width, state.height);
+            washOverlay.endFill();
+            washOverlay.alpha = 0;
+            app.stage.addChild(washOverlay);
+
+            await gsap.to(washOverlay, { alpha: 1, duration: 1.5, yoyo: true, repeat: 1 });
+            app.stage.removeChild(washOverlay);
+
+            // Deepen blue of paper
+            const fixFilter = new PIXI.ColorMatrixFilter();
+            paperSprite.filters = [fixFilter];
+            fixFilter.contrast(0.2, true);
+            fixFilter.brightness(0.9, true);
+            // shift towards prussian blue
+
+            statState.innerText = "State: Fixed (Final)";
+            updateUI();
+        };
+
+        function updateUI() {
+            statObjects.innerText = `Objects: ${state.objectsOnBed}`;
+            statSun.innerText = `Sun Angle: ${Math.floor(state.sunAngleDegrees)}°`;
+            statExposure.innerText = `Exposure: ${Math.floor(state.exposureAccumulationValue)}%`;
+            if (state.exposureAccumulationValue > 10 && !state.isFixedByWash) {
+                btnWash.disabled = false;
+            }
+        }
+
+        // Render Loop
+        app.ticker.add((delta) => {
+            Engine.update(engine, 1000 / 60 * delta);
+
+            // Sync PIXI objects with Matter bodies
+            let movedGhosts = false;
+
+            for (let body of bodies) {
+                const gfx = pixiGraphics.get(body.id);
+                if (gfx) {
+                    gfx.position.set(body.position.x, body.position.y);
+                    gfx.rotation = body.angle;
+                }
+
+                // Check movement for ghosts
+                if (state.exposureRunning && state.exposureAccumulationValue > 5) {
+                    const last = lastPositions.get(body.id);
+                    const dist = Math.hypot(body.position.x - last.x, body.position.y - last.y);
+                    if (dist > 5) { // moved significantly
+                        movedGhosts = true;
+                        lastPositions.set(body.id, {x: body.position.x, y: body.position.y});
+                    }
+                }
+            }
+
+            if (movedGhosts) {
+                state.ghostSilhouetteCount++;
+            }
+
+            // Accumulate Exposure
+            if (state.exposureRunning && !state.isFixedByWash) {
+                // Calculate sun vector
+                const rad = state.sunAngleDegrees * Math.PI / 180;
+                // Light direction vector
+                const lx = Math.cos(rad);
+                const ly = -Math.sin(rad); // UP is negative Y in screen coords
+
+                // Altitude affects shadow length. Lower sun = longer shadow
+                const altitude = Math.max(0.1, Math.sin(rad));
+                const shadowLengthMultiplier = 1 / altitude;
+
+                // Clear shadow container
+                shadowDrawContainer.removeChildren();
+
+                // Draw shadows for each object
+                for (let body of bodies) {
+                    const type = body.render.type;
+                    const shadow = new PIXI.Graphics();
+                    shadow.beginFill(0xffffff, 1); // White shadow to ERASE the blue accumBrush
+
+                    let h = 10;
+                    if (type === 'flower') h = 30;
+                    if (type === 'glass') h = 5;
+
+                    const offsetX = lx * shadowLengthMultiplier * h;
+                    const offsetY = ly * shadowLengthMultiplier * h;
+
+                    shadow.position.set(body.position.x + offsetX, body.position.y + offsetY);
+                    shadow.rotation = body.angle;
+
+                    if (type === 'fern') {
+                        shadow.drawEllipse(0, 0, 20, 75);
+                        for(let i=-60; i<=60; i+=20) shadow.drawEllipse(0, i, 35, 8);
+                    } else if (type === 'flower') {
+                        shadow.drawCircle(0, 0, 40);
+                    } else if (type === 'glass') {
+                        shadow.beginFill(0xffffff, 0.4);
+                        shadow.drawRect(-50, -50, 100, 100);
+                    }
+                    shadow.endFill();
+
+                    shadow.blendMode = PIXI.BLEND_MODES.ERASE;
+                    shadowDrawContainer.addChild(shadow);
+
+                    const contact = shadow.clone();
+                    contact.position.set(body.position.x, body.position.y);
+                    if(type === 'glass') {
+                        contact.alpha = 0.5;
+                    }
+                    shadowDrawContainer.addChild(contact);
+                }
+
+                // Render intermediate texture
+                app.renderer.render(accumBrush, { renderTexture: pulseRenderTexture, clear: true });
+                app.renderer.render(shadowDrawContainer, { renderTexture: pulseRenderTexture, clear: false });
+
+                // Render pulse to paper
+                app.renderer.render(pulseSprite, { renderTexture: paperRenderTexture, clear: false });
+
+                // Increase exposure value based on sun height (peak at 90 deg)
+                const sunIntensity = Math.sin(rad);
+                if (sunIntensity > 0) {
+                    state.exposureAccumulationValue += (sunIntensity * 0.05);
+                }
+
+                if (state.exposureAccumulationValue > 100) {
+                    state.exposureAccumulationValue = 100;
+                }
+            }
+
+            // Sync with UI less frequently to save perf
+            if (app.ticker.lastTime % 10 < 1) {
+                updateUI();
+            }
+        });
+
+        // Handle resize
+        window.addEventListener('resize', () => {
+            state.width = window.innerWidth;
+            state.height = window.innerHeight;
+            app.renderer.resize(state.width, state.height);
+            // Update walls? For simplicity, just left top/bottom as is.
+        });
+
+        state.pixiReady = true;
+
+        // Verify Contract API
+        window.__toyProbe = {
+            getState: () => ({
+                objectsOnBed: state.objectsOnBed,
+                sunAngleDegrees: state.sunAngleDegrees,
+                exposureAccumulationValue: state.exposureAccumulationValue,
+                ghostSilhouetteCount: state.ghostSilhouetteCount,
+                isFixedByWash: state.isFixedByWash,
+                pixiReady: state.pixiReady
+            }),
+            runDemo: async () => {
+                // Fast forward sun to build exposure
+                gsap.to(state, { sunAngleDegrees: 90, duration: 1 });
+                state.exposureAccumulationValue += 20; // Jump exposure
+                await new Promise(r => setTimeout(r, 1200));
+
+                // Move an object to create ghost
+                if (bodies.length > 0) {
+                    const b = bodies[0];
+                    Matter.Body.setPosition(b, {x: b.position.x + 100, y: b.position.y + 50});
+                    Matter.Body.setAngle(b, b.angle + 1);
+                }
+
+                // More exposure
+                gsap.to(state, { sunAngleDegrees: 120, duration: 1 });
+                state.exposureAccumulationValue += 20; // Jump exposure
+                await new Promise(r => setTimeout(r, 1200));
+
+                // Wash
+                btnWash.disabled = false;
+                await btnWash.onclick();
+
+                return window.__toyProbe.getState();
+            }
+        };
+
+    </script>
+</body>
+</html>
