@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jules Toys | Realization Probe Gallery</title>
+  <script src="gallery-data.js"></script>
+  <style>
+    :root {
+      /* Restrained Grayscale Palette */
+      --bg-color: #121212;
+      --surface-color: #1e1e1e;
+      --border-color: #333333;
+      --text-main: #f0f0f0;
+      --text-muted: #a0a0a0;
+
+      /* Single Accent Color */
+      --accent-color: #0088cc;
+      --accent-hover: #00aaff;
+
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: var(--font-family);
+      line-height: 1.5;
+    }
+
+    a {
+      color: var(--accent-color);
+      text-decoration: none;
+    }
+
+    a:hover {
+      color: var(--accent-hover);
+      text-decoration: underline;
+    }
+
+    /* Layout */
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    header {
+      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 1.5rem;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin: 0 0 0.5rem 0;
+      letter-spacing: -0.02em;
+    }
+
+    .stats {
+      display: flex;
+      gap: 1.5rem;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .stats span {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    @media (min-width: 768px) {
+      .controls {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+      }
+    }
+
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .filter-chip {
+      background-color: var(--surface-color);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 0.4rem 0.8rem;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .filter-chip:hover {
+      background-color: #2a2a2a;
+    }
+
+    .filter-chip.active {
+      background-color: var(--text-main);
+      color: var(--bg-color);
+      border-color: var(--text-main);
+    }
+
+    .search-sort {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .search-input {
+      background-color: var(--surface-color);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      min-width: 200px;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: var(--accent-color);
+    }
+
+    .sort-select {
+      background-color: var(--surface-color);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 0.5rem;
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+
+    .sort-select:focus {
+      outline: none;
+      border-color: var(--accent-color);
+    }
+
+    .results-count {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+    }
+
+    /* Grid Layouts */
+    .section-title {
+      font-size: 1.25rem;
+      margin: 2rem 0 1rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.5rem;
+      display: none; /* Hidden by default, shown via JS if needed */
+    }
+
+    .grid {
+      display: grid;
+      gap: 1.5rem;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+
+    /* Featured row (T7/T8) */
+    .featured-grid {
+      display: grid;
+      gap: 1.5rem;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      margin-bottom: 3rem;
+    }
+
+    /* Cards */
+    .card {
+      background-color: var(--surface-color);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+      height: 100%;
+    }
+
+    .card:hover, .card:focus-within {
+      transform: translateY(-4px);
+      border-color: var(--accent-color);
+    }
+
+    .card-img-container {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background-color: #000;
+      border-bottom: 1px solid var(--border-color);
+      overflow: hidden;
+    }
+
+    .card-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .card-content {
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      flex-grow: 1;
+    }
+
+    .card-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin: 0 0 0.5rem 0;
+    }
+
+    .card-title a {
+      color: inherit;
+    }
+
+    .card-title a:hover {
+      color: var(--accent-color);
+      text-decoration: none;
+    }
+
+    /* Remove outline for mouse users, keep for keyboard */
+    .card-title a:focus-visible {
+      outline: 2px solid var(--accent-color);
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
+    .card-title a:focus:not(:focus-visible) {
+      outline: none;
+    }
+
+    .card-desc {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin: 0 0 1rem 0;
+      flex-grow: 1;
+    }
+
+    .card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 1rem;
+    }
+
+    .tag {
+      background-color: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+    }
+
+    .card-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: auto;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.85rem;
+      padding: 0.4rem 0;
+      transition: color 0.2s ease;
+    }
+
+    .btn:hover {
+      color: var(--text-main);
+    }
+
+    .btn:focus-visible {
+      outline: 2px solid var(--accent-color);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+
+    .btn-primary {
+      color: var(--accent-color);
+      font-weight: 600;
+      text-decoration: none;
+      display: inline-block;
+      padding: 0.4rem 0;
+    }
+
+    .btn-primary:hover {
+      color: var(--accent-hover);
+      text-decoration: none;
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--text-muted);
+      display: none;
+    }
+
+    .empty-state p {
+      font-size: 1.1rem;
+    }
+
+    /* Dialog */
+    dialog {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 0;
+      width: 90vw;
+      max-width: 900px;
+      max-height: 90vh;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+
+    dialog::backdrop {
+      background-color: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(4px);
+    }
+
+    .dialog-content {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      max-height: 90vh;
+    }
+
+    .dialog-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .dialog-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .dialog-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.5rem;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0.5rem;
+      margin: -0.5rem;
+    }
+
+    .dialog-close:hover {
+      color: var(--text-main);
+    }
+
+    .dialog-body {
+      padding: 1.5rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    @media (min-width: 768px) {
+      .dialog-body {
+        flex-direction: row;
+      }
+    }
+
+    .dialog-img-container {
+      flex: 2;
+      background-color: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+    }
+
+    .dialog-img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .dialog-details {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .detail-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .detail-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .detail-value {
+      font-size: 0.95rem;
+    }
+
+    .dialog-footer {
+      padding: 1.5rem;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: flex-end;
+      gap: 1rem;
+    }
+
+    .btn-dialog {
+      padding: 0.6rem 1.2rem;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-decoration: none;
+      text-align: center;
+    }
+
+    .btn-dialog-secondary {
+      background-color: transparent;
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+    }
+
+    .btn-dialog-secondary:hover {
+      background-color: var(--surface-color);
+      border-color: #555;
+    }
+
+    .btn-dialog-primary {
+      background-color: var(--text-main);
+      color: var(--bg-color);
+      border: 1px solid var(--text-main);
+    }
+
+    .btn-dialog-primary:hover {
+      background-color: #e0e0e0;
+      color: var(--bg-color);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>Jules Toys</h1>
+      <div class="stats">
+        <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg> 23 Artifacts</span>
+        <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18"></path></svg> T1 - T8</span>
+        <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg> Static / No-build</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="controls" aria-label="Gallery Controls">
+        <div class="filters" id="tierFilters">
+          <button class="filter-chip active" data-tier="All">All</button>
+          <button class="filter-chip" data-tier="T1">T1</button>
+          <button class="filter-chip" data-tier="T2">T2</button>
+          <button class="filter-chip" data-tier="T3">T3</button>
+          <button class="filter-chip" data-tier="T4">T4</button>
+          <button class="filter-chip" data-tier="T5">T5</button>
+          <button class="filter-chip" data-tier="T6">T6</button>
+          <button class="filter-chip" data-tier="T7">T7</button>
+          <button class="filter-chip" data-tier="T8">T8</button>
+        </div>
+
+        <div class="search-sort">
+          <input type="text" id="searchInput" class="search-input" placeholder="Search toys..." aria-label="Search">
+          <select id="sortSelect" class="sort-select" aria-label="Sort">
+            <option value="tierDesc">Tier (T8 to T1)</option>
+            <option value="tierAsc">Tier (T1 to T8)</option>
+            <option value="titleAsc">Title (A-Z)</option>
+          </select>
+        </div>
+      </section>
+
+      <div class="results-count" id="resultsCount">Showing 23 items</div>
+
+      <div id="galleryView">
+        <h2 class="section-title" id="featuredTitle">Featured Experiments</h2>
+        <div class="featured-grid" id="featuredGrid"></div>
+
+        <h2 class="section-title" id="mainTitle">Archive</h2>
+        <div class="grid" id="mainGrid"></div>
+      </div>
+
+      <div class="empty-state" id="emptyState">
+        <p>No artifacts found matching your criteria.</p>
+        <button class="btn btn-primary" id="resetFiltersBtn">Reset Filters</button>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="detailDialog" aria-labelledby="dialogTitle">
+    <div class="dialog-content">
+      <div class="dialog-header">
+        <h2 id="dialogTitle" class="dialog-title">Toy Title</h2>
+        <button class="dialog-close" id="closeDialogBtn" aria-label="Close dialog">&times;</button>
+      </div>
+      <div class="dialog-body">
+        <div class="dialog-img-container">
+          <img id="dialogImg" class="dialog-img" src="" alt="">
+        </div>
+        <div class="dialog-details">
+          <div class="detail-row">
+            <span class="detail-label">Tier</span>
+            <span class="detail-value" id="dialogTier"></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Kind</span>
+            <span class="detail-value" id="dialogKind"></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Summary</span>
+            <span class="detail-value" id="dialogDesc"></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Path</span>
+            <span class="detail-value" style="font-family: monospace; font-size: 0.85rem; color: var(--text-muted);" id="dialogPath"></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Tags</span>
+            <div class="card-tags" id="dialogTags" style="margin-bottom: 0; margin-top: 0.25rem;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="dialog-footer">
+        <button class="btn-dialog btn-dialog-secondary" id="closeDialogFooterBtn">Close</button>
+        <a href="#" id="dialogOpenBtn" class="btn-dialog btn-dialog-primary" target="_blank" rel="noopener noreferrer">Open Toy</a>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const items = window.galleryItems || [];
+
+      // State
+      let currentTier = 'All';
+      let searchQuery = '';
+      let sortOrder = 'tierDesc';
+
+      // Elements
+      const featuredGrid = document.getElementById('featuredGrid');
+      const mainGrid = document.getElementById('mainGrid');
+      const featuredTitle = document.getElementById('featuredTitle');
+      const mainTitle = document.getElementById('mainTitle');
+      const emptyState = document.getElementById('emptyState');
+      const resultsCount = document.getElementById('resultsCount');
+      const galleryView = document.getElementById('galleryView');
+      const searchInput = document.getElementById('searchInput');
+      const sortSelect = document.getElementById('sortSelect');
+      const resetFiltersBtn = document.getElementById('resetFiltersBtn');
+      const filterChips = document.querySelectorAll('.filter-chip');
+
+      // Dialog Elements
+      const dialog = document.getElementById('detailDialog');
+      const dialogTitle = document.getElementById('dialogTitle');
+      const dialogImg = document.getElementById('dialogImg');
+      const dialogTier = document.getElementById('dialogTier');
+      const dialogKind = document.getElementById('dialogKind');
+      const dialogDesc = document.getElementById('dialogDesc');
+      const dialogPath = document.getElementById('dialogPath');
+      const dialogTags = document.getElementById('dialogTags');
+      const dialogOpenBtn = document.getElementById('dialogOpenBtn');
+      const closeDialogBtn = document.getElementById('closeDialogBtn');
+      const closeDialogFooterBtn = document.getElementById('closeDialogFooterBtn');
+
+      function createCard(item, isFeatured = false) {
+        const article = document.createElement('article');
+        article.className = 'card';
+
+        const tagsHtml = item.tags.map(tag => `<span class="tag">${tag}</span>`).join('');
+
+        // Only eager load images for the featured grid when initially loading
+        const loadingAttr = isFeatured ? '' : 'loading="lazy"';
+
+        article.innerHTML = `
+          <div class="card-img-container">
+            <img src="${item.screenshot}" alt="Screenshot of ${item.title}" class="card-img" ${loadingAttr}>
+          </div>
+          <div class="card-content">
+            <div class="card-meta">
+              <span>${item.tier}</span>
+              <span>${item.kind}</span>
+            </div>
+            <h3 class="card-title">
+              <a href="${item.path}" target="_blank" rel="noopener noreferrer">${item.title}</a>
+            </h3>
+            <p class="card-desc">${item.oneLine}</p>
+            <div class="card-tags">
+              ${tagsHtml}
+            </div>
+            <div class="card-actions">
+              <button class="btn details-btn" data-slug="${item.slug}">View Details</button>
+              <a href="${item.path}" class="btn-primary" target="_blank" rel="noopener noreferrer">Open</a>
+            </div>
+          </div>
+        `;
+
+        article.querySelector('.details-btn').addEventListener('click', () => openDialog(item));
+
+        return article;
+      }
+
+      function openDialog(item) {
+        dialogTitle.textContent = item.title;
+        dialogImg.src = item.screenshot;
+        dialogImg.alt = `Screenshot of ${item.title}`;
+        dialogTier.textContent = item.tier;
+        dialogKind.textContent = item.kind;
+        dialogDesc.textContent = item.oneLine;
+        dialogPath.textContent = item.path;
+        dialogOpenBtn.href = item.path;
+
+        dialogTags.innerHTML = item.tags.map(tag => `<span class="tag">${tag}</span>`).join('');
+
+        dialog.showModal();
+
+        // Trap focus inside dialog (basic implementation, dialog handles some of this natively)
+        // Reset scroll position
+        dialog.querySelector('.dialog-body').scrollTop = 0;
+      }
+
+      function closeDialog() {
+        dialog.close();
+      }
+
+      // Dialog Events
+      closeDialogBtn.addEventListener('click', closeDialog);
+      closeDialogFooterBtn.addEventListener('click', closeDialog);
+
+      // Close on backdrop click
+      dialog.addEventListener('click', (e) => {
+        const dialogDimensions = dialog.getBoundingClientRect();
+        if (
+          e.clientX < dialogDimensions.left ||
+          e.clientX > dialogDimensions.right ||
+          e.clientY < dialogDimensions.top ||
+          e.clientY > dialogDimensions.bottom
+        ) {
+          dialog.close();
+        }
+      });
+
+      function render() {
+        // 1. Filter
+        let filtered = items.filter(item => {
+          const matchTier = currentTier === 'All' || item.tier === currentTier;
+
+          if (!matchTier) return false;
+          if (!searchQuery) return true;
+
+          const query = searchQuery.toLowerCase();
+          return (
+            item.title.toLowerCase().includes(query) ||
+            item.slug.toLowerCase().includes(query) ||
+            item.tier.toLowerCase().includes(query) ||
+            item.kind.toLowerCase().includes(query) ||
+            item.oneLine.toLowerCase().includes(query) ||
+            item.tags.some(tag => tag.toLowerCase().includes(query))
+          );
+        });
+
+        // 2. Sort
+        filtered.sort((a, b) => {
+          if (sortOrder === 'tierDesc') {
+            // "T8" > "T1", so for desc we want b > a
+            if (a.tier !== b.tier) return b.tier.localeCompare(a.tier);
+            return a.title.localeCompare(b.title);
+          } else if (sortOrder === 'tierAsc') {
+            if (a.tier !== b.tier) return a.tier.localeCompare(b.tier);
+            return a.title.localeCompare(b.title);
+          } else if (sortOrder === 'titleAsc') {
+            return a.title.localeCompare(b.title);
+          }
+          return 0;
+        });
+
+        // Update counts
+        resultsCount.textContent = `Showing ${filtered.length} item${filtered.length !== 1 ? 's' : ''}`;
+
+        // Clear grids
+        featuredGrid.innerHTML = '';
+        mainGrid.innerHTML = '';
+
+        if (filtered.length === 0) {
+          galleryView.style.display = 'none';
+          emptyState.style.display = 'block';
+          return;
+        }
+
+        galleryView.style.display = 'block';
+        emptyState.style.display = 'none';
+
+        // Split into Featured vs Main ONLY if no search/filter is active
+        // and we're using the default sort. Otherwise, show as one uniform grid.
+        const isDefaultView = currentTier === 'All' && !searchQuery && sortOrder === 'tierDesc';
+
+        if (isDefaultView) {
+          featuredTitle.style.display = 'block';
+          mainTitle.style.display = 'block';
+          mainGrid.style.display = 'grid';
+
+          const featuredItems = filtered.filter(item => item.tier === 'T7' || item.tier === 'T8');
+          const mainItems = filtered.filter(item => item.tier !== 'T7' && item.tier !== 'T8');
+
+          featuredItems.forEach(item => featuredGrid.appendChild(createCard(item, true)));
+          mainItems.forEach(item => mainGrid.appendChild(createCard(item, false)));
+        } else {
+          // Flatten into main grid
+          featuredTitle.style.display = 'none';
+          mainTitle.style.display = 'none';
+          featuredGrid.innerHTML = ''; // Keep empty
+
+          filtered.forEach(item => mainGrid.appendChild(createCard(item, false)));
+        }
+      }
+
+      // Event Listeners
+      filterChips.forEach(chip => {
+        chip.addEventListener('click', (e) => {
+          filterChips.forEach(c => c.classList.remove('active'));
+          e.target.classList.add('active');
+          currentTier = e.target.dataset.tier;
+          render();
+        });
+      });
+
+      searchInput.addEventListener('input', (e) => {
+        searchQuery = e.target.value.trim();
+        render();
+      });
+
+      sortSelect.addEventListener('change', (e) => {
+        sortOrder = e.target.value;
+        render();
+      });
+
+      resetFiltersBtn.addEventListener('click', () => {
+        currentTier = 'All';
+        searchQuery = '';
+        sortOrder = 'tierDesc';
+
+        filterChips.forEach(c => c.classList.remove('active'));
+        document.querySelector('[data-tier="All"]').classList.add('active');
+        searchInput.value = '';
+        sortSelect.value = 'tierDesc';
+
+        render();
+      });
+
+      // Initial Render
+      render();
+    });
+  </script>
+</body>
+</html>
