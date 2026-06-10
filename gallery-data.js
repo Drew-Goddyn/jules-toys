@@ -308,5 +308,105 @@ window.galleryItems = [
     kind: "GPT-5 side-by-side roguelike",
     tags: ["GPT-5", "roguelike", "combat", "inventory"],
     oneLine: "GPT-5 comparison: generates ship decks with fog, loot, enemies, combat logs, scanner, inventory actions, damage, restart, and deck progression."
+  },
+  {
+    tier: 11,
+    title: "Tidal Cargo Physics",
+    slug: "tidal-cargo-physics",
+    path: "tier-lib/tidal-cargo-physics/index.html",
+    screenshot: "tier-lib/tidal-cargo-physics/screenshot.png",
+    kind: "Library physics sandbox",
+    tags: ["Jules", "Matter.js", "D3", "physics", "harbor"],
+    oneLine: "Runs a Matter.js harbor sandbox with tide, spawn, floodgate, storm, bumper placement, active cargo, dock/loss zones, and a D3 throughput chart."
+  },
+  {
+    tier: 11,
+    title: "Living Trade Winds",
+    slug: "living-trade-winds",
+    path: "tier-lib/living-trade-winds/index.html",
+    screenshot: "tier-lib/living-trade-winds/screenshot.png",
+    kind: "Library data-viz explorer",
+    tags: ["Jules", "D3", "Observable Plot", "GSAP", "trade"],
+    oneLine: "Scrubs seasons, filters commodities, toggles storm/boom scenarios, updates a D3 route network, inspector, and secondary chart."
+  },
+  {
+    tier: 11,
+    title: "Resonance Creature Choir",
+    slug: "resonance-creature-choir",
+    path: "tier-lib/resonance-creature-choir/index.html",
+    screenshot: "tier-lib/resonance-creature-choir/screenshot.png",
+    kind: "Library audio-visual instrument",
+    tags: ["Jules", "Tone.js", "PixiJS", "GSAP", "audio"],
+    oneLine: "Starts a Tone.js transport after gesture, changes tempo/scale/habitat, adds and mutates Pixi creatures, and logs choir events."
+  },
+  {
+    tier: 11,
+    title: "Nebula Forge Observatory",
+    slug: "nebula-forge-observatory",
+    path: "tier-lib/nebula-forge-observatory/index.html",
+    screenshot: "tier-lib/nebula-forge-observatory/screenshot.png",
+    kind: "Library 3D observatory",
+    tags: ["Jules", "Three.js", "GSAP", "3D", "raycast"],
+    oneLine: "Loads a Three.js forge scene with OrbitControls, production mode, intensity, hazard scan, and raycast station inspector updates."
+  },
+  {
+    tier: 11,
+    title: "Constraint Creature Garden",
+    slug: "constraint-creature-garden",
+    path: "tier-lib/constraint-creature-garden/index.html",
+    screenshot: "tier-lib/constraint-creature-garden/screenshot.png",
+    kind: "Library ecosystem sandbox",
+    tags: ["Jules", "Matter.js", "D3", "ecosystem", "emergent"],
+    oneLine: "Places food, obstacles, attractors, and events into a Matter.js creature field while D3 tracks population lineage."
+  },
+  {
+    tier: 11,
+    title: "Protocol Dream Machine",
+    slug: "protocol-dream-machine",
+    path: "tier-lib/protocol-dream-machine/index.html",
+    screenshot: "tier-lib/protocol-dream-machine/screenshot.png",
+    kind: "Library state/schema simulator",
+    tags: ["Jules", "Preact", "signals", "Zod", "Chart.js"],
+    oneLine: "Adds/removes agents, steps and runs message passing, injects outages, validates editable Zod rules, and updates a Chart.js history."
+  },
+  {
+    tier: 11,
+    title: "Archive of Moving Cities",
+    slug: "archive-of-moving-cities",
+    path: "tier-lib/archive-of-moving-cities/index.html",
+    screenshot: "tier-lib/archive-of-moving-cities/screenshot.png",
+    kind: "Library cinematic timeline",
+    tags: ["Jules", "GSAP", "ScrollTrigger", "Three.js", "narrative"],
+    oneLine: "Uses chapter buttons and scroll to drive GSAP ScrollTrigger scenes, metrics, progress, motion pause, and a Three.js city layer."
+  },
+  {
+    tier: 11,
+    title: "Mythic Rail Runner",
+    slug: "mythic-rail-runner",
+    path: "tier-lib/mythic-rail-runner/index.html",
+    screenshot: "tier-lib/mythic-rail-runner/screenshot.png",
+    kind: "Library engine game",
+    tags: ["Jules", "Phaser", "game", "lanes", "phase"],
+    oneLine: "Boots a Phaser game, starts from the menu, moves between rail lanes, collects charge, uses phase, and exposes win/loss/restart scenes."
+  },
+  {
+    tier: 11,
+    title: "GPT-5 Nebula Forge Observatory",
+    slug: "gpt5-nebula-forge-observatory",
+    path: "tier-lib/gpt5-nebula-forge-observatory/index.html",
+    screenshot: "tier-lib/gpt5-nebula-forge-observatory/screenshot.png",
+    kind: "GPT-5 library 3D comparison",
+    tags: ["GPT-5", "Three.js", "GSAP", "3D", "comparison"],
+    oneLine: "GPT-5 comparison: selects 3D forge stations, changes modes/output/hazard scan, animates with GSAP, and updates inspector metrics."
+  },
+  {
+    tier: 11,
+    title: "GPT-5 Resonance Creature Choir",
+    slug: "gpt5-resonance-creature-choir",
+    path: "tier-lib/gpt5-resonance-creature-choir/index.html",
+    screenshot: "tier-lib/gpt5-resonance-creature-choir/screenshot.png",
+    kind: "GPT-5 library audio comparison",
+    tags: ["GPT-5", "Tone.js", "PixiJS", "audio", "comparison"],
+    oneLine: "GPT-5 comparison: starts a Tone.js/PixiJS choir, changes tempo/scale/habitat, adds/mutates voices, edits pattern steps, and logs events."
   }
 ];
