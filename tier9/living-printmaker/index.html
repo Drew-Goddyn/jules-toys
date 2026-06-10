@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Living Printmaker</title>
+    <style>
+        :root {
+            --bg: #1a1a1a;
+            --surface: #2a2a2a;
+            --surface-hover: #3a3a3a;
+            --text: #f0f0f0;
+            --text-muted: #a0a0a0;
+            --accent: #4a9eff;
+            --border: #404040;
+            --panel-width: 320px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: var(--panel-width);
+            background-color: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header h1 {
+            font-size: 1.2rem;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .controls {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            flex: 1;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        select, input[type="text"], input[type="number"], button {
+            background-color: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            width: 100%;
+            outline: none;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent);
+        }
+
+        select:focus, input:focus, button:focus-visible {
+            border-color: var(--accent);
+        }
+
+        button {
+            cursor: pointer;
+            background-color: var(--surface-hover);
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #4a4a4a;
+        }
+
+        button.primary {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+        }
+
+        button.primary:hover {
+            background-color: #3588e5;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toggle-group input[type="checkbox"] {
+            width: auto;
+            accent-color: var(--accent);
+        }
+
+        .actions {
+            padding: 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .toolbar {
+            height: 50px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            justify-content: space-between;
+            background-color: var(--bg);
+        }
+
+        .canvas-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            background-color: #111;
+            overflow: auto;
+        }
+
+        canvas {
+            background-color: #fff;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            transition: transform 0.3s ease;
+        }
+
+        /* Modal for JSON Export */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--surface);
+            padding: 20px;
+            border-radius: 8px;
+            width: 400px;
+            max-width: 90%;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .modal textarea {
+            width: 100%;
+            height: 150px;
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 10px;
+            font-family: monospace;
+            resize: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="header">
+            <h1>Living Printmaker</h1>
+            <p>Generative Poster Design</p>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="mode">Mode</label>
+                <select id="mode">
+                    <option value="risograph">Risograph Waves</option>
+                    <option value="transit">Transit Grid</option>
+                    <option value="botanical">Botanical Field</option>
+                    <option value="glitch">Glitch Monogram</option>
+                    <option value="architectural">Architectural Plan</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="palette">Palette</label>
+                <select id="palette">
+                    <option value="neon">Neon Lights</option>
+                    <option value="pastel">Soft Pastels</option>
+                    <option value="monochrome">Monochrome</option>
+                    <option value="earth">Earth Tones</option>
+                    <option value="cyber">Cyberpunk</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="titleText">Title Text</label>
+                <input type="text" id="titleText" value="GENERATIVE ART">
+            </div>
+
+            <div class="control-group">
+                <label for="seed">Seed</label>
+                <div class="button-row">
+                    <input type="number" id="seed" value="12345">
+                    <button id="randomizeBtn" title="Randomize Seed">🎲</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="density">Density/Complexity: <span id="densityVal">50</span>%</label>
+                <input type="range" id="density" min="10" max="100" value="50">
+            </div>
+
+            <div class="control-group">
+                <label for="motionSpeed">Motion Speed: <span id="speedVal">1.0</span>x</label>
+                <input type="range" id="motionSpeed" min="0" max="3" step="0.1" value="1.0">
+            </div>
+
+            <div class="control-group">
+                <label>Layers</label>
+                <div class="toggle-group">
+                    <input type="checkbox" id="layerBackground" checked>
+                    <label for="layerBackground">Background</label>
+                </div>
+                <div class="toggle-group">
+                    <input type="checkbox" id="layerShapes" checked>
+                    <label for="layerShapes">Shapes/Grid</label>
+                </div>
+                <div class="toggle-group">
+                    <input type="checkbox" id="layerOverlay" checked>
+                    <label for="layerOverlay">Texture Overlay</label>
+                </div>
+                <div class="toggle-group">
+                    <input type="checkbox" id="layerText" checked>
+                    <label for="layerText">Text Elements</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="actions">
+            <div class="button-row">
+                <button id="undoBtn" disabled>Undo</button>
+                <button id="resetBtn">Reset Default</button>
+            </div>
+            <button id="exportPngBtn" class="primary">Export PNG</button>
+            <button id="exportJsonBtn">Export Preset (JSON)</button>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="toolbar">
+            <div class="playback-controls">
+                <button id="playPauseBtn">⏸ Pause Animation</button>
+            </div>
+            <div class="status">
+                <span id="fpsCounter">60 FPS</span>
+            </div>
+        </div>
+        <div class="canvas-container">
+            <canvas id="posterCanvas" width="800" height="1200"></canvas>
+        </div>
+    </div>
+
+    <div class="modal" id="jsonModal">
+        <div class="modal-content">
+            <h3>Preset JSON</h3>
+            <textarea id="jsonOutput" readonly></textarea>
+            <div class="button-row">
+                <button id="copyJsonBtn" class="primary">Copy to Clipboard</button>
+                <button id="closeModalBtn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- State Management ---
+        const DEFAULT_STATE = {
+            mode: 'risograph',
+            palette: 'neon',
+            titleText: 'GENERATIVE ART',
+            seed: 12345,
+            density: 50,
+            motionSpeed: 1.0,
+            layers: {
+                background: true,
+                shapes: true,
+                overlay: true,
+                text: true
+            }
+        };
+
+        let state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+        let history = [];
+        let isAnimating = true;
+
+        // --- DOM Elements ---
+        const els = {
+            mode: document.getElementById('mode'),
+            palette: document.getElementById('palette'),
+            titleText: document.getElementById('titleText'),
+            seed: document.getElementById('seed'),
+            density: document.getElementById('density'),
+            motionSpeed: document.getElementById('motionSpeed'),
+            densityVal: document.getElementById('densityVal'),
+            speedVal: document.getElementById('speedVal'),
+
+            layerBg: document.getElementById('layerBackground'),
+            layerShapes: document.getElementById('layerShapes'),
+            layerOverlay: document.getElementById('layerOverlay'),
+            layerText: document.getElementById('layerText'),
+
+            randomizeBtn: document.getElementById('randomizeBtn'),
+            undoBtn: document.getElementById('undoBtn'),
+            resetBtn: document.getElementById('resetBtn'),
+            playPauseBtn: document.getElementById('playPauseBtn'),
+
+            canvas: document.getElementById('posterCanvas')
+        };
+
+        // --- Event Listeners & History ---
+        function saveHistory() {
+            history.push(JSON.parse(JSON.stringify(state)));
+            if (history.length > 20) history.shift();
+            els.undoBtn.disabled = history.length === 0;
+        }
+
+        function conditionallyRender() {
+            if (!isAnimating) {
+                render(performance.now());
+            }
+        }
+
+        function updateStateFromUI() {
+            saveHistory();
+            state.mode = els.mode.value;
+            state.palette = els.palette.value;
+            state.titleText = els.titleText.value;
+            state.seed = parseInt(els.seed.value, 10);
+            state.density = parseInt(els.density.value, 10);
+            state.motionSpeed = parseFloat(els.motionSpeed.value);
+
+            state.layers.background = els.layerBg.checked;
+            state.layers.shapes = els.layerShapes.checked;
+            state.layers.overlay = els.layerOverlay.checked;
+            state.layers.text = els.layerText.checked;
+
+            els.densityVal.textContent = state.density;
+            els.speedVal.textContent = state.motionSpeed.toFixed(1);
+            conditionallyRender();
+        }
+
+        function updateUIFromState() {
+            els.mode.value = state.mode;
+            els.palette.value = state.palette;
+            els.titleText.value = state.titleText;
+            els.seed.value = state.seed;
+            els.density.value = state.density;
+            els.motionSpeed.value = state.motionSpeed;
+
+            els.layerBg.checked = state.layers.background;
+            els.layerShapes.checked = state.layers.shapes;
+            els.layerOverlay.checked = state.layers.overlay;
+            els.layerText.checked = state.layers.text;
+
+            els.densityVal.textContent = state.density;
+            els.speedVal.textContent = state.motionSpeed.toFixed(1);
+            conditionallyRender();
+        }
+
+        // Attach listeners to inputs
+        ['mode', 'palette', 'titleText', 'seed', 'density', 'motionSpeed'].forEach(id => {
+            els[id].addEventListener('change', updateStateFromUI);
+        });
+        // For range inputs, also update on input for live feedback
+        ['density', 'motionSpeed'].forEach(id => {
+            els[id].addEventListener('input', () => {
+                els[`${id === 'density' ? 'densityVal' : 'speedVal'}`].textContent =
+                    id === 'density' ? els[id].value : parseFloat(els[id].value).toFixed(1);
+                // Also update state without saving history on every drag event
+                state[id] = id === 'density' ? parseInt(els[id].value, 10) : parseFloat(els[id].value);
+                conditionallyRender();
+            });
+            // Save history only on change (release)
+            els[id].addEventListener('change', saveHistory);
+        });
+
+        // Layer toggles
+        ['layerBg', 'layerShapes', 'layerOverlay', 'layerText'].forEach(id => {
+            els[id].addEventListener('change', updateStateFromUI);
+        });
+
+        // Buttons
+        els.randomizeBtn.addEventListener('click', () => {
+            saveHistory();
+            state.seed = Math.floor(Math.random() * 1000000);
+            updateUIFromState();
+        });
+
+        els.undoBtn.addEventListener('click', () => {
+            if (history.length > 0) {
+                state = history.pop();
+                els.undoBtn.disabled = history.length === 0;
+                updateUIFromState();
+            }
+        });
+
+        els.resetBtn.addEventListener('click', () => {
+            saveHistory();
+            state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+            updateUIFromState();
+        });
+
+        els.playPauseBtn.addEventListener('click', () => {
+            isAnimating = !isAnimating;
+            els.playPauseBtn.textContent = isAnimating ? '⏸ Pause Animation' : '▶ Play Animation';
+            if (isAnimating) {
+                lastTime = performance.now();
+                requestAnimationFrame(render);
+            }
+        });
+
+        // --- Rendering Logic ---
+        const ctx = els.canvas.getContext('2d');
+        let time = 0;
+        let lastTime = performance.now();
+        let frameCount = 0;
+        let lastFpsTime = performance.now();
+        const width = els.canvas.width;
+        const height = els.canvas.height;
+
+        const palettes = {
+            neon: { bg: '#0f0f1b', colors: ['#ff0055', '#00ffcc', '#ffcc00', '#cc00ff'] },
+            pastel: { bg: '#f4f1ea', colors: ['#ffb3ba', '#ffdfba', '#ffffba', '#baffc9', '#bae1ff'] },
+            monochrome: { bg: '#111', colors: ['#333', '#666', '#999', '#ccc', '#fff'] },
+            earth: { bg: '#2c2520', colors: ['#a67c52', '#d9b382', '#593e26', '#8c593b'] },
+            cyber: { bg: '#000', colors: ['#f0f', '#0ff', '#ff0'] }
+        };
+
+        // Simple PRNG
+        function splitmix32(a) {
+            return function() {
+              a |= 0; a = a + 0x9e3779b9 | 0;
+              let t = a ^ a >>> 16; t = Math.imul(t, 0x21f0aaad);
+              t = t ^ t >>> 15; t = Math.imul(t, 0x735a2d97);
+              return ((t = t ^ t >>> 15) >>> 0) / 4294967296;
+            }
+        }
+
+        function drawBackground() {
+            const p = palettes[state.palette];
+            ctx.fillStyle = p.bg;
+            ctx.fillRect(0, 0, width, height);
+
+            // Subtle noise/gradient
+            const grd = ctx.createLinearGradient(0, 0, width, height);
+            grd.addColorStop(0, `${p.bg}ff`);
+            grd.addColorStop(1, `${p.bg}aa`);
+            ctx.fillStyle = grd;
+            ctx.fillRect(0, 0, width, height);
+        }
+
+        function drawOverlay(prng) {
+            ctx.save();
+            ctx.globalCompositeOperation = 'overlay';
+            ctx.fillStyle = 'rgba(255,255,255,0.03)';
+            for(let i=0; i<1000; i++) {
+                const x = prng() * width;
+                const y = prng() * height;
+                const s = prng() * 3;
+                ctx.beginPath();
+                ctx.arc(x, y, s, 0, Math.PI*2);
+                ctx.fill();
+            }
+
+            // Vignette
+            const grd = ctx.createRadialGradient(width/2, height/2, height/3, width/2, height/2, height);
+            grd.addColorStop(0, 'rgba(0,0,0,0)');
+            grd.addColorStop(1, 'rgba(0,0,0,0.5)');
+            ctx.fillStyle = grd;
+            ctx.globalCompositeOperation = 'multiply';
+            ctx.fillRect(0, 0, width, height);
+            ctx.restore();
+        }
+
+        function drawText() {
+            ctx.save();
+            const p = palettes[state.palette];
+            ctx.fillStyle = p.colors[0];
+            ctx.font = 'bold 60px system-ui';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Draw title multiple times for effect
+            const txt = state.titleText;
+            const y = height - 100;
+
+            ctx.globalAlpha = 0.5;
+            ctx.fillText(txt, width/2 - 2, y - 2);
+            ctx.fillStyle = p.colors[1];
+            ctx.fillText(txt, width/2 + 2, y + 2);
+
+            ctx.globalAlpha = 1.0;
+            ctx.fillStyle = p.colors[2] || '#fff';
+            ctx.fillText(txt, width/2, y);
+
+            // Subtitle/meta
+            ctx.font = '20px monospace';
+            ctx.fillStyle = p.colors[p.colors.length-1];
+            ctx.fillText(`MODE: ${state.mode.toUpperCase()} | SEED: ${state.seed}`, width/2, y + 50);
+
+            ctx.restore();
+        }
+
+        function renderRisograph(prng, p) {
+            ctx.globalCompositeOperation = state.palette === 'pastel' || state.palette === 'monochrome' ? 'multiply' : 'screen';
+            const numWaves = Math.floor(state.density / 10);
+            const t = time * state.motionSpeed * 0.001;
+
+            for(let i=0; i<numWaves; i++) {
+                ctx.beginPath();
+                const colorIdx = Math.floor(prng() * p.colors.length);
+                ctx.fillStyle = p.colors[colorIdx];
+                ctx.globalAlpha = 0.7;
+
+                const yOffset = prng() * height;
+                const amp = prng() * 200 + 50;
+                const freq = prng() * 0.01 + 0.001;
+                const phase = prng() * Math.PI * 2 + t * (prng() > 0.5 ? 1 : -1);
+
+                ctx.moveTo(0, height);
+                for(let x=0; x<=width; x+=10) {
+                    const y = yOffset + Math.sin(x * freq + phase) * amp;
+                    ctx.lineTo(x, y);
+                }
+                ctx.lineTo(width, height);
+                ctx.fill();
+            }
+        }
+
+        function renderTransit(prng, p) {
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            const gridSize = 110 - state.density; // 10 to 100
+            const t = time * state.motionSpeed * 0.002;
+
+            const numLines = Math.floor(state.density / 5);
+            for(let i=0; i<numLines; i++) {
+                ctx.beginPath();
+                const colorIdx = Math.floor(prng() * p.colors.length);
+                ctx.strokeStyle = p.colors[colorIdx];
+                ctx.lineWidth = prng() * 10 + 5;
+                ctx.globalAlpha = 0.8;
+
+                let cx = Math.floor(prng() * (width / gridSize)) * gridSize;
+                let cy = Math.floor(prng() * (height / gridSize)) * gridSize;
+
+                ctx.moveTo(cx, cy);
+
+                const steps = Math.floor(prng() * 10) + 5;
+                for(let j=0; j<steps; j++) {
+                    const dir = Math.floor(prng() * 8); // 8 directions
+                    const dist = (Math.floor(prng() * 3) + 1) * gridSize;
+
+                    // Add motion
+                    const animOffset = Math.sin(t + i) * gridSize * 0.2;
+
+                    if(dir === 0) cx += dist;
+                    else if(dir === 1) { cx += dist; cy -= dist; }
+                    else if(dir === 2) cy -= dist;
+                    else if(dir === 3) { cx -= dist; cy -= dist; }
+                    else if(dir === 4) cx -= dist;
+                    else if(dir === 5) { cx -= dist; cy += dist; }
+                    else if(dir === 6) cy += dist;
+                    else if(dir === 7) { cx += dist; cy += dist; }
+
+                    ctx.lineTo(cx + animOffset, cy + animOffset);
+                }
+                ctx.stroke();
+
+                // Draw stations
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(cx, cy, ctx.lineWidth * 0.8, 0, Math.PI*2);
+                ctx.fill();
+                ctx.stroke();
+            }
+        }
+
+        function renderBotanical(prng, p) {
+            const numPlants = Math.floor(state.density);
+            const t = time * state.motionSpeed * 0.001;
+
+            for(let i=0; i<numPlants; i++) {
+                ctx.save();
+                const startX = prng() * width;
+                const startY = height - prng() * (height/3);
+                const scale = prng() * 1.5 + 0.5;
+                const color = p.colors[Math.floor(prng() * p.colors.length)];
+
+                ctx.translate(startX, startY);
+                ctx.scale(scale, scale);
+
+                // Sway animation
+                const sway = Math.sin(t + startX * 0.01) * 0.2;
+                ctx.rotate(sway);
+
+                ctx.beginPath();
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+
+                // Stem
+                const stemHeight = prng() * 300 + 100;
+                ctx.moveTo(0, 0);
+                ctx.quadraticCurveTo(prng() * 50 - 25, -stemHeight/2, prng() * 100 - 50, -stemHeight);
+                ctx.stroke();
+
+                // Leaves or flowers
+                ctx.translate(prng() * 100 - 50, -stemHeight);
+                ctx.fillStyle = p.colors[Math.floor(prng() * p.colors.length)];
+                ctx.globalAlpha = 0.8;
+
+                const type = Math.floor(prng() * 3);
+                if (type === 0) {
+                    // Circle flower
+                    ctx.beginPath();
+                    ctx.arc(0, 0, prng() * 30 + 10, 0, Math.PI*2);
+                    ctx.fill();
+                } else if (type === 1) {
+                    // Leaf shape
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, prng() * 20 + 10, prng() * 40 + 20, prng() * Math.PI, 0, Math.PI*2);
+                    ctx.fill();
+                } else {
+                    // Triangle cluster
+                    for(let j=0; j<3; j++) {
+                        ctx.beginPath();
+                        ctx.moveTo(0,0);
+                        ctx.lineTo(prng()*40-20, -prng()*40-20);
+                        ctx.lineTo(prng()*40-20, -prng()*40-20);
+                        ctx.fill();
+                    }
+                }
+                ctx.restore();
+            }
+        }
+
+        function renderGlitch(prng, p) {
+            const t = time * state.motionSpeed * 0.005;
+            const size = 150 - state.density;
+            const cols = Math.ceil(width / size);
+            const rows = Math.ceil(height / size);
+
+            ctx.font = `bold ${size * 0.8}px monospace`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            for(let r=0; r<rows; r++) {
+                for(let c=0; c<cols; c++) {
+                    if (prng() > state.density / 100) continue;
+
+                    const x = c * size + size/2;
+                    const y = r * size + size/2;
+
+                    // Glitch offset
+                    const offsetX = Math.sin(t + r * 10) * (prng() * 20);
+                    const offsetY = Math.cos(t + c * 10) * (prng() * 20);
+
+                    const char = String.fromCharCode(65 + Math.floor(prng() * 26));
+
+                    ctx.globalCompositeOperation = 'screen';
+
+                    ctx.fillStyle = p.colors[0];
+                    ctx.fillText(char, x + offsetX, y);
+
+                    ctx.fillStyle = p.colors[1];
+                    ctx.fillText(char, x - offsetX, y + offsetY);
+
+                    if (p.colors[2]) {
+                        ctx.fillStyle = p.colors[2];
+                        ctx.fillText(char, x, y - offsetY);
+                    }
+                }
+            }
+            ctx.globalCompositeOperation = 'source-over';
+
+            // Random glitch lines
+            const numLines = Math.floor(state.density / 2);
+            for(let i=0; i<numLines; i++) {
+                if(prng() > 0.8) { // Only sometimes draw lines
+                    ctx.fillStyle = p.colors[Math.floor(prng() * p.colors.length)];
+                    const lx = prng() * width;
+                    const ly = prng() * height;
+                    const lw = prng() * 200 + 50;
+                    const lh = prng() * 10 + 2;
+                    ctx.fillRect(lx, ly, lw, lh);
+                }
+            }
+        }
+
+        function renderArchitectural(prng, p) {
+            ctx.strokeStyle = p.colors[0];
+            ctx.lineWidth = 1;
+
+            // Grid
+            const gridSize = 50;
+            ctx.globalAlpha = 0.2;
+            for(let x=0; x<width; x+=gridSize) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+            }
+            for(let y=0; y<height; y+=gridSize) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+            }
+
+            ctx.globalAlpha = 0.8;
+            const numBlocks = Math.floor(state.density);
+            const t = time * state.motionSpeed * 0.001;
+
+            for(let i=0; i<numBlocks; i++) {
+                const bw = (Math.floor(prng() * 5) + 1) * gridSize;
+                const bh = (Math.floor(prng() * 5) + 1) * gridSize;
+                const bx = Math.floor(prng() * (width/gridSize)) * gridSize;
+                const by = Math.floor(prng() * (height/gridSize)) * gridSize;
+
+                // Pulsing effect
+                const scale = 1 + Math.sin(t + i) * 0.05;
+
+                ctx.save();
+                ctx.translate(bx + bw/2, by + bh/2);
+                ctx.scale(scale, scale);
+                ctx.translate(-bw/2, -bh/2);
+
+                ctx.strokeStyle = p.colors[Math.floor(prng() * p.colors.length)];
+                ctx.lineWidth = prng() > 0.5 ? 2 : 1;
+
+                if (prng() > 0.5) {
+                    ctx.strokeRect(0, 0, bw, bh);
+                    // Cross
+                    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(bw,bh); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(bw,0); ctx.lineTo(0,bh); ctx.stroke();
+                } else {
+                    // Arc/Circle
+                    ctx.beginPath();
+                    ctx.arc(bw/2, bh/2, Math.min(bw,bh)/2, 0, Math.PI * (prng() > 0.5 ? 1 : 2));
+                    ctx.stroke();
+                }
+
+                // Hatching
+                if (prng() > 0.7) {
+                    ctx.beginPath();
+                    for(let h=0; h<bw; h+=5) {
+                        ctx.moveTo(h, 0);
+                        ctx.lineTo(h, bh);
+                    }
+                    ctx.globalAlpha = 0.3;
+                    ctx.stroke();
+                    ctx.globalAlpha = 0.8;
+                }
+                ctx.restore();
+            }
+        }
+
+        function drawShapes() {
+            const prng = splitmix32(state.seed);
+            const p = palettes[state.palette];
+
+            ctx.save();
+            switch(state.mode) {
+                case 'risograph': renderRisograph(prng, p); break;
+                case 'transit': renderTransit(prng, p); break;
+                case 'botanical': renderBotanical(prng, p); break;
+                case 'glitch': renderGlitch(prng, p); break;
+                case 'architectural': renderArchitectural(prng, p); break;
+            }
+            ctx.restore();
+        }
+
+        function render(now) {
+            const dt = now - lastTime;
+            lastTime = now;
+            time += dt;
+
+            // FPS Counter
+            frameCount++;
+            if (now - lastFpsTime >= 1000) {
+                document.getElementById('fpsCounter').textContent = `${frameCount} FPS`;
+                frameCount = 0;
+                lastFpsTime = now;
+            }
+
+            // Clear
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw Layers based on state
+            if (state.layers.background) drawBackground();
+            if (state.layers.shapes) drawShapes();
+            if (state.layers.text) drawText();
+            if (state.layers.overlay) drawOverlay(splitmix32(state.seed + 999)); // Different seed for noise
+
+            if(isAnimating) {
+                requestAnimationFrame(render);
+            }
+        }
+
+        // Start loop
+        requestAnimationFrame(render);
+
+        // --- Export Logic ---
+        els.exportPngBtn.addEventListener('click', () => {
+            // Force a synchronous render to ensure we have a static frame if paused
+            render(performance.now());
+
+            const dataUrl = els.canvas.toDataURL('image/png');
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = `living-printmaker-${state.mode}-${state.seed}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
+
+        const jsonModal = document.getElementById('jsonModal');
+        const jsonOutput = document.getElementById('jsonOutput');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const copyJsonBtn = document.getElementById('copyJsonBtn');
+
+        els.exportJsonBtn.addEventListener('click', () => {
+            jsonOutput.value = JSON.stringify(state, null, 2);
+            jsonModal.classList.add('active');
+        });
+
+        closeModalBtn.addEventListener('click', () => {
+            jsonModal.classList.remove('active');
+        });
+
+        copyJsonBtn.addEventListener('click', () => {
+            jsonOutput.select();
+            document.execCommand('copy');
+            copyJsonBtn.textContent = 'Copied!';
+            setTimeout(() => {
+                copyJsonBtn.textContent = 'Copy to Clipboard';
+            }, 2000);
+        });
+
+        // Close modal on background click
+        jsonModal.addEventListener('click', (e) => {
+            if (e.target === jsonModal) {
+                jsonModal.classList.remove('active');
+            }
+        });
+
+        // Initial UI sync
+        updateUIFromState();
+    </script>
+</body>
+</html>
