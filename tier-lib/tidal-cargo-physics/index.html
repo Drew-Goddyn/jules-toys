@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tidal Cargo Physics</title>
+  <style>
+    :root {
+      --bg-color: #f4f4f9;
+      --panel-bg: #ffffff;
+      --border-color: #ddd;
+      --text-color: #333;
+      --accent: #0066cc;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+    header {
+      background: var(--panel-bg);
+      border-bottom: 1px solid var(--border-color);
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.2rem;
+    }
+    .metrics {
+      display: flex;
+      gap: 15px;
+      font-weight: bold;
+    }
+    .main-content {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+    .sidebar {
+      width: 300px;
+      background: var(--panel-bg);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+    .control-group {
+      padding: 15px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .control-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 0.9rem;
+    }
+    .control-group input[type="range"] {
+      width: 100%;
+    }
+    .control-group button {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      background: var(--bg-color);
+      border: 1px solid var(--border-color);
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .control-group button:hover {
+      background: #e0e0e0;
+    }
+    .event-log {
+      flex: 1;
+      padding: 10px;
+      font-size: 0.8rem;
+      overflow-y: auto;
+      background: #fafafa;
+      border-top: 1px solid var(--border-color);
+    }
+    .event-log div {
+      margin-bottom: 4px;
+    }
+    .viz-container {
+      padding: 10px;
+      height: 150px;
+      border-top: 1px solid var(--border-color);
+    }
+    .canvas-container {
+      flex: 1;
+      position: relative;
+      background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 100%);
+      cursor: crosshair;
+      border-left: 2px solid #93c5fd;
+    }
+    .dock-label {
+      position: absolute;
+      top: 10%;
+      right: 5%;
+      color: #065f46;
+      font-weight: bold;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 2px 5px;
+      border-radius: 3px;
+      pointer-events: none;
+      font-size: 0.8rem;
+      border: 1px dashed #065f46;
+    }
+    .loss-label {
+      position: absolute;
+      bottom: 5px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #991b1b;
+      font-weight: bold;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 2px 5px;
+      border-radius: 3px;
+      pointer-events: none;
+      font-size: 0.8rem;
+      border: 1px dashed #991b1b;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    .instructions {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      pointer-events: none;
+    }
+
+    @media (max-width: 768px) {
+      .main-content {
+        flex-direction: column;
+      }
+      .sidebar {
+        width: 100%;
+        height: 40vh;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+      }
+      .canvas-container {
+        height: 60vh;
+      }
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Tidal Cargo Logistics</h1>
+    <div class="metrics">
+      <div>Delivered: <span id="score-val">0</span></div>
+      <div>Lost: <span id="lost-val">0</span></div>
+      <div>Active: <span id="active-val">0</span></div>
+    </div>
+  </header>
+  <div class="main-content">
+    <div class="sidebar">
+      <div class="control-group">
+        <label for="tide-slider">Tide / Current Strength</label>
+        <input type="range" id="tide-slider" min="-0.005" max="0.005" step="0.0001" value="0.001">
+      </div>
+      <div class="control-group">
+        <label for="spawn-slider">Cargo Spawn Rate</label>
+        <input type="range" id="spawn-slider" min="10" max="200" step="10" value="60">
+      </div>
+      <div class="control-group">
+        <button id="gate-btn">Toggle Floodgate: CLOSED</button>
+        <button id="storm-btn">Trigger Storm Burst</button>
+        <button id="pause-btn">Pause / Resume</button>
+        <button id="reset-btn">Reset Simulation</button>
+      </div>
+      <div class="viz-container" id="d3-viz"></div>
+      <div class="event-log" id="event-log">
+        <div>Simulation started.</div>
+      </div>
+    </div>
+    <div class="canvas-container" id="canvas-container">
+      <div class="instructions">Click/drag to place bumpers and guide cargo.</div>
+      <div class="dock-label">Docking Bay</div>
+      <div class="loss-label">Open Ocean (Loss Zone)</div>
+      <!-- Matter.js canvas will be injected here -->
+    </div>
+  </div>
+  <script>
+    const Engine = Matter.Engine,
+          Render = Matter.Render,
+          Runner = Matter.Runner,
+          Bodies = Matter.Bodies,
+          Composite = Matter.Composite,
+          Events = Matter.Events,
+          Mouse = Matter.Mouse,
+          MouseConstraint = Matter.MouseConstraint;
+
+    // Simulation State
+    let engine, render, runner;
+    let isPaused = false;
+    let spawnRate = 60; // Frames between spawns
+    let frameCounter = 0;
+    let tideStrength = 0.001;
+    let gateOpen = false;
+    let stormActive = false;
+    let score = 0;
+    let lost = 0;
+
+    const EVENT_LOG = document.getElementById('event-log');
+    function logEvent(msg) {
+      const div = document.createElement('div');
+      div.textContent = `[${Math.floor(engine ? engine.timing.timestamp/1000 : 0)}s] ${msg}`;
+      EVENT_LOG.prepend(div);
+      if(EVENT_LOG.children.length > 20) EVENT_LOG.lastChild.remove();
+    }
+
+    function initPhysics() {
+      const container = document.getElementById('canvas-container');
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+
+      engine = Engine.create();
+      engine.world.gravity.y = 0; // Top-down view, gravity is replaced by current
+
+      render = Render.create({
+        element: container,
+        engine: engine,
+        options: {
+          width,
+          height,
+          wireframes: false,
+          background: 'transparent',
+          pixelRatio: window.devicePixelRatio
+        }
+      });
+
+      // Boundaries
+      const wallOptions = { isStatic: true, render: { fillStyle: '#475569', strokeStyle: '#334155', lineWidth: 2 } };
+      Composite.add(engine.world, [
+        Bodies.rectangle(width / 2, -25, width, 50, wallOptions),
+        Bodies.rectangle(width / 2, height + 25, width, 50, wallOptions),
+        Bodies.rectangle(-25, height / 2, 50, height, wallOptions),
+        Bodies.rectangle(width + 25, height / 2, 50, height, wallOptions)
+      ]);
+
+      // Harbor environment (Piers)
+      const harborParts = [
+        Bodies.rectangle(width * 0.2, height * 0.3, 30, height * 0.6, wallOptions),
+        Bodies.rectangle(width * 0.8, height * 0.7, 30, height * 0.6, wallOptions)
+      ];
+      Composite.add(engine.world, harborParts);
+
+      // Gate
+      const gateOptions = { isStatic: true, render: { fillStyle: '#ef4444', strokeStyle: '#b91c1c', lineWidth: 2 } };
+      const gate = Bodies.rectangle(width * 0.5, height * 0.5, 150, 20, gateOptions);
+      Composite.add(engine.world, gate);
+      engine.world.plugin = engine.world.plugin || {};
+      engine.world.plugin.gate = gate;
+
+      // Delivery Zone (Dock)
+      const dock = Bodies.rectangle(width * 0.9, height * 0.1, 100, 100, {
+        isStatic: true,
+        isSensor: true,
+        render: { fillStyle: 'rgba(16, 185, 129, 0.3)', strokeStyle: '#059669', lineWidth: 2 },
+        label: 'dock'
+      });
+      Composite.add(engine.world, dock);
+
+      // Loss Zone
+      const lossZone = Bodies.rectangle(width * 0.5, height - 10, width, 20, {
+        isStatic: true,
+        isSensor: true,
+        render: { fillStyle: 'rgba(239, 68, 68, 0.3)' },
+        label: 'lossZone'
+      });
+      Composite.add(engine.world, lossZone);
+
+      // Interaction
+      const mouse = Mouse.create(render.canvas);
+      const mouseConstraint = MouseConstraint.create(engine, {
+        mouse: mouse,
+        constraint: {
+          stiffness: 0.2,
+          render: { visible: false }
+        }
+      });
+      Composite.add(engine.world, mouseConstraint);
+      render.mouse = mouse;
+
+      // Bumper placement on click (if not dragging an object)
+      Events.on(mouseConstraint, 'mousedown', function(event) {
+        if (!mouseConstraint.body) {
+          const pos = event.mouse.position;
+          const bumper = Bodies.circle(pos.x, pos.y, 20, {
+            isStatic: true,
+            restitution: 0.9,
+            render: { fillStyle: '#ffaa00' }
+          });
+          Composite.add(engine.world, bumper);
+          logEvent('Placed a bumper.');
+        }
+      });
+
+      // Simulation Loop
+      Events.on(engine, 'beforeUpdate', function() {
+        // Spawn Cargo
+        frameCounter++;
+        if (frameCounter >= spawnRate) {
+          frameCounter = 0;
+          spawnCargo(width);
+        }
+
+        // Apply Current / Tide Forces
+        const bodies = Composite.allBodies(engine.world);
+        let activeCount = 0;
+        let tForce = tideStrength;
+        if(stormActive) tForce *= (Math.random() > 0.5 ? 5 : -5);
+
+        for (let body of bodies) {
+          if (body.label === 'cargo') {
+            activeCount++;
+            Matter.Body.applyForce(body, body.position, { x: tForce, y: Math.abs(tForce) });
+            // Cleanup out of bounds
+            if (body.position.y > height + 50 || body.position.x > width + 50 || body.position.x < -50) {
+               Composite.remove(engine.world, body);
+            }
+          }
+        }
+        document.getElementById('active-val').textContent = activeCount;
+      });
+
+      // Collision Events (Delivery / Loss)
+      Events.on(engine, 'collisionStart', function(event) {
+        const pairs = event.pairs;
+        for (let i = 0; i < pairs.length; i++) {
+          const bodyA = pairs[i].bodyA;
+          const bodyB = pairs[i].bodyB;
+
+          if (bodyA.label === 'dock' || bodyB.label === 'dock') {
+            const cargo = bodyA.label === 'cargo' ? bodyA : (bodyB.label === 'cargo' ? bodyB : null);
+            if (cargo) {
+              score++;
+              document.getElementById('score-val').textContent = score;
+              Composite.remove(engine.world, cargo);
+              // Trigger a global custom event for D3 to pick up
+              window.dispatchEvent(new CustomEvent('cargoDelivered'));
+            }
+          } else if (bodyA.label === 'lossZone' || bodyB.label === 'lossZone') {
+            const cargo = bodyA.label === 'cargo' ? bodyA : (bodyB.label === 'cargo' ? bodyB : null);
+            if (cargo) {
+              lost++;
+              document.getElementById('lost-val').textContent = lost;
+              Composite.remove(engine.world, cargo);
+            }
+          }
+        }
+      });
+
+      // Seed initial cargo to ensure the world is active right away
+      for (let i = 0; i < 15; i++) {
+        spawnCargo(width, Math.random() * height * 0.8 + 50);
+      }
+
+      Render.run(render);
+      runner = Runner.create();
+      Runner.run(runner, engine);
+    }
+
+    function spawnCargo(width, initialY = 10) {
+      const startX = Math.random() * (width * 0.4) + width * 0.1;
+      // Make some circular buoys and some square crates
+      const isBuoy = Math.random() > 0.5;
+      let cargo;
+
+      const renderOpts = {
+        fillStyle: isBuoy ? '#ff6600' : '#8b5a2b',
+        strokeStyle: '#000',
+        lineWidth: 1
+      };
+
+      if (isBuoy) {
+        cargo = Bodies.circle(startX, initialY, 10, {
+          label: 'cargo',
+          frictionAir: 0.05,
+          restitution: 0.6,
+          render: renderOpts
+        });
+      } else {
+        cargo = Bodies.rectangle(startX, initialY, 18, 18, {
+          label: 'cargo',
+          frictionAir: 0.05,
+          restitution: 0.2,
+          render: renderOpts
+        });
+      }
+      Composite.add(engine.world, cargo);
+    }
+
+    // UI Controls
+    document.getElementById('tide-slider').addEventListener('input', (e) => {
+      tideStrength = parseFloat(e.target.value);
+    });
+
+    document.getElementById('spawn-slider').addEventListener('input', (e) => {
+      spawnRate = 210 - parseInt(e.target.value); // Invert so higher slider = faster spawn (lower frame wait)
+    });
+
+    document.getElementById('gate-btn').addEventListener('click', (e) => {
+      gateOpen = !gateOpen;
+      e.target.textContent = `Toggle Floodgate: ${gateOpen ? 'OPEN' : 'CLOSED'}`;
+      if (engine.world.plugin.gate) {
+        // Simple way to "open" is to move it out of the way or make it a sensor
+        engine.world.plugin.gate.isSensor = gateOpen;
+        engine.world.plugin.gate.render.fillStyle = gateOpen ? 'rgba(255, 68, 68, 0.2)' : '#ff4444';
+        logEvent(`Gate ${gateOpen ? 'opened' : 'closed'}.`);
+      }
+    });
+
+    document.getElementById('storm-btn').addEventListener('click', () => {
+      stormActive = true;
+      logEvent('Storm burst activated!');
+      setTimeout(() => {
+        stormActive = false;
+        logEvent('Storm subsided.');
+      }, 3000);
+    });
+
+    document.getElementById('pause-btn').addEventListener('click', () => {
+      if(isPaused) {
+        Runner.start(runner, engine);
+        logEvent('Resumed.');
+      } else {
+        Runner.stop(runner);
+        logEvent('Paused.');
+      }
+      isPaused = !isPaused;
+    });
+
+    document.getElementById('reset-btn').addEventListener('click', () => {
+      if(runner) Runner.stop(runner);
+      if(render) {
+        Render.stop(render);
+        render.canvas.remove();
+      }
+      if(engine) Engine.clear(engine);
+      score = 0; lost = 0;
+      document.getElementById('score-val').textContent = score;
+      document.getElementById('lost-val').textContent = lost;
+      EVENT_LOG.innerHTML = '<div>Simulation reset.</div>';
+      initPhysics();
+      if(!isPaused) Runner.start(runner, engine);
+    });
+
+    // D3 Visualization (Live Throughput Chart)
+    const vizContainer = document.getElementById('d3-viz');
+    const margin = {top: 10, right: 10, bottom: 20, left: 30};
+    const vizWidth = vizContainer.clientWidth - margin.left - margin.right;
+    const vizHeight = vizContainer.clientHeight - margin.top - margin.bottom;
+
+    const svg = d3.select("#d3-viz")
+      .append("svg")
+      .attr("width", vizWidth + margin.left + margin.right)
+      .attr("height", vizHeight + margin.top + margin.bottom)
+      .append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    const x = d3.scaleTime().range([0, vizWidth]);
+    const y = d3.scaleLinear().range([vizHeight, 0]);
+
+    const xAxis = svg.append("g").attr("transform", `translate(0,${vizHeight})`);
+    const yAxis = svg.append("g");
+
+    const line = d3.line()
+      .x(d => x(d.time))
+      .y(d => y(d.rate))
+      .curve(d3.curveMonotoneX);
+
+    const path = svg.append("path")
+      .attr("fill", "none")
+      .attr("stroke", "var(--accent)")
+      .attr("stroke-width", 2);
+
+    let throughputData = [];
+
+    // Seed initial D3 data so the chart isn't empty on load
+    const initDate = new Date();
+    for(let i=10; i>0; i--) {
+      throughputData.push({ time: new Date(initDate.getTime() - i * 1000), rate: Math.floor(Math.random() * 3) });
+    }
+
+    let deliveriesInWindow = 0;
+
+    window.addEventListener('cargoDelivered', () => {
+      deliveriesInWindow++;
+    });
+
+    setInterval(() => {
+      if(isPaused) return;
+      const now = new Date();
+      throughputData.push({ time: now, rate: deliveriesInWindow });
+      deliveriesInWindow = 0; // reset for next window
+
+      if (throughputData.length > 20) {
+        throughputData.shift();
+      }
+
+      if(throughputData.length > 1) {
+        x.domain(d3.extent(throughputData, d => d.time));
+        y.domain([0, d3.max(throughputData, d => d.rate) || 1]);
+
+        xAxis.call(d3.axisBottom(x).ticks(5).tickFormat(d3.timeFormat("%M:%S")));
+        yAxis.call(d3.axisLeft(y).ticks(3));
+
+        path.datum(throughputData).attr("d", line);
+      }
+    }, 1000); // 1-second rolling window
+
+    // Initialize
+    window.addEventListener('load', initPhysics);
+  </script>
+</body>
+</html>
