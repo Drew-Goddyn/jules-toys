@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Mycelium Cathedral</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #050508;
+      color: #e0d8c0;
+      font-family: 'Georgia', serif; /* Sacred/reliquary feel */
+    }
+    #canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+    }
+    #ui-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none; /* Let clicks pass through to canvas by default */
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    header {
+      pointer-events: auto;
+      background: rgba(10, 10, 15, 0.7);
+      padding: 15px 25px;
+      border: 1px solid rgba(200, 180, 120, 0.3);
+      border-radius: 8px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      max-width: 400px;
+    }
+    h1 {
+      margin: 0 0 10px 0;
+      font-size: 1.5rem;
+      font-weight: normal;
+      letter-spacing: 2px;
+      color: #f5eedc;
+      text-transform: uppercase;
+    }
+    p {
+      margin: 0;
+      font-size: 0.9rem;
+      line-height: 1.4;
+      color: #b0a890;
+    }
+    #controls {
+      pointer-events: auto;
+      background: rgba(10, 10, 15, 0.8);
+      padding: 15px;
+      border: 1px solid rgba(200, 180, 120, 0.4);
+      border-radius: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      max-width: 600px;
+      align-self: center;
+      margin-bottom: 20px;
+      justify-content: center;
+    }
+    button {
+      background: transparent;
+      border: 1px solid #807860;
+      color: #d0c8b0;
+      padding: 8px 16px;
+      font-family: 'Georgia', serif;
+      font-size: 0.9rem;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+    }
+    button:hover:not(:disabled) {
+      background: rgba(200, 180, 120, 0.15);
+      border-color: #c0b8a0;
+      color: #fff;
+    }
+    button:active:not(:disabled) {
+      background: rgba(200, 180, 120, 0.3);
+    }
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .status-panel {
+      pointer-events: auto;
+      background: rgba(10, 10, 15, 0.7);
+      padding: 10px 20px;
+      border: 1px solid rgba(200, 180, 120, 0.2);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      align-self: flex-end;
+      text-align: right;
+    }
+    #selection-info {
+      margin-top: 10px;
+      font-style: italic;
+      color: #a09880;
+    }
+  </style>
+
+  <!-- Import Map for pinned CDN versions -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js",
+        "d3-force": "https://cdn.jsdelivr.net/npm/d3-force@3.0.0/+esm",
+        "d3-force-3d": "https://cdn.jsdelivr.net/npm/d3-force-3d@3.0.5/+esm",
+        "d3-dispatch": "https://cdn.jsdelivr.net/npm/d3-dispatch@3.0.1/+esm",
+        "d3-quadtree": "https://cdn.jsdelivr.net/npm/d3-quadtree@3.0.1/+esm",
+        "d3-timer": "https://cdn.jsdelivr.net/npm/d3-timer@3.0.1/+esm",
+        "tone": "https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div id="ui-layer">
+    <header>
+      <h1>Mycelium Cathedral</h1>
+      <p>Sculpt the living reliquary. Spores seek relics. Strong paths raise vaults. Feed, starve, or sever the nodes.</p>
+      <div id="selection-info">Select a node to interact...</div>
+    </header>
+
+    <div class="status-panel">
+      <div>Network Health: <span id="health-val">0</span>%</div>
+      <div>Membranes: <span id="membrane-val">0</span></div>
+    </div>
+
+    <div id="controls">
+      <button id="btn-audio">Start Audio</button>
+      <button id="btn-spore">Drop Spore</button>
+      <button id="btn-relic">Drop Relic</button>
+      <button id="btn-feed" disabled>Feed Selected</button>
+      <button id="btn-starve" disabled>Starve Selected</button>
+      <button id="btn-sever" disabled>Sever Weak Links</button>
+      <button id="btn-reset">Reset Reliquary</button>
+    </div>
+  </div>
+
+  <!-- We will include the Tone.js script directly as well since import map might not work for non-ESM sometimes,
+       but let's try module loading first, or we can use regular script tags for Tone.js.
+       Actually, Tone.js on CDNJS is UMD. Let's load Tone.js via script tag for reliability, and use import map for three and d3. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { forceSimulation, forceLink, forceManyBody, forceCenter } from 'd3-force-3d';
+
+    // --- State ---
+    const state = {
+      libsLoaded: !!(THREE && forceSimulation && Tone),
+      nodes: [],
+      links: [],
+      membranes: 0,
+      selectedNodeId: null,
+      audioStarted: false,
+      networkHealth: 0
+    };
+
+    // --- Toy Probe ---
+    window.__toyProbe = {
+      getState: () => ({
+        libsLoaded: state.libsLoaded,
+        nodes: state.nodes.length,
+        links: state.links.length,
+        membranes: state.membranes,
+        selectedNodeId: state.selectedNodeId,
+        audioStarted: state.audioStarted,
+        networkHealth: state.networkHealth
+      }),
+      runDemo: async () => {
+        // Add a spore and a relic
+        addNode('spore');
+        addNode('relic');
+        updateVisuals();
+        updateControlStates();
+
+        // Feed a random node a few times
+        if (state.nodes.length > 0) {
+          state.selectedNodeId = state.nodes[0].id;
+          btnFeed.click();
+          btnFeed.click();
+        }
+
+        // Wait a bit for simulation to settle
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Let it run to form strong links and potentially membranes
+        return window.__toyProbe.getState();
+      }
+    };
+
+    // --- Three.js Setup ---
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x050508, 0.02);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 10, 40);
+    camera.lookAt(0, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    // Lighting (sacred, dramatic)
+    const ambientLight = new THREE.AmbientLight(0x202025, 1);
+    scene.add(ambientLight);
+
+    const centerLight = new THREE.PointLight(0xd0c8b0, 1.5, 100);
+    centerLight.position.set(0, 5, 0);
+    scene.add(centerLight);
+
+    const blueLight = new THREE.PointLight(0x406080, 1, 100);
+    blueLight.position.set(20, -10, 20);
+    scene.add(blueLight);
+
+    // Reliquary Enclosure (subtle geometric lines)
+    const reliquaryGeo = new THREE.IcosahedronGeometry(30, 1);
+    const reliquaryMat = new THREE.LineBasicMaterial({ color: 0x302a20, transparent: true, opacity: 0.3 });
+    const reliquary = new THREE.LineSegments(new THREE.EdgesGeometry(reliquaryGeo), reliquaryMat);
+    scene.add(reliquary);
+
+    // Raycaster for interactions
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    // --- D3 Force 3D Setup ---
+    let nodeIndex = 0;
+    const simNodes = [];
+    const simLinks = [];
+
+    const simulation = forceSimulation(simNodes)
+      .numDimensions(3)
+      .force('link', forceLink(simLinks).id(d => d.id).distance(5).strength(0.5))
+      .force('charge', forceManyBody().strength(-15))
+      .force('center', forceCenter(0, 0, 0))
+      .alphaDecay(0.01); // Keep it running a bit
+
+    // Materials & Geometries for Nodes
+    const sporeGeo = new THREE.SphereGeometry(0.3, 16, 16);
+    const sporeMat = new THREE.MeshLambertMaterial({ color: 0x88ccff, emissive: 0x224488 });
+    const sporeSelMat = new THREE.MeshLambertMaterial({ color: 0xffdd88, emissive: 0x886622 });
+
+    const relicGeo = new THREE.OctahedronGeometry(0.6, 0);
+    const relicMat = new THREE.MeshLambertMaterial({ color: 0xffaa44, emissive: 0xaa4411 });
+    const relicSelMat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xaaaaaa });
+
+    // Node meshes group
+    const nodesGroup = new THREE.Group();
+    scene.add(nodesGroup);
+
+    // Links (lines)
+    const linksGroup = new THREE.Group();
+    scene.add(linksGroup);
+    const linkMatBase = new THREE.LineBasicMaterial({ color: 0x557799, transparent: true, opacity: 0.6 });
+    const linkMatStrong = new THREE.LineBasicMaterial({ color: 0xaaccff, transparent: true, opacity: 0.9 });
+
+    // Membranes (Vaults)
+    const membranesGroup = new THREE.Group();
+    scene.add(membranesGroup);
+    const membraneMat = new THREE.MeshLambertMaterial({
+      color: 0xe0d8c0,
+      transparent: true,
+      opacity: 0.15,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+
+    // Sync D3 positions to Three.js meshes
+    function updateVisuals() {
+      // Create/Update Node Meshes
+      simNodes.forEach(node => {
+        if (!node.mesh) {
+          node.mesh = new THREE.Mesh(node.type === 'relic' ? relicGeo : sporeGeo, node.type === 'relic' ? relicMat : sporeMat);
+          node.mesh.userData = { id: node.id, type: node.type };
+          nodesGroup.add(node.mesh);
+        }
+
+        // Update selection styling
+        if (state.selectedNodeId === node.id) {
+          node.mesh.material = node.type === 'relic' ? relicSelMat : sporeSelMat;
+          // Scale up slightly if selected
+          node.mesh.scale.set(1.3, 1.3, 1.3);
+        } else {
+          node.mesh.material = node.type === 'relic' ? relicMat : sporeMat;
+          // Scale based on health
+          const scale = 0.5 + (node.health / 100) * 1.0;
+          node.mesh.scale.set(scale, scale, scale);
+        }
+
+        // Apply D3 positions
+        if (node.x !== undefined && node.y !== undefined && node.z !== undefined) {
+          // Constrain to reliquary bounds (radius 28)
+          const rad = Math.sqrt(node.x*node.x + node.y*node.y + node.z*node.z);
+          if (rad > 28) {
+             const scale = 28 / rad;
+             node.x *= scale;
+             node.y *= scale;
+             node.z *= scale;
+          }
+          node.mesh.position.set(node.x, node.y, node.z);
+        }
+      });
+
+      // Cleanup removed nodes
+      for (let i = nodesGroup.children.length - 1; i >= 0; i--) {
+        const mesh = nodesGroup.children[i];
+        if (!simNodes.find(n => n.id === mesh.userData.id)) {
+          nodesGroup.remove(mesh);
+        }
+      }
+
+      // Create/Update Link Lines
+      // Clear old links
+      while (linksGroup.children.length > 0) {
+        const child = linksGroup.children[0];
+        linksGroup.remove(child);
+        child.geometry.dispose();
+      }
+
+      simLinks.forEach(link => {
+        if (link.source && link.target && link.source.x !== undefined) {
+          const geometry = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(link.source.x, link.source.y, link.source.z),
+            new THREE.Vector3(link.target.x, link.target.y, link.target.z)
+          ]);
+          // Link strength affects material
+          const mat = link.strength > 0.5 ? linkMatStrong : linkMatBase;
+          const line = new THREE.Line(geometry, mat);
+          linksGroup.add(line);
+        }
+      });
+
+      // Update Vault Membranes
+      while (membranesGroup.children.length > 0) {
+        const child = membranesGroup.children[0];
+        membranesGroup.remove(child);
+        child.geometry.dispose();
+      }
+
+      // Raise nave-like panels/vaults from strong links
+      let membraneCount = 0;
+      // Weaken thresholds slightly to allow more architecture to form
+      const strongLinks = simLinks.filter(l => l.strength >= 0.5 && l.source.health > 15 && l.target.health > 15);
+
+      strongLinks.forEach(link => {
+        if (link.source.x !== undefined && link.target.x !== undefined) {
+          membraneCount++;
+
+          // Find center of the link
+          const cx = (link.source.x + link.target.x) / 2;
+          const cy = (link.source.y + link.target.y) / 2;
+          const cz = (link.source.z + link.target.z) / 2;
+
+          // Create an apex point raised outward from center
+          // Multiply by a factor to pull it outwards like a vault rib
+          const vaultApex = new THREE.Vector3(cx, cy, cz);
+          if (vaultApex.lengthSq() < 0.1) {
+            vaultApex.set(0, 5, 0); // fallback if right at origin
+          } else {
+            vaultApex.multiplyScalar(1.4);
+            // Add a little upward lift to simulate arches
+            vaultApex.y += 2;
+          }
+
+          const geom = new THREE.BufferGeometry();
+          const vertices = new Float32Array([
+            link.source.x, link.source.y, link.source.z,
+            link.target.x, link.target.y, link.target.z,
+            vaultApex.x, vaultApex.y, vaultApex.z
+          ]);
+
+          geom.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+          geom.computeVertexNormals();
+
+          const mesh = new THREE.Mesh(geom, membraneMat);
+          membranesGroup.add(mesh);
+        }
+      });
+      state.membranes = membraneCount;
+      document.getElementById('membrane-val').textContent = membraneCount;
+    }
+
+    simulation.on('tick', () => {
+      updateVisuals();
+    });
+
+    // Helper: Add Node
+    function addNode(type) {
+      const isRelic = type === 'relic';
+      const node = {
+        id: nodeIndex++,
+        type: type,
+        health: isRelic ? 100 : 50,
+        x: (Math.random() - 0.5) * 20,
+        y: (Math.random() - 0.5) * 20,
+        z: (Math.random() - 0.5) * 20
+      };
+
+      // Auto-connect to closest nodes if possible to grow network
+      const numLinks = isRelic ? 3 : 1;
+
+      if (simNodes.length > 0) {
+        // Sort by distance roughly
+        const sorted = [...simNodes].sort((a,b) => {
+           const distA = Math.pow(a.x - node.x, 2) + Math.pow(a.y - node.y, 2) + Math.pow(a.z - node.z, 2);
+           const distB = Math.pow(b.x - node.x, 2) + Math.pow(b.y - node.y, 2) + Math.pow(b.z - node.z, 2);
+           return distA - distB;
+        });
+
+        for (let i=0; i<Math.min(numLinks, sorted.length); i++) {
+           simLinks.push({
+             source: node.id,
+             target: sorted[i].id,
+             strength: isRelic ? 0.8 : 0.3
+           });
+        }
+      }
+
+      simNodes.push(node);
+      state.nodes = simNodes;
+      state.links = simLinks;
+
+      simulation.nodes(simNodes);
+      simulation.force('link').links(simLinks);
+      simulation.alpha(1).restart();
+
+      return node.id;
+    }
+
+    // --- Tone.js Choral Sonification ---
+    let choralSynth;
+    let autoFilter;
+    let pulseLoop;
+
+    const btnAudio = document.getElementById('btn-audio');
+    btnAudio.addEventListener('click', async () => {
+      if (state.audioStarted) return;
+
+      await Tone.start();
+      state.audioStarted = true;
+      btnAudio.textContent = 'Audio Running';
+      btnAudio.disabled = true;
+
+      // Sacred/Choral synth setup
+      choralSynth = new Tone.PolySynth(Tone.FMSynth, {
+        harmonicity: 0.5,
+        modulationIndex: 2.5,
+        oscillator: { type: 'sine' },
+        envelope: { attack: 2, decay: 1, sustain: 0.8, release: 4 },
+        modulation: { type: 'triangle' },
+        modulationEnvelope: { attack: 1, decay: 2, sustain: 0.8, release: 2 }
+      });
+
+      const reverb = new Tone.Reverb({ decay: 8, wet: 0.7 }).toDestination();
+      autoFilter = new Tone.AutoFilter({ frequency: '4n', baseFrequency: 200, octaves: 4 }).connect(reverb);
+      autoFilter.start();
+
+      choralSynth.connect(autoFilter);
+
+      // A solemn chord progression
+      const chords = [
+        ['D3', 'F3', 'A3', 'C4'],
+        ['G2', 'D3', 'G3', 'Bb3'],
+        ['A2', 'E3', 'A3', 'C4']
+      ];
+      let chordIndex = 0;
+
+      pulseLoop = new Tone.Loop((time) => {
+        if (!state.audioStarted) return;
+
+        // Modulate volume and filter based on network health
+        const healthLevel = state.networkHealth / 100;
+        choralSynth.volume.rampTo(-10 + (healthLevel * 10), 1);
+        autoFilter.frequency.rampTo(healthLevel * 5 + 0.1, 1);
+
+        // Play chord
+        const chord = chords[chordIndex];
+        choralSynth.triggerAttackRelease(chord, '1m', time, 0.3 + (healthLevel * 0.4));
+
+        chordIndex = (chordIndex + 1) % chords.length;
+      }, '2m');
+
+      Tone.Transport.start();
+      pulseLoop.start(0);
+    });
+
+    // --- User Controls & Logic ---
+    const btnSpore = document.getElementById('btn-spore');
+    const btnRelic = document.getElementById('btn-relic');
+    const btnFeed = document.getElementById('btn-feed');
+    const btnStarve = document.getElementById('btn-starve');
+    const btnSever = document.getElementById('btn-sever');
+    const btnReset = document.getElementById('btn-reset');
+    const selInfo = document.getElementById('selection-info');
+    const healthVal = document.getElementById('health-val');
+
+    function updateControlStates() {
+      const hasSelection = state.selectedNodeId !== null;
+      btnFeed.disabled = !hasSelection;
+      btnStarve.disabled = !hasSelection;
+
+      const hasWeakLinks = simLinks.some(l => l.strength <= 0.5);
+      btnSever.disabled = !hasWeakLinks;
+
+      if (hasSelection) {
+        const node = simNodes.find(n => n.id === state.selectedNodeId);
+        selInfo.textContent = `Selected: ${node.type.toUpperCase()} [Health: ${Math.round(node.health)}]`;
+      } else {
+        selInfo.textContent = 'Select a node to interact...';
+      }
+    }
+
+    function calculateNetworkHealth() {
+      if (simNodes.length === 0) return 0;
+      const totalHealth = simNodes.reduce((sum, n) => sum + n.health, 0);
+      return Math.min(100, Math.round((totalHealth / (simNodes.length * 100)) * 100));
+    }
+
+    btnSpore.addEventListener('click', () => { addNode('spore'); updateControlStates(); });
+    btnRelic.addEventListener('click', () => { addNode('relic'); updateControlStates(); });
+
+    btnFeed.addEventListener('click', () => {
+      if (state.selectedNodeId !== null) {
+        const node = simNodes.find(n => n.id === state.selectedNodeId);
+        if (node) {
+          node.health = Math.min(100, node.health + 30);
+          // Strengthen connected links
+          simLinks.forEach(l => {
+            if (l.source.id === node.id || l.target.id === node.id) {
+              l.strength = Math.min(1.0, l.strength + 0.2);
+            }
+          });
+          simulation.alpha(0.3).restart();
+          updateVisuals();
+          updateControlStates();
+        }
+      }
+    });
+
+    btnStarve.addEventListener('click', () => {
+      if (state.selectedNodeId !== null) {
+        const node = simNodes.find(n => n.id === state.selectedNodeId);
+        if (node) {
+          node.health = Math.max(0, node.health - 40);
+          // Weaken connected links
+          simLinks.forEach(l => {
+            if (l.source.id === node.id || l.target.id === node.id) {
+              l.strength = Math.max(0.1, l.strength - 0.3);
+            }
+          });
+          simulation.alpha(0.3).restart();
+          updateVisuals();
+          updateControlStates();
+        }
+      }
+    });
+
+    btnSever.addEventListener('click', () => {
+      // Remove weak links
+      for (let i = simLinks.length - 1; i >= 0; i--) {
+        if (simLinks[i].strength <= 0.5) {
+          simLinks.splice(i, 1);
+        }
+      }
+      simulation.force('link').links(simLinks);
+      simulation.alpha(0.5).restart();
+      updateVisuals();
+      updateControlStates();
+    });
+
+    btnReset.addEventListener('click', () => {
+      simNodes.length = 0;
+      simLinks.length = 0;
+      nodeIndex = 0;
+      state.selectedNodeId = null;
+      addNode('relic');
+      addNode('spore');
+      addNode('spore');
+      addNode('spore');
+      updateControlStates();
+    });
+
+    // Interaction (Raycasting)
+    window.addEventListener('pointerdown', (e) => {
+      // Ignore clicks on UI
+      if (e.target.tagName === 'BUTTON' || e.target.closest('header')) return;
+
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+
+      const intersects = raycaster.intersectObjects(nodesGroup.children);
+      if (intersects.length > 0) {
+        state.selectedNodeId = intersects[0].object.userData.id;
+      } else {
+        state.selectedNodeId = null;
+      }
+      updateVisuals();
+      updateControlStates();
+    });
+
+    // Initialize with a relic and a few spores
+    addNode('relic');
+    addNode('spore');
+    addNode('spore');
+    addNode('spore');
+    updateControlStates();
+
+    // Resize handler
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Animation Loop
+    function animate() {
+      requestAnimationFrame(animate);
+      reliquary.rotation.y += 0.001;
+      reliquary.rotation.x += 0.0005;
+
+      // Continuous Logic Updates
+      if (Math.random() < 0.02) {
+        // Slow natural decay
+        simNodes.forEach(n => {
+          if (n.type === 'spore') n.health = Math.max(0, n.health - 0.5);
+        });
+
+        state.networkHealth = calculateNetworkHealth();
+        healthVal.textContent = state.networkHealth;
+
+        updateVisuals();
+        updateControlStates();
+      }
+
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
