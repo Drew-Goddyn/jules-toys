@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spellforge Validator</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --panel-bg: rgba(30, 41, 59, 0.85);
+      --text-color: #f8fafc;
+      --accent: #38bdf8;
+      --danger: #f43f5e;
+      --success: #10b981;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+    }
+
+    #webgl-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+    }
+
+    .ui-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 10;
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      pointer-events: none; /* Let clicks pass through to 3D when not on panels */
+    }
+
+    .panel {
+      pointer-events: auto;
+      background: var(--panel-bg);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin: 1rem;
+      max-height: calc(100vh - 2rem);
+      overflow-y: auto;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Codex on the left */
+    #codex-panel {
+      width: 300px;
+    }
+
+    /* Forge on the right */
+    #forge-panel {
+      width: 320px;
+    }
+
+    /* Central repair UI (hidden by default) */
+    #repair-panel {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: auto;
+      background: rgba(244, 63, 94, 0.2);
+      border: 1px solid var(--danger);
+      text-align: center;
+      display: none; /* Toggled by JS */
+    }
+
+    h1, h2 {
+      margin-top: 0;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-size: 1.1rem;
+      color: var(--accent);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    p { margin: 0 0 1rem 0; font-size: 0.9rem; line-height: 1.4; }
+
+    .control-group {
+      margin-bottom: 1.2rem;
+    }
+
+    .control-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-size: 0.85rem;
+      color: #cbd5e1;
+      text-transform: uppercase;
+    }
+
+    select, input[type="range"] {
+      width: 100%;
+      padding: 0.5rem;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: white;
+      border-radius: 4px;
+      outline: none;
+      font-family: inherit;
+    }
+
+    select:focus {
+        border-color: var(--accent);
+    }
+
+    .color-swatches {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .color-swatch {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: transform 0.1s, border-color 0.1s;
+    }
+
+    .color-swatch:hover { transform: scale(1.1); }
+    .color-swatch.active { border-color: white; transform: scale(1.1); }
+
+    button {
+      width: 100%;
+      padding: 0.75rem;
+      background: var(--accent);
+      color: #0f172a;
+      border: none;
+      border-radius: 4px;
+      font-weight: bold;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: 0.5rem;
+    }
+
+    button:hover { background: #7dd3fc; }
+    button:disabled { background: #475569; color: #94a3b8; cursor: not-allowed; }
+
+    #btn-repair {
+        background: var(--danger);
+        color: white;
+    }
+    #btn-repair:hover { background: #fb7185; }
+
+    .recipe-summary {
+      font-family: monospace;
+      font-size: 0.85rem;
+      padding: 0.5rem;
+      background: rgba(0,0,0,0.5);
+      border-radius: 4px;
+      margin-bottom: 1rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .log {
+      max-height: 150px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 0.75rem;
+      color: #94a3b8;
+    }
+    .log-entry { margin-bottom: 0.25rem; }
+    .log-success { color: var(--success); }
+    .log-error { color: var(--danger); }
+
+    @media (max-width: 768px) {
+      .ui-container { flex-direction: column; justify-content: flex-start; overflow-y: auto; pointer-events: auto; }
+      .panel { margin: 0.5rem; max-height: none; }
+      #codex-panel, #forge-panel { width: auto; }
+      #webgl-container { position: fixed; }
+    }
+  </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.166.1/three.module.min.js",
+        "zod": "https://cdn.jsdelivr.net/npm/zod@3.22.4/+esm"
+      }
+    }
+  </script>
+  <!-- Load GSAP globally, standard import -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+</head>
+<body>
+
+  <div id="webgl-container"></div>
+
+  <div class="ui-container">
+    <div id="codex-panel" class="panel">
+      <h1>Spell Grammar</h1>
+      <p>Combine elements to forge a spell. Valid schemas cast beautiful effects. Invalid schemas misfire, summoning unstable creatures requiring repair.</p>
+      <h2>Rules of the Ritual</h2>
+      <ul style="font-size: 0.85rem; padding-left: 1.2rem; color: #cbd5e1;">
+        <li><strong>Symbols:</strong> "Aether", "Ignis", "Terra".</li>
+        <li><strong>Ignis:</strong> Must be Red or Orange. Needs high intensity (>70).</li>
+        <li><strong>Aether:</strong> Cannot be Red. Sequence length must be even.</li>
+        <li><strong>Terra:</strong> Requires "Stomp" gesture.</li>
+        <li><strong>Intensity:</strong> Must always be > 20.</li>
+      </ul>
+
+      <h2 style="margin-top: 1.5rem;">State</h2>
+      <div id="state-readout" style="font-family: monospace; font-size: 0.8rem; color: #94a3b8;">
+        Casts: <span id="stat-casts">0</span><br>
+        Misfires: <span id="stat-misfires">0</span><br>
+        Repairs: <span id="stat-repairs">0</span>
+      </div>
+
+      <h2 style="margin-top: 1.5rem;">History</h2>
+      <div id="cast-log" class="log"></div>
+    </div>
+
+    <div id="forge-panel" class="panel">
+      <h1>The Forge</h1>
+
+      <div class="control-group">
+        <label for="symbol">Symbol</label>
+        <select id="symbol">
+          <option value="Aether">Aether</option>
+          <option value="Ignis">Ignis</option>
+          <option value="Terra">Terra</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label>Essence Color</label>
+        <div class="color-swatches" id="color-picker">
+          <div class="color-swatch active" data-color="Blue" style="background: #3b82f6;"></div>
+          <div class="color-swatch" data-color="Red" style="background: #ef4444;"></div>
+          <div class="color-swatch" data-color="Orange" style="background: #f97316;"></div>
+          <div class="color-swatch" data-color="Green" style="background: #10b981;"></div>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label for="gesture">Gesture</label>
+        <select id="gesture">
+          <option value="Flick">Flick</option>
+          <option value="Swoosh">Swoosh</option>
+          <option value="Stomp">Stomp</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="intensity">Intensity: <span id="intensity-val">50</span></label>
+        <input type="range" id="intensity" min="0" max="100" value="50">
+      </div>
+
+      <div class="control-group">
+        <label for="sequenceLength">Sequence Length</label>
+        <input type="range" id="sequenceLength" min="1" max="10" value="2">
+        <div style="text-align: right; font-size: 0.8rem; color: #94a3b8;" id="sequence-val">2</div>
+      </div>
+
+      <div class="recipe-summary" id="recipe-summary">
+{
+  "symbol": "Aether",
+  "color": "Blue",
+  "gesture": "Flick",
+  "intensity": 50,
+  "sequenceLength": 2
+}</div>
+
+      <button id="btn-cast">Cast Ritual</button>
+    </div>
+
+    <div id="repair-panel" class="panel">
+      <h2 style="color: white; border-bottom: none; margin-bottom: 0.5rem;">Unstable Creature Summoned!</h2>
+      <p style="color: #fecdd3;">The schema was invalid. Contain the anomaly.</p>
+      <button id="btn-repair">Repair & Banish</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { z } from 'zod';
+
+    // We must ensure the error console output from Playwright reveals what's failing.
+    // Let's add a global error handler just in case the module fails to load.
+    window.addEventListener('error', (e) => console.error("Global error:", e.message));
+
+    // State
+    const state = {
+      libsLoaded: {
+        three: !!THREE,
+        zod: !!z,
+        gsap: !!window.gsap
+      },
+      recipe: {
+        symbol: "Aether",
+        color: "Blue",
+        gesture: "Flick",
+        intensity: 50,
+        sequenceLength: 2
+      },
+      validation: { valid: true, errors: [] },
+      stats: {
+        casts: 0,
+        misfires: 0,
+        repairs: 0,
+        creatures: 0,
+        effects: 0
+      }
+    };
+
+    // Zod Schema
+    const baseRecipeSchema = z.object({
+      symbol: z.enum(["Aether", "Ignis", "Terra"]),
+      color: z.enum(["Blue", "Red", "Orange", "Green"]),
+      gesture: z.enum(["Flick", "Swoosh", "Stomp"]),
+      intensity: z.number().min(21, { message: "Intensity must be > 20" }).max(100),
+      sequenceLength: z.number().min(1).max(10)
+    });
+
+    const SpellSchema = baseRecipeSchema.superRefine((data, ctx) => {
+      if (data.symbol === "Ignis") {
+        if (data.color !== "Red" && data.color !== "Orange") {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Ignis requires Red or Orange color" });
+        }
+        if (data.intensity <= 70) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Ignis requires intensity > 70" });
+        }
+      }
+      if (data.symbol === "Aether") {
+        if (data.color === "Red") {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Aether cannot be Red" });
+        }
+        if (data.sequenceLength % 2 !== 0) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Aether sequence length must be even" });
+        }
+      }
+      if (data.symbol === "Terra") {
+        if (data.gesture !== "Stomp") {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Terra requires Stomp gesture" });
+        }
+      }
+    });
+
+    // Three.js Setup
+    const container = document.getElementById('webgl-container');
+    const scene = new THREE.Scene();
+    // Add soft fog for depth
+    scene.fog = new THREE.FogExp2(0x0f172a, 0.05);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 2, 10);
+    camera.lookAt(0, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x0f172a, 1);
+    container.appendChild(renderer.domElement);
+
+    // Lights
+    const ambientLight = new THREE.AmbientLight(0x404040, 2);
+    scene.add(ambientLight);
+
+    const pointLight = new THREE.PointLight(0x38bdf8, 5, 20);
+    pointLight.position.set(0, 5, 0);
+    scene.add(pointLight);
+
+    // Resize handler
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Animation Loop
+    const clock = new THREE.Clock();
+
+    // Arrays to hold objects we want to animate/update
+    const activeEffects = [];
+    const activeCreatures = [];
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      const elapsed = clock.getElapsedTime();
+
+      // Update effects
+      activeEffects.forEach(effect => {
+        if (effect.update) effect.update(delta, elapsed);
+      });
+
+      // Update creatures
+      activeCreatures.forEach(creature => {
+        if (creature.update) creature.update(delta, elapsed);
+      });
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // UI Elements
+    const dom = {
+      symbol: document.getElementById('symbol'),
+      gesture: document.getElementById('gesture'),
+      intensity: document.getElementById('intensity'),
+      intensityVal: document.getElementById('intensity-val'),
+      sequenceLength: document.getElementById('sequenceLength'),
+      sequenceVal: document.getElementById('sequence-val'),
+      colorSwatches: document.querySelectorAll('.color-swatch'),
+      recipeSummary: document.getElementById('recipe-summary'),
+      btnCast: document.getElementById('btn-cast'),
+      btnRepair: document.getElementById('btn-repair'),
+      repairPanel: document.getElementById('repair-panel'),
+      statCasts: document.getElementById('stat-casts'),
+      statMisfires: document.getElementById('stat-misfires'),
+      statRepairs: document.getElementById('stat-repairs'),
+      castLog: document.getElementById('cast-log')
+    };
+
+    function updateRecipeUI() {
+      dom.recipeSummary.textContent = JSON.stringify(state.recipe, null, 2);
+    }
+
+    function logEvent(msg, type = 'info') {
+      const entry = document.createElement('div');
+      entry.className = `log-entry log-${type}`;
+      entry.textContent = `> ${msg}`;
+      dom.castLog.prepend(entry);
+    }
+
+    // Event Listeners
+    dom.symbol.addEventListener('change', (e) => {
+      state.recipe.symbol = e.target.value;
+      updateRecipeUI();
+    });
+
+    dom.gesture.addEventListener('change', (e) => {
+      state.recipe.gesture = e.target.value;
+      updateRecipeUI();
+    });
+
+    dom.intensity.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value, 10);
+      dom.intensityVal.textContent = val;
+      state.recipe.intensity = val;
+      updateRecipeUI();
+    });
+
+    dom.sequenceLength.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value, 10);
+      dom.sequenceVal.textContent = val;
+      state.recipe.sequenceLength = val;
+      updateRecipeUI();
+    });
+
+    dom.colorSwatches.forEach(swatch => {
+      swatch.addEventListener('click', (e) => {
+        dom.colorSwatches.forEach(s => s.classList.remove('active'));
+        e.target.classList.add('active');
+        state.recipe.color = e.target.dataset.color;
+        updateRecipeUI();
+      });
+    });
+
+    // Helpers to map string colors to hex
+    const colorMap = {
+      "Blue": 0x3b82f6,
+      "Red": 0xef4444,
+      "Orange": 0xf97316,
+      "Green": 0x10b981
+    };
+
+    function clearEffects() {
+      activeEffects.forEach(effect => {
+        if (effect.mesh) {
+          scene.remove(effect.mesh);
+          effect.mesh.geometry.dispose();
+          effect.mesh.material.dispose();
+        }
+      });
+      activeEffects.length = 0;
+      state.stats.effects = 0;
+    }
+
+    function createValidSpellEffect(recipe) {
+      clearEffects();
+
+      const count = recipe.sequenceLength * 50;
+      const geometry = new THREE.BufferGeometry();
+      const positions = new Float32Array(count * 3);
+
+      for(let i = 0; i < count * 3; i++) {
+        positions[i] = (Math.random() - 0.5) * 5;
+      }
+
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+      const material = new THREE.PointsMaterial({
+        color: colorMap[recipe.color],
+        size: 0.1 * (recipe.intensity / 50),
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending
+      });
+
+      const points = new THREE.Points(geometry, material);
+      scene.add(points);
+
+      const effect = {
+        mesh: points,
+        update: (delta, elapsed) => {
+          points.rotation.y += delta * 0.5;
+          points.rotation.x += delta * 0.2;
+
+          if (recipe.gesture === "Swoosh") {
+            points.position.y = Math.sin(elapsed * 2) * 0.5;
+          } else if (recipe.gesture === "Flick") {
+            points.scale.setScalar(1 + Math.sin(elapsed * 5) * 0.1);
+          } else if (recipe.gesture === "Stomp") {
+            points.position.y = Math.abs(Math.sin(elapsed * 4)) * 0.5;
+          }
+        }
+      };
+
+      activeEffects.push(effect);
+      state.stats.effects = 1;
+
+      // Enter animation using GSAP
+      points.scale.set(0,0,0);
+      gsap.to(points.scale, { x: 1, y: 1, z: 1, duration: 1, ease: "back.out(1.7)" });
+    }
+
+    function createMisfireCreature(recipe) {
+      clearEffects();
+
+      const geometry = new THREE.IcosahedronGeometry(1, 1);
+      const material = new THREE.MeshStandardMaterial({
+        color: 0xf43f5e, // Danger red
+        wireframe: true,
+        emissive: 0x880000,
+        emissiveIntensity: 0.5
+      });
+
+      const mesh = new THREE.Mesh(geometry, material);
+
+      // Scramble vertices to make it look jagged
+      const posAttr = geometry.attributes.position;
+      for (let i = 0; i < posAttr.count; i++) {
+        posAttr.setXYZ(
+          i,
+          posAttr.getX(i) + (Math.random() - 0.5) * 0.3,
+          posAttr.getY(i) + (Math.random() - 0.5) * 0.3,
+          posAttr.getZ(i) + (Math.random() - 0.5) * 0.3
+        );
+      }
+      geometry.computeVertexNormals();
+
+      scene.add(mesh);
+
+      const creature = {
+        mesh: mesh,
+        originalColor: new THREE.Color(0xf43f5e),
+        update: (delta, elapsed) => {
+          // Erratic movement
+          mesh.rotation.x += delta * (Math.random() * 5);
+          mesh.rotation.y += delta * (Math.random() * 5);
+          mesh.position.x = Math.sin(elapsed * 10) * 0.2;
+          mesh.position.y = Math.cos(elapsed * 13) * 0.2;
+        }
+      };
+
+      activeCreatures.push(creature);
+      state.stats.creatures += 1;
+
+      // Spawn animation
+      mesh.scale.set(0,0,0);
+      gsap.to(mesh.scale, { x: 1, y: 1, z: 1, duration: 0.5, ease: "elastic.out(1, 0.3)" });
+
+      // Show repair UI
+      dom.repairPanel.style.display = 'block';
+      dom.btnCast.disabled = true; // Disable casting while creature is active
+    }
+
+    function updateStatsUI() {
+      dom.statCasts.textContent = state.stats.casts;
+      dom.statMisfires.textContent = state.stats.misfires;
+      dom.statRepairs.textContent = state.stats.repairs;
+    }
+
+    function castSpell(recipe) {
+      if (activeCreatures.length > 0) {
+        logEvent("Cannot cast. A creature is loose!", "error");
+        return;
+      }
+
+      state.stats.casts++;
+      const result = SpellSchema.safeParse(recipe);
+
+      state.validation.valid = result.success;
+      if (result.success) {
+        state.validation.errors = [];
+        logEvent("Ritual successful. Spell manifests.", "success");
+        createValidSpellEffect(recipe);
+      } else {
+        state.validation.errors = result.error.issues.map(i => i.message);
+        logEvent("Schema validation failed! Misfire!", "error");
+        state.validation.errors.forEach(err => logEvent(`- ${err}`, "error"));
+        state.stats.misfires++;
+        createMisfireCreature(recipe);
+      }
+      updateStatsUI();
+    }
+
+    dom.btnCast.addEventListener('click', () => {
+      castSpell(state.recipe);
+    });
+
+    function repairCreature() {
+      if (activeCreatures.length === 0) return;
+
+      const creature = activeCreatures[0];
+      state.stats.repairs++;
+      updateStatsUI();
+
+      logEvent("Containment initiated. Anomaly repaired.", "success");
+
+      // Hide UI immediately
+      dom.repairPanel.style.display = 'none';
+
+      // Animate material to a calm blue, and scale down
+      gsap.to(creature.mesh.material.color, { r: 0.23, g: 0.51, b: 0.96, duration: 1 }); // 3b82f6
+      gsap.to(creature.mesh.material.emissive, { r: 0, g: 0.2, b: 0.4, duration: 1 });
+
+      // Calm down the rotation speed (handled implicitly as we scale down)
+      gsap.to(creature.mesh.scale, { x: 0, y: 0, z: 0, duration: 1.5, ease: "power2.inOut", onComplete: () => {
+        scene.remove(creature.mesh);
+        creature.mesh.geometry.dispose();
+        creature.mesh.material.dispose();
+        activeCreatures.length = 0;
+        state.stats.creatures = 0;
+        dom.btnCast.disabled = false;
+      }});
+    }
+
+    dom.btnRepair.addEventListener('click', () => {
+      repairCreature();
+    });
+
+    // Expose Probe to window immediately
+    // Note: since this is a module, window needs to be explicitly used
+    window.__toyProbe = {
+      getState: () => ({
+        libsLoaded: state.libsLoaded,
+        currentRecipe: state.recipe,
+        validationStatus: state.validation,
+        castCount: state.stats.casts,
+        misfireCount: state.stats.misfires,
+        repairCount: state.stats.repairs,
+        creatureCount: state.stats.creatures,
+        activeEffectCount: state.stats.effects
+      }),
+      runDemo: async () => {
+        // 1. Cast a valid recipe (Aether, Blue, Flick, 50, 2)
+        state.recipe = { symbol: "Aether", color: "Blue", gesture: "Flick", intensity: 50, sequenceLength: 2 };
+        castSpell(state.recipe);
+
+        await new Promise(r => setTimeout(r, 1500)); // wait for effect to manifest
+
+        // 2. Cast an invalid recipe (Aether, Red, Flick, 50, 2 - Red is invalid for Aether)
+        state.recipe = { symbol: "Aether", color: "Red", gesture: "Flick", intensity: 50, sequenceLength: 2 };
+        castSpell(state.recipe);
+
+        await new Promise(r => setTimeout(r, 1500)); // wait for creature to spawn
+
+        // 3. Repair the creature
+        repairCreature();
+
+        await new Promise(r => setTimeout(r, 2000)); // wait for repair animation
+
+        return window.__toyProbe.getState();
+      }
+    };
+  </script>
+</body>
+</html>
