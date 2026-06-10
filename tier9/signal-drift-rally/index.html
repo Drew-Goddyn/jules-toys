@@ -357,8 +357,13 @@ function initLevel(level) {
     uiLevel.textContent = level;
     nodesCollected = 0;
     uiScore.textContent = nodesCollected;
-    nodesTarget = level * 3 + 2;
+
+    // Scale challenge per level, level 1 requires 3 nodes, max 9.
+    nodesTarget = level * 2 + 1;
     uiTarget.textContent = nodesTarget;
+
+    // Adjust energy drain per level
+    player.drainRate = 2 + (level * 1.5);
 
     // Reset player
     player.x = canvas.width / 2;
@@ -513,7 +518,11 @@ function update(deltaTime) {
             node.collected = true;
             nodesCollected++;
             uiScore.textContent = nodesCollected;
-            player.energy = Math.min(player.maxEnergy, player.energy + 20); // Energy reward
+
+            // Energy reward shrinks slightly on higher levels
+            const reward = Math.max(10, 35 - (currentLevel * 5));
+            player.energy = Math.min(player.maxEnergy, player.energy + reward);
+
             playSound('collect');
             spawnParticles(node.x, node.y, 'var(--neon-cyan)');
 
