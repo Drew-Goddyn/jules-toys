@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.generated/
+public/generated/
+.vite/
+coverage/
+playwright-report/

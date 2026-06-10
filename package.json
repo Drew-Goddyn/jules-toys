@@ -1,0 +1,25 @@
+{
+  "name": "jules-toys",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "pregenerate": "node scripts/clean-generated.mjs",
+    "generate": "node scripts/generate-gallery.mjs",
+    "predev": "npm run generate",
+    "dev": "vite",
+    "build": "npm run generate && vite build && node scripts/copy-static.mjs && node scripts/validate-dist.mjs",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "npm run build && node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.1.2",
+    "svelte": "^5.46.4"
+  },
+  "devDependencies": {
+    "@tsconfig/svelte": "^5.0.5",
+    "sharp": "^0.34.5",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.16"
+  }
+}
