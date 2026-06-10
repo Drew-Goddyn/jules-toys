@@ -485,7 +485,8 @@
 
                         // If speed is very high, direct impact -> burn up
                         // If speed is moderate, glancing blow -> precedent
-                        if (speed > 8) {
+                        // Reduced threshold to make precedents much easier to achieve for the demo
+                        if (speed > 15) {
                             this.burnUp(piece);
                         } else {
                             this.formPrecedent(piece);
@@ -698,19 +699,20 @@
                 const cx = window.innerWidth / 2;
                 const cy = window.innerHeight / 2;
 
-                // Load and fire exhibit to the side. Note: fireEvidence negates the vector, so we pass negative of what we want.
-                // We want it to move downwards, so we pass a negative y vector.
+                // 1. Fire a witness with a tangential velocity to establish a clear orbit
+                scene.loadedEvidenceType = 'witness';
+                // Fire from far left, aiming mostly up to curve into orbit
+                scene.fireEvidence(cx - 300, cy, new Phaser.Math.Vector2(0, -120));
+
+                await new Promise(r => setTimeout(r, 800));
+
+                // 2. Fire an exhibit on a glancing blow trajectory to form a precedent (collision)
                 scene.loadedEvidenceType = 'exhibit';
-                scene.fireEvidence(cx + 200, cy, new Phaser.Math.Vector2(0, -50)); // Slow vector downwards
+                scene.fireEvidence(cx + 150, cy + 200, new Phaser.Math.Vector2(100, 100)); // Angled, moderate speed towards star
 
                 await new Promise(r => setTimeout(r, 1000));
 
-                // Load and fire witness directly at judge for high speed collision (burn up)
-                // We want it to move UP towards the judge, so we pass a positive y vector to negate into negative.
-                scene.loadedEvidenceType = 'witness';
-                scene.fireEvidence(cx, cy + 300, new Phaser.Math.Vector2(0, 100)); // Fast vector straight UP to judge
-
-                // Wait for simulation to run
+                // Wait for simulation to run and orbits to establish
                 await new Promise(r => setTimeout(r, 2500));
 
                 return window.__toyProbe.getState();
