@@ -416,12 +416,29 @@
         scene.add(lampLight);
 
 
-        // --- THEATRE.JS CHOREOGRAPHY ---
 
-        // Try load with proper track state for animation
+        // --- THEATRE.JS CHOREOGRAPHY ---
+        const theatreState = {
+            "sheetsById": {
+                "RoomTransitions": {
+                    "sequence": {
+                        "type": "PositionalSequence",
+                        "length": 10
+                    },
+                    "staticOverrides": {
+                        "byObject": {
+                            "Timeline": { "progress": 0 }
+                        }
+                    }
+                }
+            },
+            "definitionVersion": "0.4.0",
+            "revisionHistory": []
+        };
+
         let project;
         try {
-            project = theatre.getProject('MuseumProject');
+            project = theatre.getProject('MuseumProject', { state: theatreState });
         } catch(e) {
             console.error("Theatre state load failed, falling back to empty state", e);
             project = theatre.getProject('MuseumProject');
