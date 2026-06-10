@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resonance Creature Choir</title>
+    <script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pixi.js@8.2.6/dist/pixi.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --text-color: #c9d1d9;
+            --panel-bg: rgba(22, 27, 34, 0.85);
+            --border-color: #30363d;
+            --btn-bg: #21262d;
+            --btn-hover: #30363d;
+            --accent: #58a6ff;
+            --danger: #f85149;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-family);
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none; /* Let clicks pass through to canvas when not on UI */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 16px;
+        }
+
+        .panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            pointer-events: auto; /* Re-enable pointer events for UI elements */
+            backdrop-filter: blur(4px);
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .controls-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 200px;
+        }
+
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-row label {
+            font-size: 0.85rem;
+            color: #8b949e;
+        }
+
+        button, select, input[type="range"] {
+            background-color: var(--btn-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            outline: none;
+        }
+
+        button:hover, select:hover {
+            background-color: var(--btn-hover);
+            border-color: #8b949e;
+        }
+
+        button:active {
+            background-color: var(--border-color);
+        }
+
+        button.primary {
+            background-color: #238636;
+            border-color: rgba(240, 246, 252, 0.1);
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        button.primary:hover {
+            background-color: #2ea043;
+        }
+
+        #start-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(13, 17, 23, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            pointer-events: auto;
+        }
+
+        #start-btn {
+            font-size: 1.5rem;
+            padding: 16px 32px;
+            border-radius: 8px;
+        }
+
+        .matrix-container {
+            margin-top: 8px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 4px;
+        }
+
+        .matrix-cell {
+            background-color: var(--btn-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 4px;
+            text-align: center;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .matrix-cell.active {
+            background-color: var(--accent);
+            color: #000;
+            border-color: #fff;
+        }
+
+        .matrix-cell.bass.active { background-color: #ff7b72; }
+        .matrix-cell.pad.active { background-color: #79c0ff; }
+        .matrix-cell.lead.active { background-color: #d2a8ff; }
+        .matrix-cell.perc.active { background-color: #a5d6ff; }
+
+        .bottom-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        #event-log {
+            width: 300px;
+            height: 100px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: #8b949e;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .log-entry {
+            border-left: 2px solid var(--border-color);
+            padding-left: 6px;
+        }
+
+        .log-entry.bass { border-color: #ff7b72; }
+        .log-entry.pad { border-color: #79c0ff; }
+        .log-entry.lead { border-color: #d2a8ff; }
+        .log-entry.perc { border-color: #a5d6ff; }
+        .log-entry.system { border-color: var(--accent); color: var(--text-color); }
+
+        .creature-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100px;
+            height: 4px;
+            background: var(--border-color);
+            border-radius: 2px;
+            border: none;
+            padding: 0;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--text-color);
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <div id="start-overlay">
+        <h1 style="margin-bottom: 24px;">Resonance Creature Choir</h1>
+        <button id="start-btn" class="primary">Start Conducting</button>
+        <p style="margin-top: 16px; color: #8b949e; font-size: 0.9rem;">Audio requires interaction to start.</p>
+    </div>
+
+    <div id="ui-layer" style="display: none;">
+        <div class="top-bar">
+            <div class="panel controls-group">
+                <div class="control-row">
+                    <label>Transport</label>
+                    <div>
+                        <button id="play-btn">Pause</button>
+                    </div>
+                </div>
+                <div class="control-row">
+                    <label for="tempo-slider">Tempo: <span id="tempo-val">120</span></label>
+                    <input type="range" id="tempo-slider" min="60" max="200" value="120">
+                </div>
+                <div class="control-row">
+                    <label for="volume-slider">Volume</label>
+                    <input type="range" id="volume-slider" min="-60" max="0" value="-10">
+                </div>
+                <div class="control-row">
+                    <label for="scale-select">Scale/Mood</label>
+                    <select id="scale-select">
+                        <option value="pentatonic">Pentatonic (Playful)</option>
+                        <option value="minor">Minor (Mysterious)</option>
+                        <option value="major">Major (Bright)</option>
+                        <option value="dorian">Dorian (Wandering)</option>
+                    </select>
+                </div>
+                <div class="control-row">
+                    <label for="habitat-select">Habitat</label>
+                    <select id="habitat-select">
+                        <option value="void">The Void</option>
+                        <option value="water">Deep Water</option>
+                        <option value="forest">Neon Forest</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="panel controls-group">
+                <div class="control-row">
+                    <label>Choir Roster</label>
+                    <button id="mutate-btn">Mutate All</button>
+                </div>
+                <div class="matrix-container" id="roster-matrix">
+                    <!-- Populated by JS -->
+                </div>
+                <div class="control-row" style="margin-top: 8px;">
+                    <button id="add-creature-btn">+ Add Creature</button>
+                    <button id="remove-creature-btn">- Remove Creature</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="bottom-bar">
+            <div class="panel" id="event-log-container">
+                <div id="event-log"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Globals & State ---
+        let app;
+        const creatures = [];
+        const config = {
+            roles: ['bass', 'pad', 'lead', 'perc'],
+            colors: {
+                bass: 0xff7b72, // red
+                pad: 0x79c0ff,  // blue
+                lead: 0xd2a8ff, // purple
+                perc: 0xa5d6ff  // light blue
+            },
+            maxCreatures: 16
+        };
+
+        // --- PixiJS Setup ---
+        async function initPixi() {
+            app = new PIXI.Application();
+            await app.init({
+                resizeTo: window,
+                backgroundColor: 0x0d1117,
+                antialias: true
+            });
+            document.getElementById('canvas-container').appendChild(app.canvas);
+
+            // Create a container for the creatures
+            app.stage.sortableChildren = true;
+
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                repositionCreatures();
+            });
+        }
+
+        // --- Visual Agents (Creatures) ---
+        class Creature {
+            constructor(id, role) {
+                this.id = id;
+                this.role = role;
+                this.active = true;
+                this.container = new PIXI.Container();
+                this.container.zIndex = 10;
+
+                // Body
+                this.body = new PIXI.Graphics();
+                this.drawBody();
+                this.container.addChild(this.body);
+
+                // Rings container
+                this.rings = new PIXI.Container();
+                this.container.addChild(this.rings);
+
+                // Initial position
+                this.randomizePosition();
+
+                // Idle animation
+                this.idleTween = gsap.to(this.container, {
+                    y: `+=${10 + Math.random() * 10}`,
+                    duration: 2 + Math.random() * 2,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: "sine.inOut"
+                });
+
+                app.stage.addChild(this.container);
+            }
+
+            drawBody() {
+                this.body.clear();
+                const color = config.colors[this.role];
+                this.body.circle(0, 0, 15);
+                this.body.fill({ color: color, alpha: 0.8 });
+                this.body.stroke({ width: 2, color: 0xffffff, alpha: 0.5 });
+            }
+
+            randomizePosition() {
+                const padding = 100;
+                this.container.x = padding + Math.random() * (app.screen.width - padding * 2);
+                this.container.y = padding + Math.random() * (app.screen.height - padding * 2);
+            }
+
+            // Called when this creature plays a note
+            pulse() {
+                if (!this.active) return;
+
+                // Body pulse
+                gsap.killTweensOf(this.body.scale);
+                this.body.scale.set(1.5);
+                gsap.to(this.body.scale, {
+                    x: 1, y: 1,
+                    duration: 0.5,
+                    ease: "elastic.out(1, 0.3)"
+                });
+
+                // Emit ring
+                const ring = new PIXI.Graphics();
+                ring.circle(0, 0, 15);
+                ring.stroke({ width: 2, color: config.colors[this.role], alpha: 1 });
+                this.rings.addChild(ring);
+
+                gsap.to(ring.scale, {
+                    x: 4, y: 4,
+                    duration: 1,
+                    ease: "power2.out"
+                });
+                gsap.to(ring, {
+                    alpha: 0,
+                    duration: 1,
+                    ease: "power2.out",
+                    onComplete: () => {
+                        this.rings.removeChild(ring);
+                        ring.destroy();
+                    }
+                });
+            }
+
+            destroy() {
+                this.idleTween.kill();
+                gsap.killTweensOf(this.body.scale);
+                app.stage.removeChild(this.container);
+                this.container.destroy({ children: true });
+            }
+        }
+
+        function repositionCreatures() {
+            creatures.forEach(c => c.randomizePosition());
+        }
+
+        function addCreature() {
+            if (creatures.length >= config.maxCreatures) return;
+            const role = config.roles[Math.floor(Math.random() * config.roles.length)];
+            const c = new Creature(creatures.length, role);
+            creatures.push(c);
+        }
+
+        function removeCreature() {
+            if (creatures.length === 0) return;
+            const c = creatures.pop();
+            c.destroy();
+        }
+
+        function mutateCreatures() {
+            creatures.forEach(c => {
+                c.role = config.roles[Math.floor(Math.random() * config.roles.length)];
+                c.drawBody();
+                c.randomizePosition();
+            });
+        }
+
+        // --- Tone.js Audio & Application Logic ---
+
+        let isPlaying = false;
+
+        const scales = {
+            pentatonic: ["C3", "D3", "E3", "G3", "A3", "C4", "D4", "E4", "G4", "A4"],
+            minor: ["C3", "D3", "Eb3", "F3", "G3", "Ab3", "Bb3", "C4", "D4", "Eb4"],
+            major: ["C3", "D3", "E3", "F3", "G3", "A3", "B3", "C4", "D4", "E4"],
+            dorian: ["C3", "D3", "Eb3", "F3", "G3", "A3", "Bb3", "C4", "D4", "Eb4"]
+        };
+        let currentScale = scales.pentatonic;
+
+        // Instruments
+        const instruments = {
+            bass: new Tone.Synth({
+                oscillator: { type: "triangle" },
+                envelope: { attack: 0.1, decay: 0.2, sustain: 0.5, release: 1 }
+            }).toDestination(),
+
+            pad: new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: "sine" },
+                envelope: { attack: 1, decay: 0.5, sustain: 1, release: 2 }
+            }).toDestination(),
+
+            lead: new Tone.Synth({
+                oscillator: { type: "sawtooth" },
+                envelope: { attack: 0.05, decay: 0.1, sustain: 0.3, release: 1 }
+            }).toDestination(),
+
+            perc: new Tone.MembraneSynth().toDestination()
+        };
+
+        // UI Event Log
+        function logEvent(msg, role="system") {
+            const logContainer = document.getElementById("event-log");
+            const entry = document.createElement("div");
+            entry.className = `log-entry ${role}`;
+            entry.textContent = `[${new Date().toLocaleTimeString().split(' ')[0]}] ${msg}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            if (logContainer.children.length > 20) {
+                logContainer.removeChild(logContainer.firstChild);
+            }
+        }
+
+        // Update Matrix UI
+        function updateMatrix() {
+            const matrix = document.getElementById("roster-matrix");
+            matrix.innerHTML = "";
+            creatures.forEach((c) => {
+                const cell = document.createElement("div");
+                cell.className = `matrix-cell ${c.role} active`;
+                cell.textContent = c.role.charAt(0).toUpperCase() + c.role.slice(1);
+                cell.onclick = () => {
+                    c.active = !c.active;
+                    cell.classList.toggle("active");
+                };
+                matrix.appendChild(cell);
+            });
+        }
+
+        // Audio Sequence logic
+        function setupSequencer() {
+            let step = 0;
+
+            Tone.Transport.scheduleRepeat((time) => {
+                const activeCreatures = creatures.filter(c => c.active);
+
+                // Track triggered notes to avoid duplicate attacks at the exact same time
+                // which causes "Start time must be strictly greater than previous start time"
+                let playedPerc = false;
+                let playedBass = false;
+                let playedPad = false;
+
+                activeCreatures.forEach((c, index) => {
+                    // Simple generative logic based on step and creature index
+                    if (c.role === 'perc' && step % 4 === 0) {
+                        if (!playedPerc) {
+                            instruments.perc.triggerAttackRelease("C2", "8n", time);
+                            playedPerc = true;
+                        }
+                        Tone.Draw.schedule(() => c.pulse(), time);
+                    }
+                    else if (c.role === 'bass' && step % 8 === index % 8) {
+                        if (!playedBass) {
+                            const note = currentScale[0]; // root
+                            instruments.bass.triggerAttackRelease(note, "4n", time);
+                            playedBass = true;
+                        }
+                        Tone.Draw.schedule(() => c.pulse(), time);
+                    }
+                    else if (c.role === 'pad' && step % 16 === 0) {
+                        if (!playedPad) {
+                            const chord = [currentScale[0], currentScale[2], currentScale[4]];
+                            instruments.pad.triggerAttackRelease(chord, "1m", time);
+                            playedPad = true;
+                        }
+                        Tone.Draw.schedule(() => c.pulse(), time);
+                    }
+                    else if (c.role === 'lead' && Math.random() > 0.7) {
+                        const note = currentScale[Math.floor(Math.random() * currentScale.length)];
+                        // Add slight offset for lead notes if multiple trigger
+                        instruments.lead.triggerAttackRelease(note, "8n", time + (index * 0.05));
+                        Tone.Draw.schedule(() => c.pulse(), time);
+                    }
+                });
+
+                step = (step + 1) % 16;
+            }, "16n");
+        }
+
+        // --- Event Listeners ---
+        document.getElementById("start-btn").addEventListener("click", async () => {
+            await Tone.start();
+            await initPixi();
+
+            Tone.Transport.bpm.value = 120;
+            setupSequencer();
+            Tone.Transport.start();
+            isPlaying = true;
+
+            // Add initial creatures
+            addCreature();
+            addCreature();
+            addCreature();
+            addCreature();
+            updateMatrix();
+
+            document.getElementById("start-overlay").style.display = "none";
+            document.getElementById("ui-layer").style.display = "flex";
+            logEvent("Choir awakened.");
+        });
+
+        document.getElementById("play-btn").addEventListener("click", (e) => {
+            if (isPlaying) {
+                Tone.Transport.pause();
+                e.target.textContent = "Play";
+                logEvent("Choir paused.");
+            } else {
+                Tone.Transport.start();
+                e.target.textContent = "Pause";
+                logEvent("Choir playing.");
+            }
+            isPlaying = !isPlaying;
+        });
+
+        document.getElementById("tempo-slider").addEventListener("input", (e) => {
+            const val = e.target.value;
+            document.getElementById("tempo-val").textContent = val;
+            Tone.Transport.bpm.value = val;
+        });
+
+        document.getElementById("volume-slider").addEventListener("input", (e) => {
+            Tone.Destination.volume.value = e.target.value;
+        });
+
+        document.getElementById("scale-select").addEventListener("change", (e) => {
+            currentScale = scales[e.target.value];
+            logEvent(`Scale shifted to ${e.target.value}.`);
+        });
+
+        document.getElementById("habitat-select").addEventListener("change", (e) => {
+            const habitat = e.target.value;
+            let bgColor = 0x0d1117;
+            if (habitat === 'water') bgColor = 0x001a33;
+            if (habitat === 'forest') bgColor = 0x0a1a0f;
+
+            app.renderer.background.color = bgColor;
+            logEvent(`Habitat shifted to ${habitat}.`);
+        });
+
+        document.getElementById("add-creature-btn").addEventListener("click", () => {
+            addCreature();
+            updateMatrix();
+            logEvent(`Creature added. Roster size: ${creatures.length}`);
+        });
+
+        document.getElementById("remove-creature-btn").addEventListener("click", () => {
+            removeCreature();
+            updateMatrix();
+            logEvent(`Creature removed. Roster size: ${creatures.length}`);
+        });
+
+        document.getElementById("mutate-btn").addEventListener("click", () => {
+            mutateCreatures();
+            updateMatrix();
+            logEvent("Creatures mutated roles and positions.");
+        });
+
+    </script>
+</body>
+</html>
