@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Archive Desk | Jules Toys</title>
+    <style>
+        :root {
+            --bg-color: #f4f4f5; /* Light grey paper-like background */
+            --text-color: #27272a; /* Dark grey for text */
+            --text-muted: #52525b; /* Muted grey for secondary text */
+            --accent-color: #0ea5e9; /* Light blue accent */
+            --accent-hover: #0284c7; /* Darker blue accent for hover */
+            --card-bg: #ffffff; /* White for cards */
+            --border-color: #e4e4e7; /* Light grey for borders */
+            --badge-bg: #e0f2fe; /* Light blue for badges */
+            --badge-text: #0369a1; /* Dark blue for badge text */
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.5;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1.5rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.025em;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 1.125rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        input[type="text"], select {
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.375rem;
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus, select:focus {
+            border-color: var(--accent-color);
+        }
+
+        input[type="text"] {
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .tier-ladder {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .tier-ladder span {
+            font-weight: 600;
+            margin-right: 0.5rem;
+            color: var(--text-muted);
+        }
+
+        .tier-ladder button {
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 1rem;
+            border-radius: 9999px; /* Pill shape */
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            transition: all 0.2s;
+        }
+
+        .tier-ladder button:hover {
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
+
+        .tier-ladder button.active {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+            color: #ffffff;
+        }
+
+        #gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 2rem;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 0.5rem;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .card a {
+            display: block;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .card img {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+            border-bottom: 1px solid var(--border-color);
+            display: block;
+        }
+
+        .metadata {
+            padding: 1.5rem;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tier-badge {
+            display: inline-block;
+            background-color: var(--badge-bg);
+            color: var(--badge-text);
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.75rem;
+            align-self: flex-start;
+        }
+
+        .card h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .card h2 a {
+            color: var(--text-color);
+            transition: color 0.2s;
+        }
+
+        .card h2 a:hover {
+            color: var(--accent-color);
+        }
+
+        .artifact-path {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+            background-color: var(--bg-color);
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .behavior {
+            font-size: 0.9375rem;
+            color: var(--text-muted);
+            flex-grow: 1;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Restrained hue variety for tiers (optional, adds slight flavor to badges) */
+        .card[data-tier="t1"] .tier-badge { background-color: #fee2e2; color: #991b1b; }
+        .card[data-tier="t2"] .tier-badge { background-color: #ffedd5; color: #9a3412; }
+        .card[data-tier="t3"] .tier-badge { background-color: #fef08a; color: #854d0e; }
+        .card[data-tier="t4"] .tier-badge { background-color: #dcfce7; color: #166534; }
+        .card[data-tier="t5"] .tier-badge { background-color: #d1fae5; color: #065f46; }
+        .card[data-tier="t6"] .tier-badge { background-color: #cffafe; color: #155e75; }
+        .card[data-tier="t7"] .tier-badge { background-color: #e0e7ff; color: #3730a3; }
+        .card[data-tier="t8"] .tier-badge { background-color: #f3e8ff; color: #6b21a8; }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+            .controls {
+                flex-direction: column;
+            }
+            input[type="text"] {
+                max-width: 100%;
+            }
+            #gallery {
+                grid-template-columns: 1fr; /* Single column on mobile */
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Archive Desk</h1>
+        <p>A research archive of disposable realization-probe toys.</p>
+
+        <div class="controls">
+            <input type="text" id="searchInput" placeholder="Search experiments...">
+            <select id="tierFilter">
+                <option value="all">All Tiers</option>
+                <option value="t1">Tier 1</option>
+                <option value="t2">Tier 2</option>
+                <option value="t3">Tier 3</option>
+                <option value="t4">Tier 4</option>
+                <option value="t5">Tier 5</option>
+                <option value="t6">Tier 6</option>
+                <option value="t7">Tier 7</option>
+                <option value="t8">Tier 8</option>
+            </select>
+        </div>
+
+        <nav class="tier-ladder">
+            <span>Tiers:</span>
+            <button data-tier="all" class="active">All</button>
+            <button data-tier="t1">T1</button>
+            <button data-tier="t2">T2</button>
+            <button data-tier="t3">T3</button>
+            <button data-tier="t4">T4</button>
+            <button data-tier="t5">T5</button>
+            <button data-tier="t6">T6</button>
+            <button data-tier="t7">T7</button>
+            <button data-tier="t8">T8</button>
+        </nav>
+    </header>
+
+    <main id="gallery">
+        <!-- Tier 1 -->
+        <article class="card" data-tier="t1">
+            <a href="../../tier1/forecast-tile/index.html">
+                <img src="../../tier1/forecast-tile/screenshot.png" alt="forecast-tile" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%232c3e50%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ecf0f1%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            </a>
+            <div class="metadata">
+                <span class="tier-badge">T1</span>
+                <h2><a href="../../tier1/forecast-tile/index.html">forecast-tile</a></h2>
+                <p class="artifact-path">tier1/forecast-tile</p>
+                <p class="behavior">Weather prediction interface prototype.</p>
+            </div>
+        </article>
+        <article class="card" data-tier="t1">
+            <a href="../../tier1/passport-stamp/index.html">
+                <img src="../../tier1/passport-stamp/screenshot.png" alt="passport-stamp" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%232c3e50%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ecf0f1%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            </a>
+            <div class="metadata">
+                <span class="tier-badge">T1</span>
+                <h2><a href="../../tier1/passport-stamp/index.html">passport-stamp</a></h2>
+                <p class="artifact-path">tier1/passport-stamp</p>
+                <p class="behavior">Digital identity and verification stamp.</p>
+            </div>
+        </article>
+        <article class="card" data-tier="t1">
+            <a href="../../tier1/signal-card/index.html">
+                <img src="../../tier1/signal-card/screenshot.png" alt="signal-card" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%232c3e50%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ecf0f1%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            </a>
+            <div class="metadata">
+                <span class="tier-badge">T1</span>
+                <h2><a href="../../tier1/signal-card/index.html">signal-card</a></h2>
+                <p class="artifact-path">tier1/signal-card</p>
+                <p class="behavior">Transmission status indicator card.</p>
+            </div>
+        </article>
+
+        <!-- Tier 2 -->
+        <article class="card" data-tier="t2">
+            <a href="../../tier2/migration-river/index.html">
+                <img src="../../tier2/migration-river/screenshot.png" alt="migration-river" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%232c3e50%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ecf0f1%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            </a>
+            <div class="metadata">
+                <span class="tier-badge">T2</span>
+                <h2><a href="../../tier2/migration-river/index.html">migration-river</a></h2>
+                <p class="artifact-path">tier2/migration-river</p>
+                <p class="behavior">Data flow and movement visualization.</p>
+            </div>
+        </article>
+        <article class="card" data-tier="t2">
+            <a href="../../tier2/orchard-map/index.html">
+                <img src="../../tier2/orchard-map/screenshot.png" alt="orchard-map" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%232c3e50%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ecf0f1%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            </a>
+            <div class="metadata">
+                <span class="tier-badge">T2</span>
+                <h2><a href="../../tier2/orchard-map/index.html">orchard-map</a></h2>
+                <p class="artifact-path">tier2/orchard-map</p>
+                <p class="behavior">Spatial mapping of natural resources.</p>
+            </div>
+        </article>
+        <article class="card" data-tier="t2">
+            <a href="../../tier2/subway-cutaway/index.html">
+                <img src="../../tier2/subway-cutaway/screenshot.png" alt="subway-cutaway" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%232c3e50%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ecf0f1%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            </a>
+            <div class="metadata">
+                <span class="tier-badge">T2</span>
+                <h2><a href="../../tier2/subway-cutaway/index.html">subway-cutaway</a></h2>
+                <p class="artifact-path">tier2/subway-cutaway</p>
+                <p class="behavior">Cross-sectional transit system view.</p>
+            </div>
+        </article>
+
+        <!-- Tier 3 -->
+        <article class="card" data-tier="t3">
+            <a href="../../tier3/lunar-postcards/index.html">
+                <img src="../../tier3/lunar-postcards/screenshot.png" alt="lunar-postcards" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%232c3e50%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ecf0f1%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            </a>
+            <div class="metadata">
+                <span class="tier-badge">T3</span>
+                <h2><a href="../../tier3/lunar-postcards/index.html">lunar-postcards</a></h2>
+                <p class="artifact-path">tier3/lunar-postcards</p>
+                <p class="behavior">Generated cosmic correspondence.</p>
+            </div>
+        </article>
+        <article class="card" data-tier="t3">
+            <a href="../../tier3/traffic-ballet/index.html">
+                <img src="../../tier3/traffic-ballet/screenshot.png" alt="traffic-ballet" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%232c3e50%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ecf0f1%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            </a>
+            <div class="metadata">
+                <span class="tier-badge">T3</span>
+                <h2><a href="../../tier3/traffic-ballet/index.html">traffic-ballet</a></h2>
+                <p class="artifact-path">tier3/traffic-ballet</p>
+                <p class="behavior">Choreographed intersection simulation.</p>
+            </div>
+        </article>
+        <article class="card" data-tier="t3">
+            <a href="../../tier3/weather-console/index.html">
+                <img src="../../tier3/weather-console/screenshot.png" alt="weather-console" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%232c3e50%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ecf0f1%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            </a>
+            <div class="metadata">
+                <span class="tier-badge">T3</span>
+                <h2><a href="../../tier3/weather-console/index.html">weather-console</a></h2>
+                <p class="artifact-path">tier3/weather-console</p>
+                <p class="behavior">Terminal-style meteorological display.</p>
+            </div>
+        </article>
+
+        <!-- Tier 4 -->
+        <article class="card" data-tier="t4">
+            <a href="../../tier4/recipe-risk/index.html">
+                <img src="../../tier4/recipe-risk/screenshot.png" alt="recipe-risk" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%232c3e50%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ecf0f1%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            </a>
+            <div class="metadata">
+                <span class="tier-badge">T4</span>
+                <h2><a href="../../tier4/recipe-risk/index.html">recipe-risk</a></h2>
+                <p class="artifact-path">tier4/recipe-risk</p>
+                <p class="behavior">Culinary experimentation hazard analyzer.</p>
+            </div>
+        </article>
+        <article class="card" data-tier="t4">
+            <a href="../../tier4/sequencer-map/index.html">
+                <img src="../../tier4/sequencer-map/screenshot.png" alt="sequencer-map" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%232c3e50%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ecf0f1%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            </a>
+            <div class="metadata">
+                <span class="tier-badge">T4</span>
+                <h2><a href="../../tier4/sequencer-map/index.html">sequencer-map</a></h2>
+                <p class="artifact-path">tier4/sequencer-map</p>
+                <p class="behavior">Musical pattern generation grid.</p>
+            </div>
+        </article>
+
+        <!-- Tier 5 -->
+        <article class="card" data-tier="t5">
+            <a href="../../tier5/dream-vending/index.html">
+                <img src="../../tier5/dream-vending/screenshot.png" alt="dream-vending" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%232c3e50%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ecf0f1%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            </a>
+            <div class="metadata">
+                <span class="tier-badge">T5</span>
+                <h2><a href="../../tier5/dream-vending/index.html">dream-vending</a></h2>
+                <p class="artifact-path">tier5/dream-vending</p>
+                <p class="behavior">Automated subconscious experience dispenser.</p>
+            </div>
+        </article>
+        <article class="card" data-tier="t5">
+            <a href="../../tier5/emotion-post-office/index.html">
+                <img src="../../tier5/emotion-post-office/screenshot.png" alt="emotion-post-office" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%232c3e50%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ecf0f1%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            </a>
+            <div class="metadata">
+                <span class="tier-badge">T5</span>
+                <h2><a href="../../tier5/emotion-post-office/index.html">emotion-post-office</a></h2>
+                <p class="artifact-path">tier5/emotion-post-office</p>
+                <p class="behavior">Affective state routing and delivery.</p>
+            </div>
+        </article>
+        <article class="card" data-tier="t5">
+            <a href="../../tier5/pocket-city/index.html">
+                <img src="../../tier5/pocket-city/screenshot.png" alt="pocket-city" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%232c3e50%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ecf0f1%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            </a>
+            <div class="metadata">
+                <span class="tier-badge">T5</span>
+                <h2><a href="../../tier5/pocket-city/index.html">pocket-city</a></h2>
+                <p class="artifact-path">tier5/pocket-city</p>
+                <p class="behavior">Miniature urban planning sandbox.</p>
+            </div>
+        </article>
+
+        <!-- Tier 6 -->
+        <article class="card" data-tier="t6">
+            <a href="../../tier6/catalogue-studio/index.html">
+                <img src="../../tier6/catalogue-studio/screenshot.png" alt="catalogue-studio" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%232c3e50%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ecf0f1%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            </a>
+            <div class="metadata">
+                <span class="tier-badge">T6</span>
+                <h2><a href="../../tier6/catalogue-studio/index.html">catalogue-studio</a></h2>
+                <p class="artifact-path">tier6/catalogue-studio</p>
+                <p class="behavior">Inventory indexing and layout engine.</p>
+            </div>
+        </article>
+        <article class="card" data-tier="t6">
+            <a href="../../tier6/incident-atlas/index.html">
+                <img src="../../tier6/incident-atlas/screenshot.png" alt="incident-atlas" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%232c3e50%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ecf0f1%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            </a>
+            <div class="metadata">
+                <span class="tier-badge">T6</span>
+                <h2><a href="../../tier6/incident-atlas/index.html">incident-atlas</a></h2>
+                <p class="artifact-path">tier6/incident-atlas</p>
+                <p class="behavior">Geospatial event logging and tracking.</p>
+            </div>
+        </article>
+        <article class="card" data-tier="t6">
+            <a href="../../tier6/kitchen-command/index.html">
+                <img src="../../tier6/kitchen-command/screenshot.png" alt="kitchen-command" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%232c3e50%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ecf0f1%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            </a>
+            <div class="metadata">
+                <span class="tier-badge">T6</span>
+                <h2><a href="../../tier6/kitchen-command/index.html">kitchen-command</a></h2>
+                <p class="artifact-path">tier6/kitchen-command</p>
+                <p class="behavior">Gastronomic logistics command center.</p>
+            </div>
+        </article>
+
+        <!-- Tier 7 -->
+        <article class="card" data-tier="t7">
+            <a href="../../tier7/market-algorithm/index.html">
+                <img src="../../tier7/market-algorithm/screenshot.png" alt="market-algorithm" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%232c3e50%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ecf0f1%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            </a>
+            <div class="metadata">
+                <span class="tier-badge">T7</span>
+                <h2><a href="../../tier7/market-algorithm/index.html">market-algorithm</a></h2>
+                <p class="artifact-path">tier7/market-algorithm</p>
+                <p class="behavior">Economic exchange modeling system.</p>
+            </div>
+        </article>
+        <article class="card" data-tier="t7">
+            <a href="../../tier7/rail-signal/index.html">
+                <img src="../../tier7/rail-signal/screenshot.png" alt="rail-signal" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%232c3e50%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ecf0f1%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            </a>
+            <div class="metadata">
+                <span class="tier-badge">T7</span>
+                <h2><a href="../../tier7/rail-signal/index.html">rail-signal</a></h2>
+                <p class="artifact-path">tier7/rail-signal</p>
+                <p class="behavior">Train routing logic visualizer.</p>
+            </div>
+        </article>
+        <article class="card" data-tier="t7">
+            <a href="../../tier7/reef-particles/index.html">
+                <img src="../../tier7/reef-particles/screenshot.png" alt="reef-particles" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%232c3e50%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ecf0f1%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            </a>
+            <div class="metadata">
+                <span class="tier-badge">T7</span>
+                <h2><a href="../../tier7/reef-particles/index.html">reef-particles</a></h2>
+                <p class="artifact-path">tier7/reef-particles</p>
+                <p class="behavior">Marine ecosystem particle simulation.</p>
+            </div>
+        </article>
+
+        <!-- Tier 8 -->
+        <article class="card" data-tier="t8">
+            <a href="../../tier8/biome-forge/index.html">
+                <img src="../../tier8/biome-forge/screenshot.png" alt="biome-forge" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%232c3e50%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ecf0f1%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            </a>
+            <div class="metadata">
+                <span class="tier-badge">T8</span>
+                <h2><a href="../../tier8/biome-forge/index.html">biome-forge</a></h2>
+                <p class="artifact-path">tier8/biome-forge</p>
+                <p class="behavior">Procedural ecological environment generator.</p>
+            </div>
+        </article>
+        <article class="card" data-tier="t8">
+            <a href="../../tier8/orbital-foundry/index.html">
+                <img src="../../tier8/orbital-foundry/screenshot.png" alt="orbital-foundry" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%232c3e50%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ecf0f1%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            </a>
+            <div class="metadata">
+                <span class="tier-badge">T8</span>
+                <h2><a href="../../tier8/orbital-foundry/index.html">orbital-foundry</a></h2>
+                <p class="artifact-path">tier8/orbital-foundry</p>
+                <p class="behavior">Zero-gravity manufacturing facility interface.</p>
+            </div>
+        </article>
+        <article class="card" data-tier="t8">
+            <a href="../../tier8/salvage-run/index.html">
+                <img src="../../tier8/salvage-run/screenshot.png" alt="salvage-run" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%232c3e50%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23ecf0f1%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            </a>
+            <div class="metadata">
+                <span class="tier-badge">T8</span>
+                <h2><a href="../../tier8/salvage-run/index.html">salvage-run</a></h2>
+                <p class="artifact-path">tier8/salvage-run</p>
+                <p class="behavior">Scrap recovery operation planner.</p>
+            </div>
+        </article>
+
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const searchInput = document.getElementById('searchInput');
+            const tierFilter = document.getElementById('tierFilter');
+            const tierButtons = document.querySelectorAll('.tier-ladder button');
+            const cards = document.querySelectorAll('.card');
+
+            function filterCards() {
+                const searchTerm = searchInput.value.toLowerCase();
+                const selectedTier = tierFilter.value;
+
+                cards.forEach(card => {
+                    const title = card.querySelector('h2').textContent.toLowerCase();
+                    const path = card.querySelector('.artifact-path').textContent.toLowerCase();
+                    const behavior = card.querySelector('.behavior').textContent.toLowerCase();
+                    const cardTier = card.dataset.tier;
+
+                    const matchesSearch = title.includes(searchTerm) || path.includes(searchTerm) || behavior.includes(searchTerm);
+                    const matchesTier = selectedTier === 'all' || cardTier === selectedTier;
+
+                    if (matchesSearch && matchesTier) {
+                        card.classList.remove('hidden');
+                    } else {
+                        card.classList.add('hidden');
+                    }
+                });
+
+                // Update tier ladder active state based on select filter
+                tierButtons.forEach(btn => {
+                    if (btn.dataset.tier === selectedTier) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                });
+            }
+
+            searchInput.addEventListener('input', filterCards);
+
+            tierFilter.addEventListener('change', () => {
+                filterCards();
+            });
+
+            tierButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const tier = button.dataset.tier;
+                    tierFilter.value = tier;
+                    filterCards();
+                });
+            });
+        });
+    </script>
+</body>
+</html>
