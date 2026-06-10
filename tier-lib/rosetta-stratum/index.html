@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rosetta Stratum</title>
+    <style>
+        :root {
+            --bg-dark: #0f1115;
+            --bg-panel: #1a1d24;
+            --text-main: #e2e8f0;
+            --text-muted: #64748b;
+            --accent: #d97706;
+            --accent-hover: #f59e0b;
+            --danger: #ef4444;
+            --success: #10b981;
+            --border: #334155;
+            --font-mono: 'Courier New', Courier, monospace;
+            --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        h1 {
+            color: var(--accent);
+            font-weight: 300;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+        }
+
+        main {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .fork-lane {
+            background-color: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .fork-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+            font-family: var(--font-mono);
+        }
+
+        .fork-title {
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        .fork-stats {
+            display: flex;
+            gap: 15px;
+            font-size: 0.85rem;
+        }
+
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .stat.paradox { color: var(--danger); }
+        .stat.confidence { color: var(--success); }
+
+        .document-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            min-height: 80px;
+        }
+
+        .glyph-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #000;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px;
+            min-width: 60px;
+            cursor: pointer;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+
+        .glyph-container:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .glyph-symbol {
+            font-size: 2rem;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .glyph-meaning {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--accent);
+            min-height: 1.2em;
+            text-align: center;
+            word-break: break-all;
+        }
+
+        .glyph-meaning.unassigned {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .narrative-summary {
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            color: var(--text-main);
+            background-color: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 3px solid var(--accent);
+        }
+
+        /* Editor Modal */
+        #editor-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        #editor-modal.active {
+            display: flex;
+        }
+
+        .editor-content {
+            background-color: var(--bg-panel);
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            padding: 25px;
+            width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .editor-title {
+            font-family: var(--font-mono);
+            font-size: 1.2rem;
+            color: var(--accent);
+            text-align: center;
+            margin: 0;
+        }
+
+        .editor-symbol {
+            font-size: 3rem;
+            text-align: center;
+            margin: 10px 0;
+        }
+
+        input[type="text"] {
+            background-color: #000;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 10px;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 1rem;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .editor-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        button {
+            background-color: var(--border);
+            color: var(--text-main);
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: var(--font-mono);
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #475569;
+        }
+
+        button.primary {
+            background-color: var(--accent);
+            color: #000;
+        }
+
+        button.primary:hover {
+            background-color: var(--accent-hover);
+        }
+
+        button.split {
+            background-color: transparent;
+            border: 1px dashed var(--accent);
+            color: var(--accent);
+        }
+
+        button.split:hover {
+            background-color: rgba(217, 119, 6, 0.1);
+        }
+
+        #controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+    </style>
+    <!-- Compromise.js for NLP -->
+    <script src="https://cdn.jsdelivr.net/npm/compromise@14.11.1/builds/compromise.min.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "zustand/vanilla": "https://cdn.jsdelivr.net/npm/zustand@4.4.7/esm/vanilla.mjs",
+                "gsap": "https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm",
+                "gsap/Flip": "https://cdn.jsdelivr.net/npm/gsap@3.12.5/Flip.js/+esm"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <header>
+        <h1>Rosetta Stratum</h1>
+        <div class="subtitle">Procedural Glyph Translation Engine</div>
+    </header>
+
+    <main id="forks-container">
+        <!-- Forks will be rendered here -->
+    </main>
+
+    <div id="controls">
+        <button id="add-glyph-btn">+ Discover Glyph</button>
+    </div>
+
+    <!-- Editor Modal -->
+    <div id="editor-modal">
+        <div class="editor-content">
+            <h3 class="editor-title">Assign Meaning</h3>
+            <div class="editor-symbol" id="editor-symbol-display"></div>
+            <input type="text" id="meaning-input" placeholder="Enter translation..." autocomplete="off">
+            <div class="editor-actions">
+                <button class="primary" id="btn-assign">Assign to Timeline</button>
+                <button class="split" id="btn-split">Split Timeline (Fork)</button>
+                <button id="btn-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { createStore } from 'zustand/vanilla';
+        import gsap from 'gsap';
+        import Flip from 'gsap/Flip';
+
+        gsap.registerPlugin(Flip);
+
+        // Core Glyph Document
+        const BASE_DOCUMENT = [
+            { id: 'g1', symbol: '◬' },
+            { id: 'g2', symbol: '◯' },
+            { id: 'g3', symbol: '◮' },
+            { id: 'g4', symbol: '◿' },
+            { id: 'g5', symbol: '◬' },
+            { id: 'g6', symbol: '◭' },
+            { id: 'g7', symbol: '◯' }
+        ];
+
+        const GLYPH_POOL = ['◬', '◯', '◮', '◿', '◭', '◫', '◪', '◧', '◨', '◩', '◉', '◎'];
+
+        // Zustand Store
+        const useStore = createStore((set, get) => ({
+            document: [...BASE_DOCUMENT],
+            forks: [
+                {
+                    id: 'fork-1',
+                    parentId: null,
+                    dictionary: {}, // { symbol: meaning }
+                    confidence: 100,
+                    syntaxParadoxCount: 0,
+                    currentNarrativeSummary: "Untranslated"
+                }
+            ],
+            editorOpen: false,
+            editorContext: null, // { forkId, symbol }
+
+            // Actions
+            addRandomGlyph: () => set(state => {
+                const newSymbol = GLYPH_POOL[Math.floor(Math.random() * GLYPH_POOL.length)];
+                return { document: [...state.document, { id: `g${Date.now()}`, symbol: newSymbol }] };
+            }),
+
+            openEditor: (forkId, symbol) => set({
+                editorOpen: true,
+                editorContext: { forkId, symbol }
+            }),
+
+            closeEditor: () => set({
+                editorOpen: false,
+                editorContext: null
+            }),
+
+            assignMeaning: (forkId, symbol, meaning) => set(state => {
+                const newForks = state.forks.map(fork => {
+                    if (fork.id === forkId) {
+                        const newDict = { ...fork.dictionary, [symbol]: meaning };
+                        const analysis = analyzeTranslation(state.document, newDict);
+                        return { ...fork, dictionary: newDict, ...analysis };
+                    }
+                    return fork;
+                });
+                return { forks: newForks, editorOpen: false, editorContext: null };
+            }),
+
+            splitFork: (forkId, symbol, meaning) => set(state => {
+                const parentFork = state.forks.find(f => f.id === forkId);
+                if (!parentFork) return state;
+
+                const newDict = { ...parentFork.dictionary, [symbol]: meaning };
+                const analysis = analyzeTranslation(state.document, newDict);
+
+                const newFork = {
+                    id: `fork-${Date.now()}`,
+                    parentId: forkId,
+                    dictionary: newDict,
+                    ...analysis
+                };
+
+                return {
+                    forks: [...state.forks, newFork],
+                    editorOpen: false,
+                    editorContext: null
+                };
+            }),
+
+            reanalyzeAll: () => set(state => {
+                const newForks = state.forks.map(fork => {
+                    const analysis = analyzeTranslation(state.document, fork.dictionary);
+                    return { ...fork, ...analysis };
+                });
+                return { forks: newForks };
+            })
+        }));
+
+        // NLP Analysis using Compromise
+        function analyzeTranslation(doc, dictionary) {
+            // Reconstruct sentence
+            const words = doc.map(g => dictionary[g.symbol] || '').filter(w => w.trim() !== '');
+            const sentence = words.join(' ');
+
+            if (words.length === 0) {
+                return { confidence: 100, syntaxParadoxCount: 0, currentNarrativeSummary: "Untranslated" };
+            }
+
+            const parsed = window.nlp(sentence);
+            let paradoxCount = 0;
+
+            // Simple paradox rules:
+            // 1. Multiple consecutive verbs
+            const verbs = parsed.verbs().out('array');
+            if (verbs.length > 2) {
+                // If the whole thing is just verbs, that's a paradox
+                paradoxCount += Math.max(0, verbs.length - 2);
+            }
+
+            // Check consecutive parts of speech in the raw words by checking compromise matches
+            // "#Verb #Verb"
+            if (parsed.match('#Verb #Verb').found) {
+                paradoxCount += parsed.match('#Verb #Verb').length;
+            }
+            // "#Determiner #Determiner"
+            if (parsed.match('#Determiner #Determiner').found) {
+                paradoxCount += parsed.match('#Determiner #Determiner').length;
+            }
+
+            // Missing subject or verb in a long enough sentence
+            if (words.length > 3 && !parsed.has('#Verb')) {
+                paradoxCount += 1;
+            }
+            if (words.length > 3 && !parsed.has('#Noun')) {
+                paradoxCount += 1;
+            }
+
+            let confidence = 100 - (paradoxCount * 15) - ((doc.length - words.length) * 5);
+            confidence = Math.max(0, Math.min(100, confidence));
+
+            return {
+                confidence,
+                syntaxParadoxCount: paradoxCount,
+                currentNarrativeSummary: sentence || "Untranslated"
+            };
+        }
+
+        // DOM Elements
+        const container = document.getElementById('forks-container');
+        const modal = document.getElementById('editor-modal');
+        const btnAssign = document.getElementById('btn-assign');
+        const btnSplit = document.getElementById('btn-split');
+        const btnCancel = document.getElementById('btn-cancel');
+        const inputMeaning = document.getElementById('meaning-input');
+        const symbolDisplay = document.getElementById('editor-symbol-display');
+        const addGlyphBtn = document.getElementById('add-glyph-btn');
+
+        // Render Logic
+        let previousForksData = null;
+
+        function render() {
+            const state = useStore.getState();
+
+            // Update Modal
+            if (state.editorOpen) {
+                modal.classList.add('active');
+                symbolDisplay.textContent = state.editorContext.symbol;
+
+                // Pre-fill if it already has a meaning
+                const fork = state.forks.find(f => f.id === state.editorContext.forkId);
+                const currentMeaning = fork.dictionary[state.editorContext.symbol];
+                if (!modal.dataset.initialized) {
+                    inputMeaning.value = currentMeaning || '';
+                    modal.dataset.initialized = 'true';
+                    setTimeout(() => inputMeaning.focus(), 50);
+                }
+            } else {
+                modal.classList.remove('active');
+                modal.dataset.initialized = '';
+            }
+
+            // Render Forks
+            // We use GSAP Flip for smooth adding of forks and reorganizing
+            const timelineState = Flip.getState('.fork-lane, .glyph-container');
+
+            container.innerHTML = '';
+
+            state.forks.forEach(fork => {
+                const lane = document.createElement('div');
+                lane.className = 'fork-lane';
+                lane.dataset.forkId = fork.id;
+                lane.dataset.flipId = `lane-${fork.id}`;
+
+                const header = document.createElement('div');
+                header.className = 'fork-header';
+
+                const title = document.createElement('div');
+                title.className = 'fork-title';
+                title.textContent = `Timeline: ${fork.id}`;
+
+                const stats = document.createElement('div');
+                stats.className = 'fork-stats';
+
+                const conf = document.createElement('div');
+                conf.className = 'stat confidence';
+                conf.textContent = `Confidence: ${fork.confidence}%`;
+
+                const paradoxes = document.createElement('div');
+                paradoxes.className = `stat ${fork.syntaxParadoxCount > 0 ? 'paradox' : ''}`;
+                paradoxes.textContent = `Paradoxes: ${fork.syntaxParadoxCount}`;
+
+                stats.appendChild(conf);
+                stats.appendChild(paradoxes);
+                header.appendChild(title);
+                header.appendChild(stats);
+
+                const grid = document.createElement('div');
+                grid.className = 'document-grid';
+
+                state.document.forEach(glyph => {
+                    const el = document.createElement('div');
+                    el.className = 'glyph-container';
+                    el.dataset.id = `${fork.id}-${glyph.id}`;
+                    el.dataset.flipId = `${fork.id}-${glyph.id}`;
+
+                    const sym = document.createElement('div');
+                    sym.className = 'glyph-symbol';
+                    sym.textContent = glyph.symbol;
+
+                    const meaningText = fork.dictionary[glyph.symbol];
+                    const mean = document.createElement('div');
+                    mean.className = `glyph-meaning ${meaningText ? '' : 'unassigned'}`;
+                    mean.textContent = meaningText || '?';
+
+                    el.appendChild(sym);
+                    el.appendChild(mean);
+
+                    el.addEventListener('click', () => {
+                        useStore.getState().openEditor(fork.id, glyph.symbol);
+                    });
+
+                    grid.appendChild(el);
+                });
+
+                const summary = document.createElement('div');
+                summary.className = 'narrative-summary';
+                summary.textContent = `"${fork.currentNarrativeSummary}"`;
+
+                lane.appendChild(header);
+                lane.appendChild(grid);
+                lane.appendChild(summary);
+
+                container.appendChild(lane);
+            });
+
+            Flip.from(timelineState, {
+                duration: 0.5,
+                ease: "power2.out",
+                absolute: true,
+                stagger: 0.05
+            });
+
+            previousForksData = state.forks;
+        }
+
+        // Subscriptions
+        useStore.subscribe((state, prevState) => {
+            if (state.document !== prevState.document) {
+                // If document changes, reanalyze everything
+                useStore.getState().reanalyzeAll();
+            }
+            render();
+        });
+
+        // Event Listeners
+        btnCancel.addEventListener('click', () => {
+            useStore.getState().closeEditor();
+        });
+
+        btnAssign.addEventListener('click', () => {
+            const ctx = useStore.getState().editorContext;
+            const val = inputMeaning.value.trim();
+            if (ctx && val) {
+                useStore.getState().assignMeaning(ctx.forkId, ctx.symbol, val);
+            }
+        });
+
+        btnSplit.addEventListener('click', () => {
+            const ctx = useStore.getState().editorContext;
+            const val = inputMeaning.value.trim();
+            if (ctx && val) {
+                useStore.getState().splitFork(ctx.forkId, ctx.symbol, val);
+            }
+        });
+
+        addGlyphBtn.addEventListener('click', () => {
+            useStore.getState().addRandomGlyph();
+        });
+
+        // Initial Render
+        render();
+
+        // Toy Probe Contract
+        window.__toyProbe = {
+            getState: () => {
+                const state = useStore.getState();
+                let assignedCount = 0;
+                let totalParadoxes = 0;
+                let avgConfidence = 0;
+                let summaries = [];
+
+                const uniqueSymbols = new Set(state.document.map(g => g.symbol));
+
+                state.forks.forEach(fork => {
+                    // count unique assigned glyphs in this fork
+                    let forkAssigned = 0;
+                    uniqueSymbols.forEach(sym => {
+                        if (fork.dictionary[sym]) forkAssigned++;
+                    });
+                    assignedCount = Math.max(assignedCount, forkAssigned);
+
+                    totalParadoxes += fork.syntaxParadoxCount;
+                    avgConfidence += fork.confidence;
+                    summaries.push(fork.currentNarrativeSummary);
+                });
+
+                avgConfidence = state.forks.length ? avgConfidence / state.forks.length : 0;
+
+                return {
+                    assignedGlyphCount: assignedCount,
+                    syntaxParadoxCount: totalParadoxes,
+                    activeForks: state.forks.length,
+                    translationConfidence: avgConfidence,
+                    currentNarrativeSummary: summaries.join(" | "),
+                    zustandReady: true
+                };
+            },
+            runDemo: async () => {
+                const state = useStore.getState();
+                const forkId = state.forks[0].id;
+
+                // Assign a few normal meanings
+                useStore.getState().assignMeaning(forkId, '◬', 'the');
+                await new Promise(r => setTimeout(r, 600)); // allow flip
+
+                useStore.getState().assignMeaning(forkId, '◯', 'king');
+                await new Promise(r => setTimeout(r, 600));
+
+                useStore.getState().assignMeaning(forkId, '◮', 'eats');
+                await new Promise(r => setTimeout(r, 600));
+
+                useStore.getState().assignMeaning(forkId, '◿', 'apple');
+                await new Promise(r => setTimeout(r, 600));
+
+                // Split a meaning to create a fork, introducing a syntax paradox in the fork
+                useStore.getState().splitFork(forkId, '◿', 'eats');
+                // "the king eats eats the" -> #Verb #Verb -> paradox
+                await new Promise(r => setTimeout(r, 1000));
+
+                return window.__toyProbe.getState();
+            }
+        };
+
+        window.__toyProbe.zustandReady = true;
+
+    </script>
+</body>
+</html>
