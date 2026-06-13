@@ -75,28 +75,39 @@ jobs:
             echo "checkout_ref=refs/pull/$pr_number/merge"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Checkout evaluator source
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          path: evaluator-source
+
       - name: Checkout PR merge ref
         uses: actions/checkout@v6
         with:
           ref: ${{ steps.resolve.outputs.checkout_ref }}
+          path: pr-worktree
 
       - name: Set up Node
         uses: actions/setup-node@v6
         with:
           node-version: lts/*
           cache: npm
+          cache-dependency-path: pr-worktree/package-lock.json
 
       - name: Install dependencies
+        working-directory: pr-worktree
         run: npm ci
 
       - name: Run tests
         id: tests
         continue-on-error: true
+        working-directory: pr-worktree
         run: npm test
 
       - name: Evaluate experiment
+        working-directory: pr-worktree
         run: |
-          node scripts/evaluate-pullfrog-experiment.mjs \
+          node ../evaluator-source/scripts/evaluate-pullfrog-experiment.mjs \
             --pr-number "${{ steps.resolve.outputs.pr_number }}" \
             --issue-number "${{ steps.resolve.outputs.issue_number }}" \
             --metadata "${{ steps.resolve.outputs.metadata_file }}" \
@@ -104,6 +115,7 @@ jobs:
 
       - name: Publish report output
         id: report-output
+        working-directory: pr-worktree
         run: |
           node --input-type=module -e 'import fs from "node:fs"; const report = fs.readFileSync(".pullfrog-evaluation/report.json", "utf8"); fs.appendFileSync(process.env.GITHUB_OUTPUT, `report_json<<PULLFROG_REPORT\n${report}\nPULLFROG_REPORT\n`);'
 
@@ -111,7 +123,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: pullfrog-experiment-evaluation-${{ steps.resolve.outputs.pr_number }}
-          path: .pullfrog-evaluation/
+          path: pr-worktree/.pullfrog-evaluation/
 
   judge:
     name: Free-model judge
