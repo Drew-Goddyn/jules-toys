@@ -270,6 +270,16 @@ window.galleryItems = [
     oneLine: "GPT-5 comparison: changes modes, palettes, title, seed, layers, live motion, history, and exports local PNG/JSON presets."
   },
   {
+    tier: 9,
+    title: "Lantern Loom Lab",
+    slug: "lantern-loom-lab",
+    path: "tier9/lantern-loom-lab/index.html",
+    screenshot: "tier9/lantern-loom-lab/screenshot.png",
+    kind: "Interactive light puzzle",
+    tags: ["light", "puzzle", "mirrors", "lanterns", "constellation"],
+    oneLine: "Routes colored light beams through rotatable mirrors and prisms to illuminate constellation targets."
+  },
+  {
     tier: 10,
     title: "Starship Rogue Circuit",
     slug: "starship-rogue-circuit",
