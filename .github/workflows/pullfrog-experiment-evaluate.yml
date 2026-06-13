@@ -119,6 +119,7 @@ jobs:
             --issue-number "${{ steps.resolve.outputs.issue_number }}" \
             --metadata "${{ steps.resolve.outputs.metadata_file }}" \
             --test-outcome "${{ steps.tests.outcome }}" \
+            --lineage-root ../evaluator-source \
             --output-dir pullfrog-evaluation \
             --report pullfrog-evaluation/report.json
 
