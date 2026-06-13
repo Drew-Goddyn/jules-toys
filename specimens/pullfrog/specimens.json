@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-06-13T21:26:39.970Z",
+  "generated_at": "2026-06-13T21:33:08.579Z",
   "specimens": [
     {
       "id": "pullfrog-pr-87",
@@ -24,19 +24,19 @@
         "head_sha": "7cf63a99c035daa1366e9cf9d3c4fa7f74669371"
       },
       "workflow": {
-        "run_id": 27479522949,
+        "run_id": 27479660990,
         "run_attempt": 1,
-        "run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27479522949",
+        "run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27479660990",
         "workflow": "Evaluate Pullfrog Experiment",
         "event_name": "workflow_dispatch",
         "actor": "Drew-Goddyn",
         "ref": "main",
-        "sha": "f190d2ef708542f8f9a344a89df7d72bb6a81cb5",
+        "sha": "240aa05964b304270d6fcd38528e921e1926cc54",
         "artifact_name": "pullfrog-experiment-evaluation-87"
       },
       "artifact": {
         "name": "pullfrog-experiment-evaluation-87",
-        "workflow_run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27479522949",
+        "workflow_run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27479660990",
         "contains": [
           "report.json",
           "browser-smoke.png"
@@ -46,7 +46,7 @@
         "marker": "<!-- pullfrog-experiment-evaluator:v2 pr=87 issue=86 -->",
         "pr_comment_url": "https://github.com/Drew-Goddyn/jules-toys/pull/87#issuecomment-4699840217",
         "issue_comment_url": "https://github.com/Drew-Goddyn/jules-toys/issues/86#issuecomment-4699840253",
-        "updated_at": "2026-06-13T21:26:39.970Z"
+        "updated_at": "2026-06-13T21:33:08.579Z"
       },
       "screenshot": {
         "path": "specimen-lab/pullfrog/pr-87/browser-smoke.png",
@@ -54,27 +54,28 @@
         "artifact_file": "browser-smoke.png"
       },
       "known_gaps": [
-        "Visual polish is utilitarian rather than the 'dark observatory workbench' vision described in the brief",
-        "45° mirror's functional distinction from regular mirror (rotation parity swap) is unclear to players and may cause confusion",
-        "Hint button only highlights next empty cell rather than computing the optimal move, limiting its teaching value",
-        "No audio feedback during beam routing"
+        "45° mirror tile is visually distinct but functionally redundant with the regular mirror — both reflect 90°, differing only in starting rotation parity; this will confuse players about the strategic choice",
+        "Hint button only highlights the next empty cell rather than computing optimal placement, limiting teaching value",
+        "Visual style is functional/utilitarian rather than the 'dark observatory workbench with warm lanterns and crisp beam glow' described in the issue brief",
+        "No audio feedback during beam routing (not required but would improve polish)",
+        "Puzzle solvable by trial-and-error rather than deliberate planning; difficulty may be too low for the depth implied by the mechanic count"
       ],
       "comparison": {
-        "run_count": 1,
-        "previous_score": null,
-        "score_delta": null,
+        "run_count": 2,
+        "previous_score": 3,
+        "score_delta": 0,
         "mechanical_pass": true,
         "latest_label": "experiment:accepted",
-        "previous_run_id": null,
-        "summary": "First v2 evaluator run recorded for this specimen."
+        "previous_run_id": 27479522949,
+        "summary": "score unchanged; label stable at experiment:accepted."
       },
       "provenance": {
         "source": "pullfrog-evaluator-v2",
         "repository": "Drew-Goddyn/jules-toys",
         "free_model": "opencode/big-pickle",
         "report_version": 2,
-        "report_generated_at": "2026-06-13T21:24:31.485Z",
-        "persisted_at": "2026-06-13T21:26:39.970Z",
+        "report_generated_at": "2026-06-13T21:30:35.092Z",
+        "persisted_at": "2026-06-13T21:33:08.579Z",
         "generated_from": "GitHub Actions evaluator artifact and Pullfrog judge output"
       },
       "reruns": [
@@ -98,6 +99,29 @@
             "45° mirror's functional distinction from regular mirror (rotation parity swap) is unclear to players and may cause confusion",
             "Hint button only highlights next empty cell rather than computing the optimal move, limiting its teaching value",
             "No audio feedback during beam routing"
+          ]
+        },
+        {
+          "run_id": 27479660990,
+          "run_attempt": 1,
+          "run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27479660990",
+          "event_name": "workflow_dispatch",
+          "head_sha": "7cf63a99c035daa1366e9cf9d3c4fa7f74669371",
+          "generated_at": "2026-06-13T21:30:35.092Z",
+          "mechanical_pass": true,
+          "score": 3,
+          "recommendation": "accept",
+          "label": "experiment:accepted",
+          "status": "accepted",
+          "artifact_name": "pullfrog-experiment-evaluation-87",
+          "pr_comment_url": "https://github.com/Drew-Goddyn/jules-toys/pull/87#issuecomment-4699840217",
+          "issue_comment_url": "https://github.com/Drew-Goddyn/jules-toys/issues/86#issuecomment-4699840253",
+          "known_gaps": [
+            "45° mirror tile is visually distinct but functionally redundant with the regular mirror — both reflect 90°, differing only in starting rotation parity; this will confuse players about the strategic choice",
+            "Hint button only highlights the next empty cell rather than computing optimal placement, limiting teaching value",
+            "Visual style is functional/utilitarian rather than the 'dark observatory workbench with warm lanterns and crisp beam glow' described in the issue brief",
+            "No audio feedback during beam routing (not required but would improve polish)",
+            "Puzzle solvable by trial-and-error rather than deliberate planning; difficulty may be too low for the depth implied by the mechanic count"
           ]
         }
       ]
