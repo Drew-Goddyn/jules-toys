@@ -111,19 +111,21 @@ jobs:
             --pr-number "${{ steps.resolve.outputs.pr_number }}" \
             --issue-number "${{ steps.resolve.outputs.issue_number }}" \
             --metadata "${{ steps.resolve.outputs.metadata_file }}" \
-            --test-outcome "${{ steps.tests.outcome }}"
+            --test-outcome "${{ steps.tests.outcome }}" \
+            --output-dir pullfrog-evaluation \
+            --report pullfrog-evaluation/report.json
 
       - name: Publish report output
         id: report-output
         working-directory: pr-worktree
         run: |
-          node --input-type=module -e 'import fs from "node:fs"; const report = fs.readFileSync(".pullfrog-evaluation/report.json", "utf8"); fs.appendFileSync(process.env.GITHUB_OUTPUT, `report_json<<PULLFROG_REPORT\n${report}\nPULLFROG_REPORT\n`);'
+          node --input-type=module -e 'import fs from "node:fs"; const report = fs.readFileSync("pullfrog-evaluation/report.json", "utf8"); fs.appendFileSync(process.env.GITHUB_OUTPUT, `report_json<<PULLFROG_REPORT\n${report}\nPULLFROG_REPORT\n`);'
 
       - name: Upload evaluation artifacts
         uses: actions/upload-artifact@v7
         with:
           name: pullfrog-experiment-evaluation-${{ steps.resolve.outputs.pr_number }}
-          path: pr-worktree/.pullfrog-evaluation/
+          path: pr-worktree/pullfrog-evaluation/
 
   judge:
     name: Free-model judge
@@ -223,7 +225,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       issues: write
-      pull-requests: read
+      pull-requests: write
     steps:
       - name: Post scorecard
         uses: actions/github-script@v8
