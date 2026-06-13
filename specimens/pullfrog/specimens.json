@@ -1,5 +1,106 @@
 {
   "schema_version": 1,
-  "generated_at": null,
-  "specimens": []
+  "generated_at": "2026-06-13T21:26:39.970Z",
+  "specimens": [
+    {
+      "id": "pullfrog-pr-87",
+      "title": "Lantern Loom Lab",
+      "slug": "lantern-loom-lab",
+      "tier": 9,
+      "kind": "Pullfrog specimen",
+      "status": "accepted",
+      "score": 3,
+      "recommendation": "accept",
+      "issue": {
+        "number": 86,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/issues/86"
+      },
+      "pr": {
+        "number": 87,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/pull/87",
+        "title": "[Pullfrog experiment] feat: add Lantern Loom Lab T9 light puzzle toy",
+        "head_ref": "pullfrog/86-lantern-loom-lab",
+        "base_ref": "main",
+        "head_sha": "7cf63a99c035daa1366e9cf9d3c4fa7f74669371"
+      },
+      "workflow": {
+        "run_id": 27479522949,
+        "run_attempt": 1,
+        "run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27479522949",
+        "workflow": "Evaluate Pullfrog Experiment",
+        "event_name": "workflow_dispatch",
+        "actor": "Drew-Goddyn",
+        "ref": "main",
+        "sha": "f190d2ef708542f8f9a344a89df7d72bb6a81cb5",
+        "artifact_name": "pullfrog-experiment-evaluation-87"
+      },
+      "artifact": {
+        "name": "pullfrog-experiment-evaluation-87",
+        "workflow_run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27479522949",
+        "contains": [
+          "report.json",
+          "browser-smoke.png"
+        ]
+      },
+      "scorecard": {
+        "marker": "<!-- pullfrog-experiment-evaluator:v2 pr=87 issue=86 -->",
+        "pr_comment_url": "https://github.com/Drew-Goddyn/jules-toys/pull/87#issuecomment-4699840217",
+        "issue_comment_url": "https://github.com/Drew-Goddyn/jules-toys/issues/86#issuecomment-4699840253",
+        "updated_at": "2026-06-13T21:26:39.970Z"
+      },
+      "screenshot": {
+        "path": "specimen-lab/pullfrog/pr-87/browser-smoke.png",
+        "source": "evaluator-browser-smoke",
+        "artifact_file": "browser-smoke.png"
+      },
+      "known_gaps": [
+        "Visual polish is utilitarian rather than the 'dark observatory workbench' vision described in the brief",
+        "45° mirror's functional distinction from regular mirror (rotation parity swap) is unclear to players and may cause confusion",
+        "Hint button only highlights next empty cell rather than computing the optimal move, limiting its teaching value",
+        "No audio feedback during beam routing"
+      ],
+      "comparison": {
+        "run_count": 1,
+        "previous_score": null,
+        "score_delta": null,
+        "mechanical_pass": true,
+        "latest_label": "experiment:accepted",
+        "previous_run_id": null,
+        "summary": "First v2 evaluator run recorded for this specimen."
+      },
+      "provenance": {
+        "source": "pullfrog-evaluator-v2",
+        "repository": "Drew-Goddyn/jules-toys",
+        "free_model": "opencode/big-pickle",
+        "report_version": 2,
+        "report_generated_at": "2026-06-13T21:24:31.485Z",
+        "persisted_at": "2026-06-13T21:26:39.970Z",
+        "generated_from": "GitHub Actions evaluator artifact and Pullfrog judge output"
+      },
+      "reruns": [
+        {
+          "run_id": 27479522949,
+          "run_attempt": 1,
+          "run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27479522949",
+          "event_name": "workflow_dispatch",
+          "head_sha": "7cf63a99c035daa1366e9cf9d3c4fa7f74669371",
+          "generated_at": "2026-06-13T21:24:31.485Z",
+          "mechanical_pass": true,
+          "score": 3,
+          "recommendation": "accept",
+          "label": "experiment:accepted",
+          "status": "accepted",
+          "artifact_name": "pullfrog-experiment-evaluation-87",
+          "pr_comment_url": "https://github.com/Drew-Goddyn/jules-toys/pull/87#issuecomment-4699840217",
+          "issue_comment_url": "https://github.com/Drew-Goddyn/jules-toys/issues/86#issuecomment-4699840253",
+          "known_gaps": [
+            "Visual polish is utilitarian rather than the 'dark observatory workbench' vision described in the brief",
+            "45° mirror's functional distinction from regular mirror (rotation parity swap) is unclear to players and may cause confusion",
+            "Hint button only highlights next empty cell rather than computing the optimal move, limiting its teaching value",
+            "No audio feedback during beam routing"
+          ]
+        }
+      ]
+    }
+  ]
 }
