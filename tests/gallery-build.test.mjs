@@ -3,10 +3,12 @@ import path from "node:path";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { loadGalleryItems } from "../scripts/gallery-data-loader.mjs";
+import { loadSpecimenLab } from "../scripts/specimen-lab-data.mjs";
 
 const rootDir = process.cwd();
 const manifest = JSON.parse(fs.readFileSync(path.join(rootDir, ".generated", "gallery-manifest.json"), "utf8"));
 const items = loadGalleryItems(rootDir);
+const specimenLab = loadSpecimenLab(rootDir);
 
 test("manifest preserves gallery data and derives search text", () => {
   assert.equal(manifest.items.length, items.length);
@@ -61,6 +63,10 @@ test("dist preserves every public toy route", () => {
   for (const item of items) {
     assert.ok(fs.existsSync(path.join(rootDir, "dist", item.path)), item.path);
   }
+});
+
+test("manifest exposes static Specimen Lab data", () => {
+  assert.deepEqual(manifest.specimenLab, specimenLab);
 });
 
 test("dist exposes the likely LCP thumbnail preload in HTML", () => {

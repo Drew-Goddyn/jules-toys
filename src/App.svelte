@@ -3,7 +3,7 @@
   import useEmblaCarousel from "embla-carousel-svelte";
   import PhotoSwipeLightbox from "photoswipe/lightbox";
   import "photoswipe/style.css";
-  import { galleryItems, galleryManifest, galleryStats, tierCounts, type GalleryItem, type ImageVariant } from "../.generated/gallery-manifest";
+  import { galleryItems, galleryManifest, galleryStats, specimenLab, tierCounts, type GalleryItem, type ImageVariant, type SpecimenRecord } from "../.generated/gallery-manifest";
 
   type EmblaApi = {
     canScrollNext: () => boolean;
@@ -50,6 +50,18 @@
 
   const itemTiers = [...new Set(galleryItems.map((item) => item.tier))].sort((a, b) => a - b);
   const maxTierCount = Math.max(...Object.values(tierCounts), 1);
+  const specimens = specimenLab.specimens;
+  const latestSpecimen = specimens[0] ?? null;
+  const totalSpecimenRuns = specimens.reduce((total, specimen) => total + specimen.comparison.run_count, 0);
+  const specimenPreviewLimit = 4;
+  const visibleSpecimens = specimens.slice(0, specimenPreviewLimit);
+  const hiddenSpecimenCount = Math.max(0, specimens.length - visibleSpecimens.length);
+  const acceptedSpecimens = specimens.filter((specimen) => specimen.status === "accepted").length;
+  const failedSpecimens = specimens.filter((specimen) => specimen.status === "failed").length;
+  const reviewSpecimens = specimens.filter((specimen) => specimen.status === "needs-human-review").length;
+  const specimenHealthText = specimens.length
+    ? `${acceptedSpecimens} accepted / ${reviewSpecimens} review / ${failedSpecimens} failed / latest ${latestSpecimen?.title ?? "unknown"} at ${latestSpecimen ? scoreText(latestSpecimen.score) : "pending"}`
+    : "No committed evaluator memory yet.";
 
   $: filterKey = `${query.trim().toLowerCase()}|${sortValue}|${activeTier}`;
   $: if (filterKey !== previousFilterKey) {
@@ -113,6 +125,28 @@
 
   function previewSrcset(item: GalleryItem) {
     return srcset(item.image.preview.webp);
+  }
+
+  function specimenScreenshot(specimen: SpecimenRecord) {
+    return assetUrl(specimen.screenshot.path);
+  }
+
+  function workflowRunUrl(specimen: SpecimenRecord) {
+    return typeof specimen.workflow.run_url === "string" ? specimen.workflow.run_url : specimen.artifact.workflow_run_url;
+  }
+
+  function workflowRunId(specimen: SpecimenRecord) {
+    return typeof specimen.workflow.run_id === "number" ? specimen.workflow.run_id : null;
+  }
+
+  function scoreText(score: number | null) {
+    return Number.isFinite(score) ? `${score}/5` : "pending";
+  }
+
+  function deltaText(delta: number | null) {
+    if (delta === null) return "no prior score";
+    if (delta === 0) return "unchanged";
+    return delta > 0 ? `+${delta}` : String(delta);
   }
 
   function resetGallery() {
@@ -245,6 +279,137 @@
 </header>
 
 <main class="shell">
+  <section class="specimen-lab" aria-labelledby="specimenLabTitle">
+    <div class="specimen-lab__header">
+      <div>
+        <p class="section-kicker">Specimen Lab</p>
+        <h2 id="specimenLabTitle">Pullfrog evaluator memory</h2>
+        <p class="specimen-health">{specimenHealthText}</p>
+      </div>
+      <dl class="specimen-stats" aria-label="Specimen Lab stats">
+        <div>
+          <dt>Specimens</dt>
+          <dd>{specimens.length}</dd>
+        </div>
+        <div>
+          <dt>Runs</dt>
+          <dd>{totalSpecimenRuns}</dd>
+        </div>
+        <div>
+          <dt>Needs review</dt>
+          <dd>{reviewSpecimens}</dd>
+        </div>
+        <div>
+          <dt>Latest</dt>
+          <dd>{latestSpecimen ? `PR #${latestSpecimen.pr.number}` : "none"}</dd>
+        </div>
+      </dl>
+    </div>
+
+    {#if specimens.length}
+      <div class="specimen-grid">
+        {#each visibleSpecimens as specimen (specimen.id)}
+          <article class="specimen-card">
+            <figure class="specimen-shot">
+              <a class="specimen-shot-link" href={specimenScreenshot(specimen)} target="_blank" rel="noopener" aria-label={`Open full browser smoke screenshot for ${specimen.title}`}>
+                <img src={specimenScreenshot(specimen)} alt={`Browser smoke screenshot for ${specimen.title}`} loading="lazy" decoding="async" />
+              </a>
+            </figure>
+            <div class="specimen-card__body">
+              <div class="specimen-title-row">
+                <div class="specimen-title-copy">
+                  <p class="card-kicker">PR #{specimen.pr.number} / issue #{specimen.issue.number}</p>
+                  <h3>{specimen.title}</h3>
+                </div>
+                <span class={`status-pill status-pill--${specimen.status}`}>{specimen.status}</span>
+              </div>
+
+              <dl class="specimen-facts">
+                <div>
+                  <dt>Score</dt>
+                  <dd>{scoreText(specimen.score)}</dd>
+                </div>
+                <div>
+                  <dt>Runs</dt>
+                  <dd>{specimen.comparison.run_count}</dd>
+                </div>
+                <div>
+                  <dt>Delta</dt>
+                  <dd>{deltaText(specimen.comparison.score_delta)}</dd>
+                </div>
+                <div>
+                  <dt>Mechanical</dt>
+                  <dd>{specimen.comparison.mechanical_pass ? "pass" : "fail"}</dd>
+                </div>
+              </dl>
+
+              <p class="specimen-comparison">{specimen.comparison.summary}</p>
+
+              <div class="specimen-links" aria-label={`Evidence links for ${specimen.title}`}>
+                {#if specimen.issue.url}
+                  <a href={specimen.issue.url}>Issue #{specimen.issue.number}</a>
+                {/if}
+                {#if specimen.pr.url}
+                  <a href={specimen.pr.url}>PR #{specimen.pr.number}</a>
+                {/if}
+                {#if workflowRunUrl(specimen)}
+                  <a href={workflowRunUrl(specimen)}>Run {workflowRunId(specimen) ?? ""}</a>
+                {/if}
+                {#if specimen.scorecard.pr_comment_url}
+                  <a href={specimen.scorecard.pr_comment_url}>PR scorecard</a>
+                {/if}
+                {#if specimen.scorecard.issue_comment_url}
+                  <a href={specimen.scorecard.issue_comment_url}>Issue scorecard</a>
+                {/if}
+              </div>
+
+              <dl class="specimen-provenance">
+                <div>
+                  <dt>Artifact</dt>
+                  <dd>{specimen.artifact.name}</dd>
+                </div>
+                <div>
+                  <dt>Free path</dt>
+                  <dd>{specimen.provenance.free_model}</dd>
+                </div>
+                <div>
+                  <dt>Report</dt>
+                  <dd>v{specimen.provenance.report_version} / {specimen.provenance.report_generated_at}</dd>
+                </div>
+              </dl>
+
+              <div class="known-gaps">
+                <strong>Known gaps</strong>
+                <ul>
+                  {#each specimen.known_gaps.slice(0, 4) as gap}
+                    <li>{gap}</li>
+                  {/each}
+                  {#if specimen.known_gaps.length === 0}
+                    <li>None reported.</li>
+                  {/if}
+                  {#if specimen.known_gaps.length > 4}
+                    <li class="gap-more">+{specimen.known_gaps.length - 4} more in the scorecard.</li>
+                  {/if}
+                </ul>
+              </div>
+            </div>
+          </article>
+        {/each}
+      </div>
+      {#if hiddenSpecimenCount > 0}
+        <div class="specimen-more">
+          <span>{hiddenSpecimenCount} more specimens are available in the static data file.</span>
+          <a href={assetUrl("specimens/pullfrog/specimens.json")}>Open full data</a>
+        </div>
+      {/if}
+    {:else}
+      <div class="specimen-empty">
+        <strong>No committed Pullfrog specimens yet.</strong>
+        <span>Evaluator v2 will populate this from GitHub Actions artifacts after the first live run.</span>
+      </div>
+    {/if}
+  </section>
+
   {#if featuredItems.length}
     <section class="featured-panel" aria-labelledby="featuredTitle" use:photoSwipeGallery>
       <div class="featured-heading">

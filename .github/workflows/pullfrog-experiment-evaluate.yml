@@ -18,6 +18,11 @@ on:
         description: Minimum judge score for experiment:accepted
         required: true
         default: "3"
+      update_specimen_lab:
+        description: Commit Specimen Lab data and deploy the static gallery
+        required: true
+        default: false
+        type: boolean
   pull_request:
     types: [labeled]
     branches: ["main"]
@@ -38,6 +43,7 @@ jobs:
     outputs:
       pr_number: ${{ steps.resolve.outputs.pr_number }}
       issue_number: ${{ steps.resolve.outputs.issue_number }}
+      artifact_name: ${{ steps.resolve.outputs.artifact_name }}
       report_json: ${{ steps.report-output.outputs.report_json }}
     steps:
       - name: Resolve PR and issue
@@ -73,6 +79,7 @@ jobs:
             echo "issue_number=$issue_number"
             echo "metadata_file=$metadata_file"
             echo "checkout_ref=refs/pull/$pr_number/merge"
+            echo "artifact_name=pullfrog-experiment-evaluation-$pr_number"
           } >> "$GITHUB_OUTPUT"
 
       - name: Checkout evaluator source
@@ -124,7 +131,7 @@ jobs:
       - name: Upload evaluation artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: pullfrog-experiment-evaluation-${{ steps.resolve.outputs.pr_number }}
+          name: ${{ steps.resolve.outputs.artifact_name }}
           path: pr-worktree/pullfrog-evaluation/
 
   judge:
@@ -226,8 +233,13 @@ jobs:
     permissions:
       issues: write
       pull-requests: write
+    outputs:
+      pr_comment_url: ${{ steps.scorecard.outputs.pr_comment_url }}
+      issue_comment_url: ${{ steps.scorecard.outputs.issue_comment_url }}
+      scorecard_marker: ${{ steps.scorecard.outputs.scorecard_marker }}
     steps:
       - name: Post scorecard
+        id: scorecard
         uses: actions/github-script@v8
         env:
           PR_NUMBER: ${{ needs.evaluate.outputs.pr_number }}
@@ -256,10 +268,38 @@ jobs:
               ? ["needs-human-review"]
               : [];
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const scorecardMarker = report.lineage?.scorecard_marker ?? `<!-- pullfrog-experiment-evaluator:v2 pr=${prNumber} issue=${issueNumber || "unknown"} -->`;
+            const previousRuns = report.lineage?.previous_runs ?? [];
 
             function line(label, check, detail) {
               const status = check?.status ?? "unknown";
               return `- ${label}: ${status}${detail ? ` - ${detail}` : ""}`;
+            }
+
+            async function upsertScorecard(issueNumberForComment, body) {
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumberForComment,
+                per_page: 100
+              });
+              const existing = comments.find((comment) => comment.body?.includes(scorecardMarker));
+              if (existing) {
+                const response = await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existing.id,
+                  body
+                });
+                return response.data.html_url;
+              }
+              const response = await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumberForComment,
+                body
+              });
+              return response.data.html_url;
             }
 
             const scope = report.deterministic.changed_file_scope;
@@ -277,11 +317,18 @@ jobs:
               : `Recommended label: \`${finalLabel}\` (label application disabled)`;
 
             const body = [
-              "## Pullfrog experiment evaluator scorecard",
+              "## Pullfrog experiment evaluator scorecard v2",
+              "",
+              "Canonical v2 scorecard. Reruns update this comment in place and keep prior runs in lineage.",
               "",
               `PR: #${prNumber}`,
               `Source issue: #${issueNumber}`,
               `Workflow run: ${runUrl}`,
+              `Report version: ${report.version}`,
+              `Run sequence: ${report.lineage?.run_sequence ?? 1}`,
+              previousRuns.length > 0
+                ? `Previous runs: ${previousRuns.map((run) => run.run_url ? `[${run.run_id}](${run.run_url})` : run.run_id).join(", ")}`
+                : "Previous runs: none recorded in Specimen Lab data",
               "",
               "### Mechanical checks",
               "",
@@ -312,23 +359,14 @@ jobs:
               labelNote,
               gaps.length > 0 ? `Known gaps: ${gaps.join("; ")}` : "Known gaps: none reported",
               "",
-              "<!-- pullfrog-experiment-evaluator -->"
+              scorecardMarker
             ].filter(Boolean).join("\n");
 
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
-              body
-            });
+            const prCommentUrl = await upsertScorecard(prNumber, body);
 
+            let issueCommentUrl = "";
             if (issueNumber && issueNumber !== prNumber) {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issueNumber,
-                body
-              });
+              issueCommentUrl = await upsertScorecard(issueNumber, body);
             }
 
             if (applyLabels) {
@@ -348,3 +386,92 @@ jobs:
                 });
               }
             }
+
+            core.setOutput("pr_comment_url", prCommentUrl);
+            core.setOutput("issue_comment_url", issueCommentUrl);
+            core.setOutput("scorecard_marker", scorecardMarker);
+
+  persist-specimen-lab:
+    name: Persist Specimen Lab data
+    needs: [evaluate, judge, comment]
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.update_specimen_lab == true && needs.evaluate.result == 'success' && needs.comment.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v6
+        with:
+          ref: main
+
+      - name: Refresh main
+        run: git pull --ff-only origin main
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download evaluation artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ needs.evaluate.outputs.artifact_name }}
+          path: pullfrog-evaluation
+
+      - name: Write judge result
+        env:
+          JUDGE_JSON: ${{ needs.judge.outputs.judge_json }}
+        run: |
+          node --input-type=module -e 'import fs from "node:fs"; fs.writeFileSync("pullfrog-judge.json", `${process.env.JUDGE_JSON || "null"}\n`);'
+
+      - name: Update Specimen Lab data
+        run: |
+          node scripts/update-specimen-lab-data.mjs \
+            --report pullfrog-evaluation/report.json \
+            --judge pullfrog-judge.json \
+            --artifact-dir pullfrog-evaluation \
+            --pr-comment-url "${{ needs.comment.outputs.pr_comment_url }}" \
+            --issue-comment-url "${{ needs.comment.outputs.issue_comment_url }}" \
+            --scorecard-marker "${{ needs.comment.outputs.scorecard_marker }}" \
+            --artifact-name "${{ needs.evaluate.outputs.artifact_name }}" \
+            --quality-threshold "${{ inputs.quality_threshold }}"
+
+      - name: Validate static build with specimen data
+        run: npm test
+
+      - name: Commit Specimen Lab data
+        run: |
+          set -euo pipefail
+          specimen_asset="public/specimen-lab/pullfrog/pr-${{ needs.evaluate.outputs.pr_number }}/browser-smoke.png"
+          if git diff --quiet -- specimens/pullfrog/specimens.json "$specimen_asset"; then
+            echo "No Specimen Lab data changes to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add specimens/pullfrog/specimens.json "$specimen_asset"
+          git commit -m "Update Pullfrog Specimen Lab data for PR #${{ needs.evaluate.outputs.pr_number }}"
+          git push origin HEAD:main
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: ./dist
+
+      - name: Deploy Specimen Lab
+        id: deployment
+        uses: actions/deploy-pages@v5

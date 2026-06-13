@@ -236,6 +236,288 @@ main {
   padding: var(--sp-4) 0 var(--sp-8);
 }
 
+.specimen-lab {
+  display: grid;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-5);
+}
+
+.specimen-lab__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.58fr);
+  gap: var(--sp-4);
+  align-items: end;
+}
+
+.specimen-lab h2 {
+  margin: 0;
+  font-size: var(--fs-title);
+  line-height: var(--lh-tight);
+  letter-spacing: 0;
+}
+
+.specimen-health {
+  margin: var(--sp-2) 0 0;
+  max-width: 76ch;
+  color: #394150;
+}
+
+.specimen-stats,
+.specimen-facts,
+.specimen-provenance {
+  margin: 0;
+}
+
+.specimen-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-2);
+}
+
+.specimen-stats div {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--sp-2) var(--sp-3);
+}
+
+.specimen-stats dt,
+.specimen-facts dt,
+.specimen-provenance dt {
+  color: var(--muted);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-semibold);
+}
+
+.specimen-stats dd,
+.specimen-facts dd,
+.specimen-provenance dd {
+  margin: 0;
+}
+
+.specimen-stats dd {
+  margin-top: var(--sp-1);
+  font-size: var(--fs-title);
+  font-weight: var(--fw-semibold);
+  line-height: 1;
+}
+
+.specimen-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr));
+  gap: var(--sp-4);
+}
+
+.specimen-card {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.42fr) minmax(0, 1fr);
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 1px 0 rgb(17 19 24 / 0.04);
+  overflow: hidden;
+}
+
+.specimen-shot {
+  min-width: 0;
+  margin: 0;
+  background: #111318;
+  border-right: 1px solid var(--line);
+}
+
+.specimen-shot-link {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 280px;
+  height: 100%;
+  color: inherit;
+}
+
+.specimen-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 360px;
+  object-fit: contain;
+}
+
+.specimen-card__body {
+  display: grid;
+  gap: var(--sp-3);
+  min-width: 0;
+  padding: var(--sp-3);
+}
+
+.specimen-title-row {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: start;
+  justify-content: space-between;
+}
+
+.specimen-title-copy {
+  min-width: 0;
+}
+
+.specimen-title-row h3 {
+  margin: 0;
+  font-size: var(--fs-subhead);
+  line-height: 1.18;
+  letter-spacing: 0;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--sp-5);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
+
+.status-pill--accepted {
+  border-color: #87b38d;
+  background: #edf8ef;
+  color: #245c2d;
+}
+
+.status-pill--failed {
+  border-color: #d69a9a;
+  background: #fff0f0;
+  color: #8a2222;
+}
+
+.status-pill--needs-human-review {
+  border-color: #dfbf72;
+  background: #fff8e8;
+  color: #76530f;
+}
+
+.specimen-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-2);
+}
+
+.specimen-facts div,
+.specimen-provenance div {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-strong);
+  padding: var(--sp-2);
+}
+
+.specimen-facts dd {
+  margin-top: var(--sp-1);
+  font-weight: var(--fw-semibold);
+}
+
+.specimen-comparison {
+  margin: 0;
+  color: #394150;
+}
+
+.specimen-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.specimen-links a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 34px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  padding: var(--sp-1) var(--sp-2);
+  text-decoration: none;
+  font-weight: var(--fw-semibold);
+}
+
+.specimen-links a:hover {
+  border-color: var(--accent);
+}
+
+.specimen-provenance {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-2);
+}
+
+.specimen-provenance dd {
+  margin-top: var(--sp-1);
+  color: #394150;
+  overflow-wrap: anywhere;
+}
+
+.known-gaps {
+  display: grid;
+  gap: var(--sp-2);
+  border-top: 1px solid var(--line);
+  padding-top: var(--sp-3);
+}
+
+.known-gaps strong {
+  font-size: var(--fs-caption);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.known-gaps ul {
+  display: grid;
+  gap: var(--sp-1);
+  margin: 0;
+  padding-left: var(--sp-4);
+  color: #394150;
+}
+
+.gap-more {
+  font-weight: var(--fw-semibold);
+}
+
+.specimen-more {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgb(255 255 255 / 0.72);
+  color: #394150;
+  padding: var(--sp-2) var(--sp-3);
+}
+
+.specimen-more a {
+  font-weight: var(--fw-semibold);
+}
+
+.specimen-empty {
+  display: grid;
+  gap: var(--sp-1);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  background: rgb(255 255 255 / 0.72);
+  color: var(--muted);
+  padding: var(--sp-4);
+}
+
+.specimen-empty strong {
+  color: var(--ink);
+  font-size: var(--fs-subhead);
+}
+
 .featured-panel {
   margin-bottom: var(--sp-5);
   border: 1px solid var(--line);
@@ -705,8 +987,15 @@ main {
 
 @media (max-width: 1100px) {
   .masthead,
-  .overview-panel {
+  .overview-panel,
+  .specimen-lab__header,
+  .specimen-card {
     grid-template-columns: 1fr;
+  }
+
+  .specimen-shot {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
   }
 
   .stats {
@@ -733,7 +1022,9 @@ main {
   }
 
   .controls,
-  .gallery {
+  .gallery,
+  .specimen-facts,
+  .specimen-provenance {
     grid-template-columns: 1fr;
   }
 
@@ -745,6 +1036,18 @@ main {
   .stats {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--sp-2);
+  }
+
+  .specimen-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .specimen-stats div {
+    padding: var(--sp-2);
+  }
+
+  .specimen-stats dd {
+    font-size: var(--fs-subhead);
   }
 
   .stat {
