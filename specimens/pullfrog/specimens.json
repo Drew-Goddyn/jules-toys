@@ -1,7 +1,115 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-06-13T22:05:45.114Z",
+  "generated_at": "2026-06-13T22:12:14.007Z",
   "specimens": [
+    {
+      "id": "pullfrog-pr-85",
+      "title": "Clockwork Canal Locks",
+      "slug": "canal-locks",
+      "tier": 9,
+      "kind": "Pullfrog specimen",
+      "status": "accepted",
+      "score": 3,
+      "recommendation": "accept",
+      "issue": {
+        "number": 84,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/issues/84"
+      },
+      "pr": {
+        "number": 85,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/pull/85",
+        "title": "[Pullfrog experiment] Clockwork Canal Locks",
+        "head_ref": "pullfrog/84-canal-locks-toy",
+        "base_ref": "main",
+        "head_sha": "57c4d311db88ae0e0832363b82a6cd8f8862a717"
+      },
+      "workflow": {
+        "run_id": 27480568238,
+        "run_attempt": 1,
+        "run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27480568238",
+        "workflow": "Evaluate Pullfrog Experiment",
+        "event_name": "workflow_dispatch",
+        "actor": "Drew-Goddyn",
+        "ref": "main",
+        "sha": "2017da332660973bafb4ed09154f393152dde2a8",
+        "artifact_name": "pullfrog-experiment-evaluation-85"
+      },
+      "artifact": {
+        "name": "pullfrog-experiment-evaluation-85",
+        "workflow_run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27480568238",
+        "contains": [
+          "report.json",
+          "browser-smoke.png"
+        ]
+      },
+      "scorecard": {
+        "marker": "<!-- pullfrog-experiment-evaluator:v2 pr=85 issue=84 -->",
+        "pr_comment_url": "https://github.com/Drew-Goddyn/jules-toys/pull/85#issuecomment-4699945222",
+        "issue_comment_url": "https://github.com/Drew-Goddyn/jules-toys/issues/84#issuecomment-4699945242",
+        "updated_at": "2026-06-13T22:12:14.007Z"
+      },
+      "screenshot": {
+        "path": "specimen-lab/pullfrog/pr-85/browser-smoke.png",
+        "source": "evaluator-browser-smoke",
+        "artifact_file": "browser-smoke.png"
+      },
+      "known_gaps": [
+        "Step-based simulation (500ms interval) rather than smooth real-time — matches brief but feels slower than expected",
+        "Water equalization is instantaneous within 5% threshold — real locks equalize gradually",
+        "Stranding condition (3 consecutive steps with both gates closed + water at 0 or 100) is tight for new players",
+        "No mobile touch optimization beyond viewport meta tag",
+        "Canvas 640x560 may overflow on small viewports",
+        "Fill/Drain buttons toggle rather than being momentary",
+        "No in-game tutorial or visual hints for which gates/levels control which path",
+        "Minimal visual polish — functional but not engaging aesthetic"
+      ],
+      "comparison": {
+        "run_count": 1,
+        "previous_score": null,
+        "score_delta": null,
+        "mechanical_pass": true,
+        "latest_label": "experiment:accepted",
+        "previous_run_id": null,
+        "summary": "First v2 evaluator run recorded for this specimen."
+      },
+      "provenance": {
+        "source": "pullfrog-evaluator-v2",
+        "repository": "Drew-Goddyn/jules-toys",
+        "free_model": "opencode/big-pickle",
+        "report_version": 2,
+        "report_generated_at": "2026-06-13T22:09:38.077Z",
+        "persisted_at": "2026-06-13T22:12:14.007Z",
+        "generated_from": "GitHub Actions evaluator artifact and Pullfrog judge output"
+      },
+      "reruns": [
+        {
+          "run_id": 27480568238,
+          "run_attempt": 1,
+          "run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27480568238",
+          "event_name": "workflow_dispatch",
+          "head_sha": "57c4d311db88ae0e0832363b82a6cd8f8862a717",
+          "generated_at": "2026-06-13T22:09:38.077Z",
+          "mechanical_pass": true,
+          "score": 3,
+          "recommendation": "accept",
+          "label": "experiment:accepted",
+          "status": "accepted",
+          "artifact_name": "pullfrog-experiment-evaluation-85",
+          "pr_comment_url": "https://github.com/Drew-Goddyn/jules-toys/pull/85#issuecomment-4699945222",
+          "issue_comment_url": "https://github.com/Drew-Goddyn/jules-toys/issues/84#issuecomment-4699945242",
+          "known_gaps": [
+            "Step-based simulation (500ms interval) rather than smooth real-time — matches brief but feels slower than expected",
+            "Water equalization is instantaneous within 5% threshold — real locks equalize gradually",
+            "Stranding condition (3 consecutive steps with both gates closed + water at 0 or 100) is tight for new players",
+            "No mobile touch optimization beyond viewport meta tag",
+            "Canvas 640x560 may overflow on small viewports",
+            "Fill/Drain buttons toggle rather than being momentary",
+            "No in-game tutorial or visual hints for which gates/levels control which path",
+            "Minimal visual polish — functional but not engaging aesthetic"
+          ]
+        }
+      ]
+    },
     {
       "id": "pullfrog-pr-79",
       "title": "Signal Cabinet Relay",
