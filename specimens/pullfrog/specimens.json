@@ -1,7 +1,111 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-06-13T21:41:02.979Z",
+  "generated_at": "2026-06-13T22:05:45.114Z",
   "specimens": [
+    {
+      "id": "pullfrog-pr-79",
+      "title": "Signal Cabinet Relay",
+      "slug": "signal-cabinet-relay",
+      "tier": 9,
+      "kind": "Pullfrog specimen",
+      "status": "accepted",
+      "score": 3,
+      "recommendation": "accept",
+      "issue": {
+        "number": 77,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/issues/77"
+      },
+      "pr": {
+        "number": 79,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/pull/79",
+        "title": "[Pullfrog experiment] Signal Cabinet Relay — T9",
+        "head_ref": "pullfrog/77-signal-cabinet-relay",
+        "base_ref": "main",
+        "head_sha": "e2492ab92e676c5a7c6d73f689f9610a2fe2c7d6"
+      },
+      "workflow": {
+        "run_id": 27480430420,
+        "run_attempt": 1,
+        "run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27480430420",
+        "workflow": "Evaluate Pullfrog Experiment",
+        "event_name": "workflow_dispatch",
+        "actor": "Drew-Goddyn",
+        "ref": "main",
+        "sha": "fdaa76a8773a05a0590c10918f83530de8ecea5e",
+        "artifact_name": "pullfrog-experiment-evaluation-79"
+      },
+      "artifact": {
+        "name": "pullfrog-experiment-evaluation-79",
+        "workflow_run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27480430420",
+        "contains": [
+          "report.json",
+          "browser-smoke.png"
+        ]
+      },
+      "scorecard": {
+        "marker": "<!-- pullfrog-experiment-evaluator:v2 pr=79 issue=77 -->",
+        "pr_comment_url": "https://github.com/Drew-Goddyn/jules-toys/pull/79#issuecomment-4699928820",
+        "issue_comment_url": "https://github.com/Drew-Goddyn/jules-toys/issues/77#issuecomment-4699928850",
+        "updated_at": "2026-06-13T22:05:45.114Z"
+      },
+      "screenshot": {
+        "path": "specimen-lab/pullfrog/pr-79/browser-smoke.png",
+        "source": "evaluator-browser-smoke",
+        "artifact_file": "browser-smoke.png"
+      },
+      "known_gaps": [
+        "Pulse propagation is unidirectional linear traversal only — no real pathfinding or signal routing across arbitrary topologies",
+        "Circular topology is fixed; no drag-to-reconfigure nodes or edges",
+        "No goal state, scoring, or puzzle progression — limited replay value",
+        "Pulses auto-emit regardless of switch state, reducing player agency",
+        "No sound effects, keyboard shortcuts, or touch gesture support beyond click",
+        "Screenshot is a generated SVG approximation, not a live browser capture"
+      ],
+      "comparison": {
+        "run_count": 1,
+        "previous_score": null,
+        "score_delta": null,
+        "mechanical_pass": true,
+        "latest_label": "experiment:accepted",
+        "previous_run_id": null,
+        "summary": "First v2 evaluator run recorded for this specimen."
+      },
+      "provenance": {
+        "source": "pullfrog-evaluator-v2",
+        "repository": "Drew-Goddyn/jules-toys",
+        "free_model": "opencode/big-pickle",
+        "report_version": 2,
+        "report_generated_at": "2026-06-13T22:03:24.373Z",
+        "persisted_at": "2026-06-13T22:05:45.114Z",
+        "generated_from": "GitHub Actions evaluator artifact and Pullfrog judge output"
+      },
+      "reruns": [
+        {
+          "run_id": 27480430420,
+          "run_attempt": 1,
+          "run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27480430420",
+          "event_name": "workflow_dispatch",
+          "head_sha": "e2492ab92e676c5a7c6d73f689f9610a2fe2c7d6",
+          "generated_at": "2026-06-13T22:03:24.373Z",
+          "mechanical_pass": true,
+          "score": 3,
+          "recommendation": "accept",
+          "label": "experiment:accepted",
+          "status": "accepted",
+          "artifact_name": "pullfrog-experiment-evaluation-79",
+          "pr_comment_url": "https://github.com/Drew-Goddyn/jules-toys/pull/79#issuecomment-4699928820",
+          "issue_comment_url": "https://github.com/Drew-Goddyn/jules-toys/issues/77#issuecomment-4699928850",
+          "known_gaps": [
+            "Pulse propagation is unidirectional linear traversal only — no real pathfinding or signal routing across arbitrary topologies",
+            "Circular topology is fixed; no drag-to-reconfigure nodes or edges",
+            "No goal state, scoring, or puzzle progression — limited replay value",
+            "Pulses auto-emit regardless of switch state, reducing player agency",
+            "No sound effects, keyboard shortcuts, or touch gesture support beyond click",
+            "Screenshot is a generated SVG approximation, not a live browser capture"
+          ]
+        }
+      ]
+    },
     {
       "id": "pullfrog-pr-87",
       "title": "Lantern Loom Lab",
