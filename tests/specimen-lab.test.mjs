@@ -8,6 +8,7 @@ import { loadSpecimenLab } from "../scripts/specimen-lab-data.mjs";
 
 const repoRoot = process.cwd();
 const updaterPath = path.join(repoRoot, "scripts", "update-specimen-lab-data.mjs");
+const evaluatorPath = path.join(repoRoot, "scripts", "evaluate-pullfrog-experiment.mjs");
 
 test("Specimen Lab updater upserts one specimen and appends rerun lineage", () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "specimen-lab-test-"));
@@ -33,6 +34,70 @@ test("Specimen Lab updater upserts one specimen and appends rerun lineage", () =
     assert.deepEqual(specimen.reruns.map((run) => run.run_id), [101, 102]);
     assert.equal(specimen.scorecard.pr_comment_url, "https://github.com/Drew-Goddyn/jules-toys/pull/87#issuecomment-102");
     assert.ok(fs.existsSync(path.join(tempRoot, "public", "specimen-lab", "pullfrog", "pr-87", "browser-smoke.png")));
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("Evaluator lineage can read Specimen Lab history outside the PR worktree", () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "specimen-lab-lineage-test-"));
+  try {
+    fs.mkdirSync(path.join(tempRoot, "specimens", "pullfrog"), { recursive: true });
+    fs.writeFileSync(path.join(tempRoot, "specimens", "pullfrog", "specimens.json"), `${JSON.stringify({
+      schema_version: 1,
+      generated_at: null,
+      specimens: []
+    }, null, 2)}\n`);
+    runUpdate(tempRoot, 111, 3, ["baseline gap"]);
+
+    const metadataPath = path.join(tempRoot, "metadata.json");
+    fs.writeFileSync(metadataPath, `${JSON.stringify({
+      number: 87,
+      title: "[Pullfrog experiment] feat: add Lantern Loom Lab T9 light puzzle toy",
+      url: "https://github.com/Drew-Goddyn/jules-toys/pull/87",
+      body: "Refs #86",
+      headRefName: "pullfrog/86-lantern-loom-lab",
+      headRefOid: "head-sha",
+      baseRefName: "main",
+      files: ["gallery-data.js", "tier9/lantern-loom-lab/index.html", "tier9/lantern-loom-lab/screenshot.png"]
+    }, null, 2)}\n`);
+
+    const reportPath = path.join(tempRoot, "lineage-report.json");
+    const result = spawnSync(process.execPath, [
+      evaluatorPath,
+      "--pr-number", "87",
+      "--issue-number", "86",
+      "--metadata", metadataPath,
+      "--test-outcome", "success",
+      "--browser-smoke", "false",
+      "--lineage-root", tempRoot,
+      "--output-dir", path.join(tempRoot, "evaluation"),
+      "--report", reportPath
+    ], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        GITHUB_REPOSITORY: "Drew-Goddyn/jules-toys",
+        GITHUB_RUN_ID: "222",
+        GITHUB_RUN_ATTEMPT: "1",
+        GITHUB_SERVER_URL: "https://github.com",
+        GITHUB_WORKFLOW: "Evaluate Pullfrog Experiment",
+        GITHUB_EVENT_NAME: "workflow_dispatch",
+        GITHUB_ACTOR: "github-actions[bot]",
+        GITHUB_REF_NAME: "main",
+        GITHUB_SHA: "base-sha"
+      }
+    });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+    assert.equal(report.lineage.run_sequence, 2);
+    assert.equal(report.lineage.previous_run_count, 1);
+    assert.equal(report.lineage.rerun_of_run_id, 111);
+    assert.deepEqual(report.lineage.previous_runs.map((run) => run.run_id), [111]);
+    assert.equal(report.lineage.specimen_data_source.error, null);
+    assert.ok(report.lineage.specimen_data_source.generated_at);
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }

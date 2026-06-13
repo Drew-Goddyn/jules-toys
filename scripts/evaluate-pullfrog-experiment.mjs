@@ -12,6 +12,7 @@ const rootDir = path.resolve(process.cwd());
 const args = parseArgs(process.argv.slice(2));
 const outputDir = path.resolve(args.outputDir ?? ".pullfrog-evaluation");
 const reportPath = path.resolve(args.report ?? path.join(outputDir, "report.json"));
+const lineageRootDir = path.resolve(args.lineageRoot ?? process.env.PULLFROG_SPECIMEN_LAB_ROOT ?? rootDir);
 const metadata = readJson(args.metadata);
 const prNumber = Number(args.prNumber ?? metadata?.number);
 const issueNumber = Number(args.issueNumber ?? inferIssueNumber(metadata));
@@ -32,10 +33,10 @@ const registration = evaluateGalleryRegistration(candidate, gallery.error);
 const screenshot = evaluateScreenshot(candidate?.item);
 const network = evaluateExternalNetwork(candidate?.item);
 const browserSmoke = await runBrowserSmoke(candidate?.item);
-const specimenLab = loadSpecimenLabSafely();
+const specimenLab = loadSpecimenLabSafely(lineageRootDir);
 const workflow = buildWorkflowMetadata();
 const scorecardMarker = `<!-- pullfrog-experiment-evaluator:v2 pr=${prNumber} issue=${Number.isInteger(issueNumber) && issueNumber > 0 ? issueNumber : "unknown"} -->`;
-const lineage = buildLineage(prNumber, specimenLab, workflow, scorecardMarker);
+const lineage = buildLineage(prNumber, specimenLab, workflow, scorecardMarker, lineageRootDir);
 const mechanicalPass = [
   testOutcome.status === "pass",
   scope.status === "pass",
@@ -176,9 +177,9 @@ function loadGallerySafely() {
   }
 }
 
-function loadSpecimenLabSafely() {
+function loadSpecimenLabSafely(sourceRoot) {
   try {
-    return loadSpecimenLab(rootDir);
+    return loadSpecimenLab(sourceRoot);
   } catch (error) {
     return {
       ...emptyLineageSource(),
@@ -213,7 +214,7 @@ function buildWorkflowMetadata() {
   };
 }
 
-function buildLineage(prNumber, specimenLab, workflow, scorecardMarker) {
+function buildLineage(prNumber, specimenLab, workflow, scorecardMarker, sourceRoot) {
   const previousSpecimen = specimenLab.specimens?.find((specimen) => specimen.pr?.number === prNumber);
   const previousRuns = (previousSpecimen?.reruns ?? [])
     .filter((run) => String(run.run_id) !== String(workflow.run_id))
@@ -232,6 +233,11 @@ function buildLineage(prNumber, specimenLab, workflow, scorecardMarker) {
   return {
     canonical_key: `pullfrog-pr-${prNumber}`,
     specimen_data_path: specimenDataPath,
+    specimen_data_source: {
+      root: path.relative(rootDir, sourceRoot) || ".",
+      generated_at: specimenLab.generated_at ?? null,
+      error: specimenLab.error ?? null
+    },
     scorecard_marker: scorecardMarker,
     run_sequence: previousRuns.length + 1,
     previous_run_count: previousRuns.length,
