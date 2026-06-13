@@ -211,7 +211,31 @@ jobs:
             - Do not overstate quality. If the toy is mediocre or incomplete, say so honestly.
 
             Optional result output:
-            If you can, set a JSON result with `pr_url`, `branch`, `test_result`, and `notes`.
+            Set the required JSON result with `pr_url`, `branch`, `test_result`, and `notes`.
+          output_schema: |
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["pr_url", "branch", "test_result", "notes"],
+              "properties": {
+                "pr_url": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "branch": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "test_result": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "notes": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
 
   comment-build-result:
     name: Comment build result

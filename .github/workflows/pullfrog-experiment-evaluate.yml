@@ -1,0 +1,336 @@
+name: Evaluate Pullfrog Experiment
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to evaluate
+        required: true
+      issue_number:
+        description: Source experiment issue number
+        required: true
+      apply_labels:
+        description: Apply the recommended experiment label
+        required: true
+        default: true
+        type: boolean
+      quality_threshold:
+        description: Minimum judge score for experiment:accepted
+        required: true
+        default: "3"
+  pull_request:
+    types: [labeled]
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    name: Deterministic evaluation
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.label.name == 'pullfrog:evaluate')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      pr_number: ${{ steps.resolve.outputs.pr_number }}
+      issue_number: ${{ steps.resolve.outputs.issue_number }}
+      report_json: ${{ steps.report-output.outputs.report_json }}
+    steps:
+      - name: Resolve PR and issue
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DISPATCH_PR: ${{ inputs.pr_number }}
+          DISPATCH_ISSUE: ${{ inputs.issue_number }}
+          EVENT_PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          pr_number="${DISPATCH_PR:-${EVENT_PR:-}}"
+          if [ -z "$pr_number" ]; then
+            echo "Could not resolve PR number" >&2
+            exit 1
+          fi
+
+          metadata_file="$RUNNER_TEMP/pullfrog-pr-${pr_number}.json"
+          gh pr view "$pr_number" --json number,title,url,body,headRefName,headRefOid,baseRefName,files > "$metadata_file"
+
+          issue_number="${DISPATCH_ISSUE:-}"
+          if [ -z "$issue_number" ]; then
+            issue_number="$(METADATA_FILE="$metadata_file" node --input-type=module -e 'import fs from "node:fs"; const metadata = JSON.parse(fs.readFileSync(process.env.METADATA_FILE, "utf8")); const match = String(metadata.body ?? "").match(/(?:issues\/|#)(\d+)/i); process.stdout.write(match ? match[1] : "");')"
+          fi
+
+          if [ -z "$issue_number" ]; then
+            echo "Could not resolve source issue number" >&2
+            exit 1
+          fi
+
+          {
+            echo "pr_number=$pr_number"
+            echo "issue_number=$issue_number"
+            echo "metadata_file=$metadata_file"
+            echo "checkout_ref=refs/pull/$pr_number/merge"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Checkout PR merge ref
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.resolve.outputs.checkout_ref }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        id: tests
+        continue-on-error: true
+        run: npm test
+
+      - name: Evaluate experiment
+        run: |
+          node scripts/evaluate-pullfrog-experiment.mjs \
+            --pr-number "${{ steps.resolve.outputs.pr_number }}" \
+            --issue-number "${{ steps.resolve.outputs.issue_number }}" \
+            --metadata "${{ steps.resolve.outputs.metadata_file }}" \
+            --test-outcome "${{ steps.tests.outcome }}"
+
+      - name: Publish report output
+        id: report-output
+        run: |
+          node --input-type=module -e 'import fs from "node:fs"; const report = fs.readFileSync(".pullfrog-evaluation/report.json", "utf8"); fs.appendFileSync(process.env.GITHUB_OUTPUT, `report_json<<PULLFROG_REPORT\n${report}\nPULLFROG_REPORT\n`);'
+
+      - name: Upload evaluation artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: pullfrog-experiment-evaluation-${{ steps.resolve.outputs.pr_number }}
+          path: .pullfrog-evaluation/
+
+  judge:
+    name: Free-model judge
+    needs: evaluate
+    if: ${{ needs.evaluate.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      judge_json: ${{ steps.pullfrog.outputs.result }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Judge experiment quality
+        id: pullfrog
+        uses: pullfrog/pullfrog@v0.1.30
+        with:
+          model: opencode/big-pickle
+          push: disabled
+          shell: disabled
+          timeout: 20m
+          prompt: |
+            You are judging a Pullfrog-generated toy experiment in Drew-Goddyn/jules-toys.
+
+            Source issue: #${{ needs.evaluate.outputs.issue_number }}
+            Pull request: #${{ needs.evaluate.outputs.pr_number }}
+
+            Deterministic evaluator report:
+            ```json
+            ${{ needs.evaluate.outputs.report_json }}
+            ```
+
+            Score only novelty, coherence, usefulness, and likely review burden. Do not override mechanical failures:
+            failed tests, unexpected file scope, missing gallery registration, missing screenshot, external network dependency,
+            and browser smoke failure must remain blockers.
+
+            Return a concise JSON result matching the schema. Use quality_score 1-5.
+          output_schema: |
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "quality_score",
+                "acceptance_recommendation",
+                "novelty",
+                "coherence",
+                "usefulness",
+                "review_burden",
+                "known_gaps",
+                "rationale"
+              ],
+              "properties": {
+                "quality_score": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 5
+                },
+                "acceptance_recommendation": {
+                  "type": "string",
+                  "enum": ["accept", "needs-human-review", "reject"]
+                },
+                "novelty": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "coherence": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "usefulness": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "review_burden": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "known_gaps": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "rationale": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+
+  comment:
+    name: Comment scorecard and label
+    needs: [evaluate, judge]
+    if: ${{ always() && needs.evaluate.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: read
+    steps:
+      - name: Post scorecard
+        uses: actions/github-script@v8
+        env:
+          PR_NUMBER: ${{ needs.evaluate.outputs.pr_number }}
+          ISSUE_NUMBER: ${{ needs.evaluate.outputs.issue_number }}
+          REPORT_JSON: ${{ needs.evaluate.outputs.report_json }}
+          JUDGE_JSON: ${{ needs.judge.outputs.judge_json }}
+          JUDGE_RESULT: ${{ needs.judge.result }}
+          APPLY_LABELS: ${{ inputs.apply_labels || 'true' }}
+          QUALITY_THRESHOLD: ${{ inputs.quality_threshold || '3' }}
+        with:
+          script: |
+            const prNumber = Number(process.env.PR_NUMBER);
+            const issueNumber = Number(process.env.ISSUE_NUMBER);
+            const report = JSON.parse(process.env.REPORT_JSON);
+            const judge = process.env.JUDGE_JSON ? JSON.parse(process.env.JUDGE_JSON) : null;
+            const threshold = Number(process.env.QUALITY_THRESHOLD || 3);
+            const applyLabels = process.env.APPLY_LABELS === "true";
+            const mechanicalPass = Boolean(report.recommendation?.mechanical_pass);
+            const qualityScore = Number(judge?.quality_score);
+            const judgeRejects = judge?.acceptance_recommendation === "reject";
+            const qualityPasses = Number.isFinite(qualityScore) ? qualityScore >= threshold : true;
+            const finalLabel = mechanicalPass && qualityPasses && !judgeRejects
+              ? "experiment:accepted"
+              : "experiment:failed";
+            const extraLabels = judge?.acceptance_recommendation === "needs-human-review"
+              ? ["needs-human-review"]
+              : [];
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            function line(label, check, detail) {
+              const status = check?.status ?? "unknown";
+              return `- ${label}: ${status}${detail ? ` - ${detail}` : ""}`;
+            }
+
+            const scope = report.deterministic.changed_file_scope;
+            const registration = report.deterministic.gallery_registration;
+            const screenshot = report.deterministic.screenshot_presence;
+            const network = report.deterministic.external_network_dependency;
+            const smoke = report.deterministic.browser_smoke;
+            const tests = report.deterministic.ci_test_result;
+            const gaps = [
+              ...(report.recommendation.known_gaps ?? []),
+              ...(judge?.known_gaps ?? [])
+            ];
+            const labelNote = applyLabels
+              ? `Applied/recommended label: \`${finalLabel}\``
+              : `Recommended label: \`${finalLabel}\` (label application disabled)`;
+
+            const body = [
+              "## Pullfrog experiment evaluator scorecard",
+              "",
+              `PR: #${prNumber}`,
+              `Source issue: #${issueNumber}`,
+              `Workflow run: ${runUrl}`,
+              "",
+              "### Mechanical checks",
+              "",
+              line("CI/test result", tests, tests.raw),
+              line("Changed-file scope", scope, `${scope.changed_files.length} files; unexpected: ${scope.unexpected_files.length}`),
+              line("Gallery registration", registration, registration.title ?? registration.reason),
+              line("Screenshot presence", screenshot, `${screenshot.path ?? "none"}; PNG: ${screenshot.is_png === true}`),
+              line("External network/dependency check", network, `${network.references.length} references; ${network.dynamic_apis.length} dynamic APIs`),
+              line("Runtime/browser smoke", smoke, smoke.screenshot ?? smoke.reason),
+              "",
+              "### Free-model judge",
+              "",
+              judge
+                ? `- Quality score: ${judge.quality_score}/5`
+                : `- Quality score: unavailable; judge job result was ${process.env.JUDGE_RESULT}`,
+              judge
+                ? `- Recommendation: ${judge.acceptance_recommendation}`
+                : "- Recommendation: unavailable",
+              judge ? `- Novelty: ${judge.novelty}` : null,
+              judge ? `- Coherence: ${judge.coherence}` : null,
+              judge ? `- Usefulness: ${judge.usefulness}` : null,
+              judge ? `- Review burden: ${judge.review_burden}` : null,
+              judge ? `- Rationale: ${judge.rationale}` : null,
+              "",
+              "### Outcome",
+              "",
+              `Mechanical pass: ${mechanicalPass ? "yes" : "no"}`,
+              labelNote,
+              gaps.length > 0 ? `Known gaps: ${gaps.join("; ")}` : "Known gaps: none reported",
+              "",
+              "<!-- pullfrog-experiment-evaluator -->"
+            ].filter(Boolean).join("\n");
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body
+            });
+
+            if (issueNumber && issueNumber !== prNumber) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                body
+              });
+            }
+
+            if (applyLabels) {
+              const labels = [finalLabel, ...extraLabels];
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                labels
+              });
+              if (issueNumber && issueNumber !== prNumber) {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  labels
+                });
+              }
+            }
