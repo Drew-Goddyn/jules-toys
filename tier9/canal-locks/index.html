@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clockwork Canal Locks</title>
+<style>
+:root {
+  --brass: #b8860b;
+  --copper: #b87333;
+  --water: #1a6b8a;
+  --bg: #1a1a2e;
+  --panel: #16213e;
+  --text: #e0e0e0;
+  --gate-open: #4caf50;
+  --gate-closed: #f44336;
+  --danger: #d32f2f;
+  --success: #388e3c;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 0; font-family: 'Courier New', monospace;
+  background: var(--bg); color: var(--text);
+  display: flex; height: 100vh; overflow: hidden;
+}
+#app {
+  display: flex; width: 100%; height: 100%;
+}
+#canvas-container {
+  flex: 1; position: relative;
+  background: #0f0f23;
+  display: flex; justify-content: center; align-items: center;
+}
+canvas {
+  display: block; cursor: pointer;
+  max-width: 100%; max-height: 100%;
+}
+#panel {
+  width: 340px; background: var(--panel);
+  border-left: 2px solid var(--brass);
+  display: flex; flex-direction: column; padding: 16px;
+  gap: 12px; overflow-y: auto;
+}
+h1 {
+  margin: 0; font-size: 1.3rem; color: var(--brass);
+  text-align: center; border-bottom: 1px solid var(--brass);
+  padding-bottom: 8px;
+}
+.hud-row {
+  display: flex; justify-content: space-between;
+  background: #0d1b2a; padding: 10px; border-radius: 6px;
+  border: 1px solid #2a2a4a;
+}
+.hud-item { text-align: center; }
+.hud-item .label { font-size: 0.7rem; color: #888; text-transform: uppercase; }
+.hud-item .value { font-size: 1.3rem; font-weight: bold; color: var(--copper); }
+#status-msg {
+  text-align: center; padding: 8px; border-radius: 4px;
+  background: #0d1b2a; font-size: 0.85rem; min-height: 2.2em;
+  border: 1px solid #2a2a4a;
+}
+h2 {
+  margin: 4px 0 0 0; font-size: 0.9rem; color: var(--brass);
+  text-transform: uppercase; letter-spacing: 1px;
+}
+#chamber-info {
+  background: #0d1b2a; padding: 10px; border-radius: 6px;
+  border: 1px solid #2a2a4a; min-height: 60px;
+  font-size: 0.85rem;
+  display: flex; flex-direction: column; gap: 6px;
+}
+#chamber-info .none-selected { color: #666; font-style: italic; }
+.chamber-detail { display: flex; justify-content: space-between; }
+.gate-row { display: flex; gap: 12px; justify-content: center; }
+.gate-btn {
+  padding: 6px 14px; border: 1px solid; border-radius: 4px;
+  cursor: pointer; font-family: inherit; font-size: 0.8rem;
+  background: transparent; color: var(--text); transition: all 0.15s;
+}
+.gate-btn.open { border-color: var(--gate-open); color: var(--gate-open); }
+.gate-btn.closed { border-color: var(--gate-closed); color: var(--gate-closed); }
+.gate-btn:hover { filter: brightness(1.3); }
+.water-btns { display: flex; gap: 8px; justify-content: center; }
+.water-btn {
+  flex: 1; padding: 8px; border: 1px solid var(--water); border-radius: 4px;
+  cursor: pointer; font-family: inherit; font-size: 0.8rem;
+  background: transparent; color: var(--water); transition: all 0.15s;
+}
+.water-btn:hover { background: var(--water); color: #fff; }
+.water-btn.active { background: var(--water); color: #fff; }
+.action-btns {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+}
+.action-btns button {
+  padding: 10px; border: 1px solid var(--brass); border-radius: 4px;
+  cursor: pointer; font-family: inherit; font-size: 0.85rem;
+  background: transparent; color: var(--text); transition: all 0.15s;
+}
+.action-btns button:hover { background: var(--brass); color: #000; }
+.action-btns button.danger { border-color: var(--danger); color: var(--danger); }
+.action-btns button.danger:hover { background: var(--danger); color: #fff; }
+.action-btns button.full { grid-column: span 2; }
+.overlay {
+  display: none; position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.8); z-index: 10;
+  justify-content: center; align-items: center;
+}
+.overlay.show { display: flex; }
+.overlay-box {
+  background: var(--panel); border: 2px solid var(--brass);
+  border-radius: 12px; padding: 40px; text-align: center;
+  max-width: 400px;
+}
+.overlay-box h2 { font-size: 1.5rem; margin: 0 0 12px 0; }
+.overlay-box p { font-size: 0.9rem; margin: 4px 0; color: #aaa; }
+.overlay-box button {
+  margin-top: 20px; padding: 12px 32px;
+  border: 1px solid var(--brass); border-radius: 6px;
+  background: transparent; color: var(--brass); font-family: inherit;
+  font-size: 1rem; cursor: pointer; transition: all 0.15s;
+}
+.overlay-box button:hover { background: var(--brass); color: #000; }
+#lose-overlay .overlay-box h2 { color: var(--danger); }
+#win-overlay .overlay-box h2 { color: var(--success); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="canvas-container">
+    <canvas id="canal-canvas" width="640" height="560"></canvas>
+    <div id="win-overlay" class="overlay">
+      <div class="overlay-box">
+        <h2>All Boats Delivered!</h2>
+        <p id="win-steps">Completed in 0 steps</p>
+        <button id="btn-play-again">Play Again</button>
+      </div>
+    </div>
+    <div id="lose-overlay" class="overlay">
+      <div class="overlay-box">
+        <h2>Boat Stranded!</h2>
+        <p id="lose-boat">A boat was stranded.</p>
+        <button id="btn-retry">Retry</button>
+      </div>
+    </div>
+  </div>
+  <div id="panel">
+    <h1>Clockwork Canal Locks</h1>
+    <div class="hud-row">
+      <div class="hud-item"><div class="label">Steps</div><div class="value" id="hud-steps">0</div></div>
+      <div class="hud-item"><div class="label">Delivered</div><div class="value" id="hud-delivered">0/2</div></div>
+      <div class="hud-item"><div class="label">Auto</div><div class="value" id="hud-auto">Off</div></div>
+    </div>
+    <div id="status-msg">Select a lock chamber to control gates and water level.</div>
+    <h2>Selected Chamber</h2>
+    <div id="chamber-info">
+      <div class="none-selected">Click a chamber on the canal map.</div>
+    </div>
+    <div class="action-btns">
+      <button id="btn-step">Step</button>
+      <button id="btn-auto">Auto</button>
+      <button id="btn-reset" class="danger full">Reset</button>
+    </div>
+  </div>
+</div>
+<script>
+const canvas = document.getElementById('canal-canvas');
+const ctx = canvas.getContext('2d');
+const W = 640, H = 560;
+
+const CW = 130, CH = 72;
+const L1X = 70, L2X = 410;
+const YS = [50, 162, 274, 386];
+const BASIN_Y = 470;
+const BASIN_H = 18;
+
+function makeChamber(id, water, topGate, bottomGate, boat) {
+  const lane = id <= 4 ? 0 : 1;
+  const pos = lane === 0 ? id - 1 : id - 5;
+  return {
+    id, water, topGate, bottomGate,
+    boat: boat || null,
+    fillActive: false, drainActive: false,
+    x: lane === 0 ? L1X : L2X,
+    y: YS[pos],
+  };
+}
+
+const chambers = [
+  makeChamber(1, 100, false, false, 'red'),
+  makeChamber(2, 75, false, false, null),
+  makeChamber(3, 50, false, false, null),
+  makeChamber(4, 25, false, true, null),
+  makeChamber(5, 25, true, false, 'blue'),
+  makeChamber(6, 50, false, false, null),
+  makeChamber(7, 75, false, false, null),
+  makeChamber(8, 100, false, false, null),
+];
+
+const boats = {
+  red: { id: 'red', label: 'Red', color: '#e53935', start: 1, dest: 8, curr: 1, done: false },
+  blue: { id: 'blue', label: 'Blue', color: '#1e88e5', start: 5, dest: 1, curr: 5, done: false },
+};
+
+for (const b of Object.values(boats)) {
+  const ch = chambers.find(c => c.id === b.curr);
+  if (ch) ch.boat = b.id;
+}
+
+let selectedId = null, steps = 0, autoInterval = null, gameOver = false;
+const loseTimer = {};
+
+function getCh(id) { return chambers.find(c => c.id === id); }
+
+const links = [
+  [0, 1, 'btm', 'top'], [1, 2, 'btm', 'top'], [2, 3, 'btm', 'top'],
+  [3, 4, 'btm', 'btm'],
+  [4, 5, 'top', 'btm'], [5, 6, 'top', 'btm'], [6, 7, 'top', 'btm'],
+];
+
+function gatesOpen(a, b) {
+  for (const [i, j, sa, sb] of links) {
+    if (i === a && j === b) return chambers[i][sa + 'Gate'] && chambers[j][sb + 'Gate'];
+    if (i === b && j === a) return chambers[i][sb + 'Gate'] && chambers[j][sa + 'Gate'];
+  }
+  return false;
+}
+
+function stepSim() {
+  if (gameOver) return;
+  steps++;
+  for (const ch of chambers) {
+    if (ch.fillActive) ch.water = Math.min(100, ch.water + 8);
+    if (ch.drainActive) ch.water = Math.max(0, ch.water - 8);
+  }
+  for (const b of Object.values(boats)) {
+    if (b.done) continue;
+    const cur = getCh(b.curr);
+    if (!cur) continue;
+    const ci = chambers.indexOf(cur);
+    for (const [i, j] of links) {
+      if (i !== ci && j !== ci) continue;
+      const ni = i === ci ? j : i;
+      const nb = chambers[ni];
+      if (nb.boat && nb.boat !== b.id) continue;
+      if (gatesOpen(ci, ni) && Math.abs(cur.water - nb.water) <= 5) {
+        cur.boat = null;
+        nb.boat = b.id;
+        b.curr = nb.id;
+        break;
+      }
+    }
+  }
+  for (const b of Object.values(boats)) {
+    if (!b.done && b.curr === b.dest) {
+      b.done = true;
+      const ch = getCh(b.curr);
+      if (ch) ch.boat = null;
+    }
+  }
+  if (Object.values(boats).every(b => b.done)) {
+    gameOver = true;
+    document.getElementById('win-steps').textContent = 'Completed in ' + steps + ' steps';
+    document.getElementById('win-overlay').classList.add('show');
+    stopAuto();
+    return;
+  }
+  for (const b of Object.values(boats)) {
+    if (b.done) continue;
+    const ch = getCh(b.curr);
+    if (!ch) continue;
+    if (!ch.topGate && !ch.bottomGate && (ch.water <= 0 || ch.water >= 100)) {
+      loseTimer[b.id] = (loseTimer[b.id] || 0) + 1;
+      if (loseTimer[b.id] >= 3) {
+        gameOver = true;
+        document.getElementById('lose-boat').textContent = b.label + ' boat was stranded in Lock ' + ch.id + '.';
+        document.getElementById('lose-overlay').classList.add('show');
+        stopAuto();
+        return;
+      }
+    } else {
+      loseTimer[b.id] = 0;
+    }
+  }
+  updateUI();
+  draw();
+}
+
+function resetSim() {
+  stopAuto();
+  chambers.length = 0;
+  const init = [
+    [1, 100, false, false, 'red'], [2, 75, false, false, null],
+    [3, 50, false, false, null], [4, 25, false, true, null],
+    [5, 25, true, false, 'blue'], [6, 50, false, false, null],
+    [7, 75, false, false, null], [8, 100, false, false, null],
+  ];
+  for (const [id, w, tg, bg, bt] of init) {
+    chambers.push(makeChamber(id, w, tg, bg, bt));
+  }
+  for (const b of Object.values(boats)) {
+    b.curr = b.start;
+    b.done = false;
+    loseTimer[b.id] = 0;
+  }
+  for (const b of Object.values(boats)) {
+    const ch = getCh(b.curr);
+    if (ch) ch.boat = b.id;
+  }
+  selectedId = null; steps = 0; gameOver = false;
+  document.getElementById('win-overlay').classList.remove('show');
+  document.getElementById('lose-overlay').classList.remove('show');
+  document.getElementById('btn-auto').textContent = 'Auto';
+  updateUI();
+  draw();
+}
+
+function stopAuto() {
+  if (autoInterval) {
+    clearInterval(autoInterval);
+    autoInterval = null;
+    document.getElementById('btn-auto').textContent = 'Auto';
+    document.getElementById('hud-auto').textContent = 'Off';
+  }
+}
+
+function toggleAuto() {
+  if (autoInterval) { stopAuto(); return; }
+  if (gameOver) return;
+  document.getElementById('btn-auto').textContent = 'Stop';
+  document.getElementById('hud-auto').textContent = 'On';
+  autoInterval = setInterval(function() {
+    if (gameOver) { stopAuto(); return; }
+    stepSim();
+  }, 500);
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#0f0f23';
+  ctx.fillRect(0, 0, W, H);
+
+  // Canal channels
+  ctx.fillStyle = '#1a3a5a';
+  const cx1 = L1X + CW / 2, cx2 = L2X + CW / 2;
+  for (let i = 0; i < 3; i++) {
+    const y1 = YS[i] + CH;
+    const y2 = YS[i + 1];
+    ctx.fillRect(cx1 - 10, y1, 20, y2 - y1);
+    ctx.fillRect(cx2 - 10, y1, 20, y2 - y1);
+  }
+  // Basin channels
+  const btmY = YS[3] + CH;
+  ctx.fillRect(cx1 - 10, btmY, 20, BASIN_Y - BASIN_H / 2 - btmY);
+  ctx.fillRect(cx2 - 10, btmY, 20, BASIN_Y - BASIN_H / 2 - btmY);
+  // Basin
+  ctx.fillRect(L1X + CW + 10, BASIN_Y - BASIN_H / 2, L2X - L1X - CW - 20, BASIN_H);
+
+  // Chambers
+  for (const ch of chambers) {
+    const sel = ch.id === selectedId;
+    const waterH = (ch.water / 100) * (CH - 4);
+    const waterY = ch.y + CH - 2 - waterH;
+
+    ctx.strokeStyle = sel ? '#ffd700' : '#b8860b';
+    ctx.lineWidth = sel ? 3 : 2;
+    ctx.strokeRect(ch.x, ch.y, CW, CH);
+    ctx.fillStyle = '#0d0d20';
+    ctx.fillRect(ch.x + 1, ch.y + 1, CW - 2, CH - 2);
+
+    const grad = ctx.createLinearGradient(ch.x, waterY, ch.x, ch.y + CH - 2);
+    grad.addColorStop(0, '#1a6b8a');
+    grad.addColorStop(1, '#0d3d5a');
+    ctx.fillStyle = grad;
+    ctx.fillRect(ch.x + 2, waterY, CW - 4, waterH);
+
+    // Top gate indicator
+    ctx.fillStyle = ch.topGate ? '#4caf50' : '#f44336';
+    ctx.fillRect(ch.x + CW / 2 - 7, ch.y - 2, 14, 6);
+    // Bottom gate indicator
+    ctx.fillStyle = ch.bottomGate ? '#4caf50' : '#f44336';
+    ctx.fillRect(ch.x + CW / 2 - 7, ch.y + CH - 4, 14, 6);
+
+    // Labels
+    ctx.fillStyle = '#88ccff';
+    ctx.font = '11px Courier New';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(Math.round(ch.water) + '%', ch.x + 4, ch.y + 4);
+
+    ctx.fillStyle = '#b8860b';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.font = 'bold 14px Courier New';
+    ctx.fillText('L' + ch.id, ch.x + CW / 2, ch.y - 4);
+
+    if (ch.fillActive) {
+      ctx.fillStyle = '#4fc3f7';
+      ctx.font = '10px Courier New';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('FILL', ch.x + CW - 4, ch.y + CH - 4);
+    }
+    if (ch.drainActive) {
+      ctx.fillStyle = '#ff8a65';
+      ctx.font = '10px Courier New';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('DRAIN', ch.x + CW - 4, ch.y + CH - 4);
+    }
+
+    if (ch.boat) {
+      const b = boats[ch.boat];
+      if (b) {
+        ctx.beginPath();
+        ctx.arc(ch.x + CW / 2, ch.y + CH / 2, 11, 0, Math.PI * 2);
+        ctx.fillStyle = b.color;
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 10px Courier New';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(b.label.charAt(0), ch.x + CW / 2, ch.y + CH / 2 + 1);
+      }
+    }
+  }
+
+  // Destination markers
+  for (const b of Object.values(boats)) {
+    const dest = getCh(b.dest);
+    if (dest) {
+      ctx.strokeStyle = b.color;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 3]);
+      ctx.strokeRect(dest.x + 6, dest.y + 6, CW - 12, CH - 12);
+      ctx.setLineDash([]);
+      ctx.fillStyle = b.color;
+      ctx.font = 'bold 9px Courier New';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('DEST', dest.x + CW / 2, dest.y + CH + 14);
+    }
+  }
+}
+
+function updateUI() {
+  document.getElementById('hud-steps').textContent = steps;
+  const del = Object.values(boats).filter(b => b.done).length;
+  document.getElementById('hud-delivered').textContent = del + '/2';
+
+  const sel = selectedId ? getCh(selectedId) : null;
+  const info = document.getElementById('chamber-info');
+  if (!sel) {
+    info.innerHTML = '<div class="none-selected">Click a chamber on the canal map.</div>';
+    return;
+  }
+  info.innerHTML =
+    '<div class="chamber-detail"><span>Lock ' + sel.id + '</span><span>Water: ' + Math.round(sel.water) + '%</span></div>' +
+    '<div class="chamber-detail"><span>Boat: ' + (sel.boat ? (boats[sel.boat] ? boats[sel.boat].label : 'None') : 'None') + '</span>' +
+    '<span>' + (sel.fillActive ? 'FILL ' : '') + (sel.drainActive ? 'DRAIN' : '') + '</span></div>' +
+    '<div class="gate-row">' +
+    '<button class="gate-btn ' + (sel.topGate ? 'open' : 'closed') + '" data-act="top">Top: ' + (sel.topGate ? 'OPEN' : 'CLOSED') + '</button>' +
+    '<button class="gate-btn ' + (sel.bottomGate ? 'open' : 'closed') + '" data-act="btm">Bottom: ' + (sel.bottomGate ? 'OPEN' : 'CLOSED') + '</button>' +
+    '</div>' +
+    '<div class="water-btns">' +
+    '<button class="water-btn ' + (sel.fillActive ? 'active' : '') + '" data-act="fill">Fill</button>' +
+    '<button class="water-btn ' + (sel.drainActive ? 'active' : '') + '" data-act="drain">Drain</button>' +
+    '</div>';
+
+  info.querySelectorAll('[data-act]').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const act = btn.getAttribute('data-act');
+      const ch = getCh(selectedId);
+      if (!ch || gameOver) return;
+      if (act === 'top') { ch.topGate = !ch.topGate; updateUI(); draw(); }
+      else if (act === 'btm') { ch.bottomGate = !ch.bottomGate; updateUI(); draw(); }
+      else if (act === 'fill') { ch.fillActive = !ch.fillActive; ch.drainActive = false; updateUI(); draw(); }
+      else if (act === 'drain') { ch.drainActive = !ch.drainActive; ch.fillActive = false; updateUI(); draw(); }
+    });
+  });
+}
+
+canvas.addEventListener('click', function(e) {
+  if (gameOver) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+  for (const ch of chambers) {
+    if (mx >= ch.x && mx <= ch.x + CW && my >= ch.y && my <= ch.y + CH) {
+      selectedId = ch.id;
+      updateUI();
+      draw();
+      return;
+    }
+  }
+  selectedId = null;
+  updateUI();
+  draw();
+});
+
+document.getElementById('btn-step').addEventListener('click', function() { if (!gameOver) stepSim(); });
+document.getElementById('btn-auto').addEventListener('click', toggleAuto);
+document.getElementById('btn-reset').addEventListener('click', resetSim);
+document.getElementById('btn-play-again').addEventListener('click', resetSim);
+document.getElementById('btn-retry').addEventListener('click', resetSim);
+
+resetSim();
+</script>
+</body>
+</html>
