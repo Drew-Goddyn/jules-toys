@@ -1,0 +1,253 @@
+name: Pullfrog toy experiment loop
+
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Issue number to use as the experiment source
+        required: true
+      mode:
+        description: Run mode
+        required: true
+        default: brief
+        type: choice
+        options:
+          - brief
+          - build
+
+permissions:
+  contents: read
+
+jobs:
+  brief:
+    name: Draft toy brief
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.mode == 'brief') ||
+      (github.event_name == 'issues' && github.event.action == 'labeled' && github.event.label.name == 'pullfrog:brief')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      result: ${{ steps.pullfrog.outputs.result }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Draft experiment brief
+        id: pullfrog
+        uses: pullfrog/pullfrog@v0.1.30
+        with:
+          model: opencode/big-pickle
+          push: disabled
+          shell: disabled
+          timeout: 20m
+          prompt: |
+            You are drafting a toy experiment brief for Drew-Goddyn/jules-toys.
+
+            Source issue: #${{ github.event.issue.number || inputs.issue_number }}
+
+            Read the issue title, body, and labels. Produce a concrete implementation brief for exactly one gallery toy.
+            This is a free-model experiment, so keep the scope intentionally bounded and mechanically verifiable.
+
+            Repo constraints:
+            - The gallery is a Svelte/Vite static site.
+            - Toys live as standalone HTML routes.
+            - The build/test contract is `npm test`.
+            - The first Pullfrog experiment should target T8 or T9, not T11/T12.
+            - Do not recommend package dependency changes.
+            - Do not recommend external network dependencies.
+
+            Output JSON only through the required result schema. Do not modify files or open a PR.
+          output_schema: |
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "title",
+                "tier_target",
+                "brief_markdown",
+                "build_prompt",
+                "verification_plan",
+                "kill_conditions"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "tier_target": {
+                  "type": "string",
+                  "pattern": "^T[89]$"
+                },
+                "brief_markdown": {
+                  "type": "string",
+                  "minLength": 80
+                },
+                "build_prompt": {
+                  "type": "string",
+                  "minLength": 120
+                },
+                "verification_plan": {
+                  "type": "array",
+                  "minItems": 3,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "kill_conditions": {
+                  "type": "array",
+                  "minItems": 2,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+
+  comment-brief:
+    name: Comment toy brief
+    needs: brief
+    if: ${{ needs.brief.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Comment and mark issue briefed
+        uses: actions/github-script@v8
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+          RESULT: ${{ needs.brief.outputs.result }}
+        with:
+          script: |
+            const issue_number = Number(process.env.ISSUE_NUMBER);
+            const result = JSON.parse(process.env.RESULT);
+            const body = [
+              "## Pullfrog toy brief",
+              "",
+              `**Title:** ${result.title}`,
+              `**Target:** ${result.tier_target}`,
+              "",
+              result.brief_markdown,
+              "",
+              "### Build prompt",
+              "",
+              "```md",
+              result.build_prompt,
+              "```",
+              "",
+              "### Verification plan",
+              "",
+              ...result.verification_plan.map((item) => `- ${item}`),
+              "",
+              "### Kill conditions",
+              "",
+              ...result.kill_conditions.map((item) => `- ${item}`),
+              "",
+              "Add `pullfrog:build` after human review to let Pullfrog attempt the PR."
+            ].join("\n");
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+              body
+            });
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+              labels: ["pullfrog:briefed", "needs-human-review"]
+            });
+
+  build:
+    name: Build toy PR
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.mode == 'build') ||
+      (github.event_name == 'issues' && github.event.action == 'labeled' && github.event.label.name == 'pullfrog:build' && contains(github.event.issue.labels.*.name, 'pullfrog:briefed'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      result: ${{ steps.pullfrog.outputs.result }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Build toy PR
+        id: pullfrog
+        uses: pullfrog/pullfrog@v0.1.30
+        with:
+          model: opencode/big-pickle
+          push: restricted
+          shell: restricted
+          timeout: 60m
+          prompt: |
+            You are building the first Pullfrog free-model toy experiment for Drew-Goddyn/jules-toys.
+
+            Source issue: #${{ github.event.issue.number || inputs.issue_number }}
+
+            Read the issue body and comments. Use the latest "Pullfrog toy brief" comment as the controlling build brief.
+
+            Required behavior:
+            - Create exactly one toy PR.
+            - Do not push directly to main.
+            - Use only the free Big Pickle/OpenCode model path.
+            - Do not change package dependencies unless the issue explicitly says to, and this issue does not.
+            - Do not add external network dependencies.
+            - Add one new standalone toy route under the existing tier structure.
+            - Add the matching screenshot.png for that toy.
+            - Update gallery-data.js with one entry for the new toy.
+            - Preserve the existing Svelte/Vite gallery shell.
+            - Run `npm test` before opening the PR.
+
+            PR requirements:
+            - PR title must start with `[Pullfrog experiment]`.
+            - PR body must include: model used, source issue link, files changed, test command/result, known gaps, and whether the toy met the brief.
+            - Do not overstate quality. If the toy is mediocre or incomplete, say so honestly.
+
+            Optional result output:
+            If you can, set a JSON result with `pr_url`, `branch`, `test_result`, and `notes`.
+
+  comment-build-result:
+    name: Comment build result
+    needs: build
+    if: ${{ needs.build.result == 'success' && needs.build.outputs.result != '' }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Comment Pullfrog build result
+        uses: actions/github-script@v8
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+          RESULT: ${{ needs.build.outputs.result }}
+        with:
+          script: |
+            const issue_number = Number(process.env.ISSUE_NUMBER);
+            let result;
+            try {
+              result = JSON.parse(process.env.RESULT);
+            } catch {
+              result = { notes: process.env.RESULT };
+            }
+
+            const lines = [
+              "## Pullfrog build result",
+              "",
+              result.pr_url ? `PR: ${result.pr_url}` : null,
+              result.branch ? `Branch: ${result.branch}` : null,
+              result.test_result ? `Test result: ${result.test_result}` : null,
+              result.notes ? `Notes: ${result.notes}` : null
+            ].filter(Boolean);
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+              body: lines.join("\n")
+            });
