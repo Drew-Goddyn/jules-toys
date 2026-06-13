@@ -1,0 +1,36 @@
+name: Pullfrog
+run-name: ${{ inputs.name || github.workflow }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        type: string
+        description: Agent prompt
+        required: true
+      name:
+        type: string
+        description: Run name
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  pullfrog:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - name: Run agent
+        uses: pullfrog/pullfrog@v0.1.30
+        with:
+          prompt: ${{ inputs.prompt }}
+          model: opencode/big-pickle
+          push: restricted
+          shell: restricted
