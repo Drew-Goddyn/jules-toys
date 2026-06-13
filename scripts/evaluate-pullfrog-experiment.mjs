@@ -6,6 +6,7 @@ import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { loadGalleryItems } from "./gallery-data-loader.mjs";
+import { loadSpecimenLab, specimenDataPath } from "./specimen-lab-data.mjs";
 
 const rootDir = path.resolve(process.cwd());
 const args = parseArgs(process.argv.slice(2));
@@ -31,6 +32,10 @@ const registration = evaluateGalleryRegistration(candidate, gallery.error);
 const screenshot = evaluateScreenshot(candidate?.item);
 const network = evaluateExternalNetwork(candidate?.item);
 const browserSmoke = await runBrowserSmoke(candidate?.item);
+const specimenLab = loadSpecimenLabSafely();
+const workflow = buildWorkflowMetadata();
+const scorecardMarker = `<!-- pullfrog-experiment-evaluator:v2 pr=${prNumber} issue=${Number.isInteger(issueNumber) && issueNumber > 0 ? issueNumber : "unknown"} -->`;
+const lineage = buildLineage(prNumber, specimenLab, workflow, scorecardMarker);
 const mechanicalPass = [
   testOutcome.status === "pass",
   scope.status === "pass",
@@ -41,9 +46,11 @@ const mechanicalPass = [
 ].every(Boolean);
 
 const report = {
-  version: 1,
+  version: 2,
   generated_at: new Date().toISOString(),
   repository: process.env.GITHUB_REPOSITORY ?? "Drew-Goddyn/jules-toys",
+  workflow,
+  lineage,
   pr: {
     number: prNumber,
     url: metadata?.url ?? `https://github.com/Drew-Goddyn/jules-toys/pull/${prNumber}`,
@@ -167,6 +174,75 @@ function loadGallerySafely() {
   } catch (error) {
     return { items: [], error: error instanceof Error ? error.message : String(error) };
   }
+}
+
+function loadSpecimenLabSafely() {
+  try {
+    return loadSpecimenLab(rootDir);
+  } catch (error) {
+    return {
+      ...emptyLineageSource(),
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+function emptyLineageSource() {
+  return {
+    schema_version: 1,
+    generated_at: null,
+    specimens: []
+  };
+}
+
+function buildWorkflowMetadata() {
+  const repository = process.env.GITHUB_REPOSITORY ?? "Drew-Goddyn/jules-toys";
+  const runId = parsePositiveInteger(process.env.GITHUB_RUN_ID);
+  const serverUrl = process.env.GITHUB_SERVER_URL ?? "https://github.com";
+
+  return {
+    run_id: runId,
+    run_attempt: parsePositiveInteger(process.env.GITHUB_RUN_ATTEMPT),
+    run_url: runId ? `${serverUrl}/${repository}/actions/runs/${runId}` : null,
+    workflow: process.env.GITHUB_WORKFLOW ?? null,
+    event_name: process.env.GITHUB_EVENT_NAME ?? null,
+    actor: process.env.GITHUB_ACTOR ?? null,
+    ref: process.env.GITHUB_REF_NAME ?? process.env.GITHUB_REF ?? null,
+    sha: process.env.GITHUB_SHA ?? null,
+    artifact_name: `pullfrog-experiment-evaluation-${prNumber}`
+  };
+}
+
+function buildLineage(prNumber, specimenLab, workflow, scorecardMarker) {
+  const previousSpecimen = specimenLab.specimens?.find((specimen) => specimen.pr?.number === prNumber);
+  const previousRuns = (previousSpecimen?.reruns ?? [])
+    .filter((run) => String(run.run_id) !== String(workflow.run_id))
+    .map((run) => ({
+      run_id: run.run_id ?? null,
+      run_attempt: run.run_attempt ?? null,
+      run_url: run.run_url ?? null,
+      generated_at: run.generated_at ?? null,
+      head_sha: run.head_sha ?? null,
+      score: run.score ?? null,
+      label: run.label ?? null,
+      status: run.status ?? null
+    }));
+  const priorRun = previousRuns.at(-1) ?? null;
+
+  return {
+    canonical_key: `pullfrog-pr-${prNumber}`,
+    specimen_data_path: specimenDataPath,
+    scorecard_marker: scorecardMarker,
+    run_sequence: previousRuns.length + 1,
+    previous_run_count: previousRuns.length,
+    rerun_of_run_id: priorRun?.run_id ?? null,
+    previous_runs: previousRuns
+  };
+}
+
+function parsePositiveInteger(value) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 function selectCandidateToy(dirs, items) {

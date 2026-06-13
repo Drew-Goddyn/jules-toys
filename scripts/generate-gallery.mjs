@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import sharp from "sharp";
 import { buildSearchText, loadGalleryItems } from "./gallery-data-loader.mjs";
+import { loadSpecimenLab } from "./specimen-lab-data.mjs";
 
 const rootDir = process.cwd();
 const generatedDir = path.join(rootDir, ".generated");
@@ -104,7 +105,8 @@ const manifest = {
     thumbWebpBytes
   },
   tierCounts,
-  items: generatedItems
+  items: generatedItems,
+  specimenLab: loadSpecimenLab(rootDir)
 };
 
 await fs.writeFile(
@@ -116,6 +118,9 @@ await fs.writeFile(
   path.join(generatedDir, "gallery-manifest.ts"),
   [
     "export type ImageVariant = { path: string; width: number; height: number; bytes: number };",
+    "export type SpecimenRun = { run_id: number | null; run_attempt: number | null; run_url: string | null; event_name: string | null; head_sha: string | null; generated_at: string | null; mechanical_pass: boolean; score: number | null; recommendation: string | null; label: string; status: string; artifact_name: string; pr_comment_url: string | null; issue_comment_url: string | null; known_gaps: string[] };",
+    "export type SpecimenRecord = { id: string; title: string; slug: string; tier: number | null; kind: string; status: string; score: number | null; recommendation: string; issue: { number: number | null; url: string | null }; pr: { number: number; url: string | null; title: string | null; head_ref: string | null; base_ref: string | null; head_sha: string | null }; workflow: Record<string, unknown>; artifact: { name: string; workflow_run_url: string | null; contains: string[] }; scorecard: { marker: string; pr_comment_url: string | null; issue_comment_url: string | null; updated_at: string }; screenshot: { path: string; source: string; artifact_file: string }; known_gaps: string[]; comparison: { run_count: number; previous_score: number | null; score_delta: number | null; mechanical_pass: boolean; latest_label: string; previous_run_id: number | null; summary: string }; provenance: { source: string; repository: string; free_model: string; report_version: number; report_generated_at: string; persisted_at: string; generated_from: string }; reruns: SpecimenRun[] };",
+    "export type SpecimenLab = { schema_version: 1; generated_at: string | null; specimens: SpecimenRecord[] };",
     "export type GalleryItem = {",
     "  tier: number;",
     "  title: string;",
@@ -141,11 +146,13 @@ await fs.writeFile(
     "  stats: { total: number; tierMin: number; tierMax: number; originalScreenshotBytes: number; thumbWebpBytes: number };",
     "  tierCounts: Record<string, number>;",
     "  items: GalleryItem[];",
+    "  specimenLab: SpecimenLab;",
     "};",
     `export const galleryManifest = ${JSON.stringify(manifest, null, 2)} as GalleryManifest;`,
     "export const galleryItems = galleryManifest.items;",
     "export const galleryStats = galleryManifest.stats;",
     "export const tierCounts = galleryManifest.tierCounts;",
+    "export const specimenLab = galleryManifest.specimenLab;",
     ""
   ].join("\n")
 );

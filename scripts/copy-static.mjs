@@ -16,3 +16,15 @@ for (const entry of entries) {
 }
 
 await fs.copyFile(path.join(rootDir, "gallery-data.js"), path.join(distDir, "gallery-data.js"));
+
+const specimenSourceDir = path.join(rootDir, "specimens");
+try {
+  await fs.cp(specimenSourceDir, path.join(distDir, "specimens"), {
+    recursive: true,
+    force: true
+  });
+} catch (error) {
+  if (error?.code !== "ENOENT") {
+    throw error;
+  }
+}
