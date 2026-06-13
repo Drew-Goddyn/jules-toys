@@ -56,7 +56,7 @@ jobs:
           fi
 
           metadata_file="$RUNNER_TEMP/pullfrog-pr-${pr_number}.json"
-          gh pr view "$pr_number" --json number,title,url,body,headRefName,headRefOid,baseRefName,files > "$metadata_file"
+          gh pr view "$pr_number" --repo "$GITHUB_REPOSITORY" --json number,title,url,body,headRefName,headRefOid,baseRefName,files > "$metadata_file"
 
           issue_number="${DISPATCH_ISSUE:-}"
           if [ -z "$issue_number" ]; then
