@@ -4,6 +4,7 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { loadGalleryItems } from "./gallery-data-loader.mjs";
 
 const rootDir = path.resolve(process.cwd());
@@ -434,7 +435,8 @@ function runChrome(chromePath, chromeArgs, timeoutMs) {
 
 async function analyzeScreenshot(screenshotPath) {
   try {
-    const { default: sharp } = await import("sharp");
+    const requireFromRoot = createRequire(path.join(rootDir, "package.json"));
+    const { default: sharp } = await import(requireFromRoot.resolve("sharp"));
     const stats = await sharp(screenshotPath).stats();
     const channels = stats.channels.slice(0, 3).map((channel) => ({
       min: channel.min,
