@@ -1,7 +1,109 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-06-13T22:12:14.007Z",
+  "generated_at": "2026-06-14T01:04:38.273Z",
   "specimens": [
+    {
+      "id": "pullfrog-pr-94",
+      "title": "Signal Relay",
+      "slug": "signal-relay",
+      "tier": 8,
+      "kind": "Pullfrog specimen",
+      "status": "accepted",
+      "score": 3,
+      "recommendation": "accept",
+      "issue": {
+        "number": 91,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/issues/91"
+      },
+      "pr": {
+        "number": 94,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/pull/94",
+        "title": "[Pullfrog experiment] Signal Relay — T8 light beam routing puzzle (W1-BL baseline)",
+        "head_ref": "pullfrog/91-signal-relay",
+        "base_ref": "main",
+        "head_sha": "aed3a2ffc7b093a7ae7597dbb51eaf7a81fc6876"
+      },
+      "workflow": {
+        "run_id": 27484178640,
+        "run_attempt": 1,
+        "run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27484178640",
+        "workflow": "Evaluate Pullfrog Experiment",
+        "event_name": "workflow_dispatch",
+        "actor": "Drew-Goddyn",
+        "ref": "main",
+        "sha": "eadc7c45e4803bdc773864bda289788d2b34cc9f",
+        "artifact_name": "pullfrog-experiment-evaluation-94"
+      },
+      "artifact": {
+        "name": "pullfrog-experiment-evaluation-94",
+        "workflow_run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27484178640",
+        "contains": [
+          "report.json",
+          "browser-smoke.png"
+        ]
+      },
+      "scorecard": {
+        "marker": "<!-- pullfrog-experiment-evaluator:v2 pr=94 issue=91 -->",
+        "pr_comment_url": "https://github.com/Drew-Goddyn/jules-toys/pull/94#issuecomment-4700292430",
+        "issue_comment_url": "https://github.com/Drew-Goddyn/jules-toys/issues/91#issuecomment-4700292475",
+        "updated_at": "2026-06-14T01:04:38.273Z"
+      },
+      "screenshot": {
+        "path": "specimen-lab/pullfrog/pr-94/browser-smoke.png",
+        "source": "evaluator-browser-smoke",
+        "artifact_file": "browser-smoke.png"
+      },
+      "known_gaps": [
+        "Puzzle difficulty curve is shallow — levels 4-5 solvable with prism but not challenging",
+        "Solved-state pulse animation from brief not implemented (uses CSS pulse overlay instead)",
+        "Cursor/click cycling through element types lacks visual feedback for current position",
+        "Only 5 levels, limiting replay value",
+        "Visual polish is minimal — beam glow is a basic dual-stroke overlay"
+      ],
+      "comparison": {
+        "run_count": 1,
+        "previous_score": null,
+        "score_delta": null,
+        "mechanical_pass": true,
+        "latest_label": "experiment:accepted",
+        "previous_run_id": null,
+        "summary": "First v2 evaluator run recorded for this specimen."
+      },
+      "provenance": {
+        "source": "pullfrog-evaluator-v2",
+        "repository": "Drew-Goddyn/jules-toys",
+        "free_model": "opencode/big-pickle",
+        "report_version": 2,
+        "report_generated_at": "2026-06-14T01:02:13.899Z",
+        "persisted_at": "2026-06-14T01:04:38.273Z",
+        "generated_from": "GitHub Actions evaluator artifact and Pullfrog judge output"
+      },
+      "reruns": [
+        {
+          "run_id": 27484178640,
+          "run_attempt": 1,
+          "run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27484178640",
+          "event_name": "workflow_dispatch",
+          "head_sha": "aed3a2ffc7b093a7ae7597dbb51eaf7a81fc6876",
+          "generated_at": "2026-06-14T01:02:13.899Z",
+          "mechanical_pass": true,
+          "score": 3,
+          "recommendation": "accept",
+          "label": "experiment:accepted",
+          "status": "accepted",
+          "artifact_name": "pullfrog-experiment-evaluation-94",
+          "pr_comment_url": "https://github.com/Drew-Goddyn/jules-toys/pull/94#issuecomment-4700292430",
+          "issue_comment_url": "https://github.com/Drew-Goddyn/jules-toys/issues/91#issuecomment-4700292475",
+          "known_gaps": [
+            "Puzzle difficulty curve is shallow — levels 4-5 solvable with prism but not challenging",
+            "Solved-state pulse animation from brief not implemented (uses CSS pulse overlay instead)",
+            "Cursor/click cycling through element types lacks visual feedback for current position",
+            "Only 5 levels, limiting replay value",
+            "Visual polish is minimal — beam glow is a basic dual-stroke overlay"
+          ]
+        }
+      ]
+    },
     {
       "id": "pullfrog-pr-85",
       "title": "Clockwork Canal Locks",
