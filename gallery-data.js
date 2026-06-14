@@ -230,6 +230,16 @@ window.galleryItems = [
     oneLine: "Plays a grid-based salvage run with hull, energy, shields, scanning, moving hazards, and extraction objective."
   },
   {
+    tier: 8,
+    title: "Pulse Grid",
+    slug: "pulse-grid",
+    path: "tier8/pulse-grid/index.html",
+    screenshot: "tier8/pulse-grid/screenshot.png",
+    kind: "Turn-based path puzzle",
+    tags: ["pulse", "wire", "puzzle", "onboarding"],
+    oneLine: "Toggles grid cells to build a wire path and sends a test pulse from source to target."
+  },
+  {
     tier: 9,
     title: "Signal Drift Rally",
     slug: "signal-drift-rally",
