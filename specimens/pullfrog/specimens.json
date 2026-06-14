@@ -1,7 +1,113 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-06-14T01:04:38.273Z",
+  "generated_at": "2026-06-14T01:05:28.890Z",
   "specimens": [
+    {
+      "id": "pullfrog-pr-93",
+      "title": "Pulse Grid",
+      "slug": "pulse-grid",
+      "tier": 8,
+      "kind": "Pullfrog specimen",
+      "status": "accepted",
+      "score": 3,
+      "recommendation": "accept",
+      "issue": {
+        "number": 92,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/issues/92"
+      },
+      "pr": {
+        "number": 93,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/pull/93",
+        "title": "[Pullfrog experiment] Pulse Grid — T8 turn-based path puzzle (W1-ON onboarding-heavy cell)",
+        "head_ref": "pullfrog/92-pulse-grid",
+        "base_ref": "main",
+        "head_sha": "bca723f9a14f04ac39e2301bd1d85ee32c87e17c"
+      },
+      "workflow": {
+        "run_id": 27484178648,
+        "run_attempt": 1,
+        "run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27484178648",
+        "workflow": "Evaluate Pullfrog Experiment",
+        "event_name": "workflow_dispatch",
+        "actor": "Drew-Goddyn",
+        "ref": "main",
+        "sha": "eadc7c45e4803bdc773864bda289788d2b34cc9f",
+        "artifact_name": "pullfrog-experiment-evaluation-93"
+      },
+      "artifact": {
+        "name": "pullfrog-experiment-evaluation-93",
+        "workflow_run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27484178648",
+        "contains": [
+          "report.json",
+          "browser-smoke.png"
+        ]
+      },
+      "scorecard": {
+        "marker": "<!-- pullfrog-experiment-evaluator:v2 pr=93 issue=92 -->",
+        "pr_comment_url": "https://github.com/Drew-Goddyn/jules-toys/pull/93#issuecomment-4700292857",
+        "issue_comment_url": "https://github.com/Drew-Goddyn/jules-toys/issues/92#issuecomment-4700292889",
+        "updated_at": "2026-06-14T01:05:28.890Z"
+      },
+      "screenshot": {
+        "path": "specimen-lab/pullfrog/pr-93/browser-smoke.png",
+        "source": "evaluator-browser-smoke",
+        "artifact_file": "browser-smoke.png"
+      },
+      "known_gaps": [
+        "Missing cells are pre-determined rather than randomly generated per session, eliminating replay value",
+        "BFS path animation is frame-based rather than time-based, so speed varies with refresh rate",
+        "No sound effects for pulse success/failure",
+        "Level 2 and 3 missing cell placement is hardcoded and may produce trivial paths",
+        "Continuous requestAnimationFrame loop runs even when idle, consuming CPU unnecessarily",
+        "Canvas sizing is fixed (360px-based) and does not adapt to viewport size",
+        "Pulse-glow effect on Test button is a simple CSS animation, not conditionally tied to path existence"
+      ],
+      "comparison": {
+        "run_count": 1,
+        "previous_score": null,
+        "score_delta": null,
+        "mechanical_pass": true,
+        "latest_label": "experiment:accepted",
+        "previous_run_id": null,
+        "summary": "First v2 evaluator run recorded for this specimen."
+      },
+      "provenance": {
+        "source": "pullfrog-evaluator-v2",
+        "repository": "Drew-Goddyn/jules-toys",
+        "free_model": "opencode/big-pickle",
+        "report_version": 2,
+        "report_generated_at": "2026-06-14T01:02:14.927Z",
+        "persisted_at": "2026-06-14T01:05:28.890Z",
+        "generated_from": "GitHub Actions evaluator artifact and Pullfrog judge output"
+      },
+      "reruns": [
+        {
+          "run_id": 27484178648,
+          "run_attempt": 1,
+          "run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27484178648",
+          "event_name": "workflow_dispatch",
+          "head_sha": "bca723f9a14f04ac39e2301bd1d85ee32c87e17c",
+          "generated_at": "2026-06-14T01:02:14.927Z",
+          "mechanical_pass": true,
+          "score": 3,
+          "recommendation": "accept",
+          "label": "experiment:accepted",
+          "status": "accepted",
+          "artifact_name": "pullfrog-experiment-evaluation-93",
+          "pr_comment_url": "https://github.com/Drew-Goddyn/jules-toys/pull/93#issuecomment-4700292857",
+          "issue_comment_url": "https://github.com/Drew-Goddyn/jules-toys/issues/92#issuecomment-4700292889",
+          "known_gaps": [
+            "Missing cells are pre-determined rather than randomly generated per session, eliminating replay value",
+            "BFS path animation is frame-based rather than time-based, so speed varies with refresh rate",
+            "No sound effects for pulse success/failure",
+            "Level 2 and 3 missing cell placement is hardcoded and may produce trivial paths",
+            "Continuous requestAnimationFrame loop runs even when idle, consuming CPU unnecessarily",
+            "Canvas sizing is fixed (360px-based) and does not adapt to viewport size",
+            "Pulse-glow effect on Test button is a simple CSS animation, not conditionally tied to path existence"
+          ]
+        }
+      ]
+    },
     {
       "id": "pullfrog-pr-94",
       "title": "Signal Relay",
