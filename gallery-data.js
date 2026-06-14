@@ -230,6 +230,16 @@ window.galleryItems = [
     oneLine: "Plays a grid-based salvage run with hull, energy, shields, scanning, moving hazards, and extraction objective."
   },
   {
+    tier: 8,
+    title: "Signal Relay",
+    slug: "signal-relay",
+    path: "tier8/signal-relay/index.html",
+    screenshot: "tier8/signal-relay/screenshot.png",
+    kind: "Interactive signal router",
+    tags: ["optics", "puzzle", "mirrors", "prism"],
+    oneLine: "Routes colored light beams through mirrors and prisms to matching targets in a grid puzzle."
+  },
+  {
     tier: 9,
     title: "Signal Drift Rally",
     slug: "signal-drift-rally",

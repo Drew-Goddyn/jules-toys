@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signal Relay</title>
+    <style>
+        :root {
+            --bg-dark: #0a0e17;
+            --panel-bg: #111827;
+            --border: #374151;
+            --text-main: #f3f4f6;
+            --text-dim: #9ca3af;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #10b981;
+            --warn: #f59e0b;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Courier New', Courier, monospace;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .game-container {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+            max-width: 640px;
+            width: 100%;
+        }
+        h1 {
+            font-size: 1.25rem;
+            text-align: center;
+            letter-spacing: 0.1em;
+            margin-bottom: 4px;
+        }
+        .subtitle {
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 0.75rem;
+            margin-bottom: 16px;
+        }
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .toolbar label {
+            color: var(--text-dim);
+            font-size: 0.75rem;
+        }
+        .toolbar .value {
+            font-size: 0.875rem;
+            font-weight: bold;
+            min-width: 24px;
+            text-align: center;
+        }
+        button {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 12px;
+            font-family: inherit;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        button:hover { background: var(--accent-hover); }
+        button:active { transform: scale(0.97); }
+        button.secondary {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+        }
+        button.secondary:hover { background: var(--border); }
+        button.solved { background: var(--success); }
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            width: 100%;
+            aspect-ratio: 1;
+            touch-action: none;
+        }
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin-top: 12px;
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            flex-wrap: wrap;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .legend-icon {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            text-align: center;
+            line-height: 16px;
+            border-radius: 2px;
+            font-size: 0.6rem;
+            background: var(--border);
+        }
+        .tutorial-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        .tutorial-overlay.active { display: flex; }
+        .tutorial-box {
+            background: var(--panel-bg);
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            padding: 24px;
+            max-width: 400px;
+            width: 90%;
+        }
+        .tutorial-box h2 {
+            font-size: 1rem;
+            margin-bottom: 12px;
+            color: var(--accent);
+        }
+        .tutorial-box p {
+            font-size: 0.8rem;
+            line-height: 1.6;
+            color: var(--text-dim);
+            margin-bottom: 12px;
+        }
+        .tutorial-box ul {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            padding-left: 20px;
+            margin-bottom: 16px;
+            line-height: 1.8;
+        }
+        .tutorial-box .cell-examples {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            justify-content: center;
+        }
+        .tutorial-box .cell-examples span {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            background: #1f2937;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        .solved-overlay, .complete-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        .solved-overlay.active, .complete-overlay.active { display: flex; }
+        .solved-box, .complete-box {
+            background: var(--panel-bg);
+            border: 1px solid var(--success);
+            border-radius: 8px;
+            padding: 32px;
+            text-align: center;
+            max-width: 320px;
+            width: 90%;
+        }
+        .solved-box h2, .complete-box h2 {
+            font-size: 1.5rem;
+            color: var(--success);
+            margin-bottom: 8px;
+        }
+        .solved-box p, .complete-box p {
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            margin-bottom: 16px;
+        }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(16,185,129,0); }
+        }
+        .solved-box { animation: pulse 1.5s ease-in-out 2; }
+        .level-select {
+            background: var(--bg-dark);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 3px 8px;
+            font-family: inherit;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+        .win-message {
+            text-align: center;
+            margin-top: 12px;
+            font-size: 0.8rem;
+            color: var(--success);
+            min-height: 1.2em;
+        }
+        .message-fade {
+            opacity: 1;
+            transition: opacity 0.8s;
+        }
+        .message-fade.hidden { opacity: 0; }
+    </style>
+</head>
+<body>
+
+<div class="game-container">
+    <h1>SIGNAL RELAY</h1>
+    <div class="subtitle">route beams · place mirrors · complete the circuit</div>
+
+    <div class="toolbar">
+        <div class="toolbar-group">
+            <label>Level</label>
+            <select class="level-select" id="levelSelect"></select>
+        </div>
+        <div class="toolbar-group">
+            <label>Moves</label>
+            <span class="value" id="moveCount">0</span>
+        </div>
+        <div class="toolbar-group">
+            <button class="secondary" id="btnReset">Reset</button>
+            <button class="secondary" id="btnTutorial">?</button>
+        </div>
+    </div>
+
+    <canvas id="canvas" width="540" height="540"></canvas>
+
+    <div class="legend">
+        <span class="legend-item"><span class="legend-icon">/</span> Mirror</span>
+        <span class="legend-item"><span class="legend-icon">\</span> Mirror</span>
+        <span class="legend-item"><span class="legend-icon">◆</span> Prism</span>
+        <span class="legend-item"><span class="legend-icon">■</span> Block</span>
+    </div>
+    <div class="win-message" id="winMessage"></div>
+</div>
+
+<div class="tutorial-overlay" id="tutorialOverlay">
+    <div class="tutorial-box">
+        <h2>How to Play</h2>
+        <p>Click or tap grid cells to place optical elements, then route colored beams from each source to its matching target.</p>
+        <ul>
+            <li>Click empty cell: cycles through <b>/</b> → <b>\</b> → <b>◆</b> → <b>■</b> → empty</li>
+            <li><b>/ Mirror</b>: reflects beam right-angle (↗ incoming → ← outgoing)</li>
+            <li><b>\ Mirror</b>: reflects beam right-angle opposite (↘ incoming → ← outgoing)</li>
+            <li><b>◆ Prism</b>: splits beam into two perpendicular beams</li>
+            <li><b>■ Block</b>: absorbs the beam, stops propagation</li>
+        </ul>
+        <div class="cell-examples">
+            <span style="color:#ef4444">●</span>
+            <span style="color:#10b981">●</span>
+            <span style="color:#3b82f6">●</span>
+        </div>
+        <p style="text-align:center;font-size:0.75rem;">Red ● Green ● Blue — match each source to its target</p>
+        <button id="btnTutStart" style="display:block;margin:0 auto;">Start Playing</button>
+    </div>
+</div>
+
+<div class="solved-overlay" id="solvedOverlay">
+    <div class="solved-box">
+        <h2>Circuit Complete</h2>
+        <p id="solvedText">Level solved!</p>
+        <button id="btnNextLevel">Next Level</button>
+    </div>
+</div>
+
+<div class="complete-overlay" id="completeOverlay">
+    <div class="complete-box">
+        <h2>All Circuits Live</h2>
+        <p>You completed all 5 signal relays. The network is fully operational.</p>
+        <button id="btnRestart">Play Again</button>
+    </div>
+</div>
+
+<script>
+(function() {
+    const CELL_SIZE = 60;
+    const GRID_SIZE = 9;
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const levelSelect = document.getElementById('levelSelect');
+    const moveCountEl = document.getElementById('moveCount');
+    const winMessage = document.getElementById('winMessage');
+    const btnReset = document.getElementById('btnReset');
+    const btnTutorial = document.getElementById('btnTutorial');
+    const btnTutStart = document.getElementById('btnTutStart');
+    const btnNextLevel = document.getElementById('btnNextLevel');
+    const btnRestart = document.getElementById('btnRestart');
+    const tutorialOverlay = document.getElementById('tutorialOverlay');
+    const solvedOverlay = document.getElementById('solvedOverlay');
+    const completeOverlay = document.getElementById('completeOverlay');
+    const solvedText = document.getElementById('solvedText');
+
+    const COLORS = ['#ef4444', '#10b981', '#3b82f6'];
+    const COLOR_NAMES = ['red', 'green', 'blue'];
+
+    const DIR = {
+        RIGHT: 0, DOWN: 1, LEFT: 2, UP: 3
+    };
+    const DX = [1, 0, -1, 0];
+    const DY = [0, 1, 0, -1];
+
+    const MIRROR_SLASH = 1;
+    const MIRROR_BACKSLASH = 2;
+    const PRISM = 3;
+    const BLOCK = 4;
+
+    function verifySolvable(lv) {
+        for (let r = 0; r < GRID_SIZE; r++) {
+            for (let c = 0; c < GRID_SIZE; c++) {
+                const cell = lv.grid[r][c];
+                if (cell !== 0 && !lv.blocks.some(b => b.r === r && b.c === c)
+                    && !lv.sources.some(s => s.r === r && s.c === c)
+                    && !lv.targets.some(t => t.r === r && t.c === c)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    const levels = [
+        {
+            name: 'First Light',
+            sources: [{r:4, c:0, dir:DIR.RIGHT, color:0}],
+            targets: [{r:1, c:2, color:0}],
+            blocks: []
+        },
+        {
+            name: 'Corner Relay',
+            sources: [{r:4, c:0, dir:DIR.RIGHT, color:0}],
+            targets: [{r:0, c:7, color:0}],
+            blocks: []
+        },
+        {
+            name: 'Two Channels',
+            sources: [
+                {r:1, c:0, dir:DIR.RIGHT, color:0},
+                {r:7, c:0, dir:DIR.RIGHT, color:1}
+            ],
+            targets: [
+                {r:0, c:7, color:0},
+                {r:8, c:7, color:1}
+            ],
+            blocks: [{r:1, c:3}, {r:7, c:3}]
+        },
+        {
+            name: 'Split Stream',
+            sources: [{r:4, c:0, dir:DIR.RIGHT, color:0}],
+            targets: [{r:0, c:2, color:0}, {r:8, c:2, color:0}],
+            blocks: []
+        },
+        {
+            name: 'Full Spectrum',
+            sources: [
+                {r:2, c:0, dir:DIR.RIGHT, color:0},
+                {r:4, c:0, dir:DIR.RIGHT, color:1},
+                {r:6, c:0, dir:DIR.RIGHT, color:2}
+            ],
+            targets: [
+                {r:2, c:8, color:0},
+                {r:1, c:5, color:1},
+                {r:6, c:8, color:2}
+            ],
+            blocks: []
+        }
+    ];
+
+    let state = {
+        level: 0,
+        grid: [],
+        moves: 0,
+        sources: [],
+        targets: [],
+        placed: [],
+        beams: [],
+        solvedTargets: new Set(),
+        status: 'playing'
+    };
+
+    function initGrid() {
+        const g = [];
+        for (let r = 0; r < GRID_SIZE; r++) {
+            g[r] = new Array(GRID_SIZE).fill(0);
+        }
+        return g;
+    }
+
+    function loadLevel(idx) {
+        const lv = levels[idx];
+        state.level = idx;
+        state.grid = initGrid();
+        state.moves = 0;
+        state.sources = lv.sources.map(s => ({...s}));
+        state.targets = lv.targets.map(t => ({...t}));
+        state.placed = [];
+        state.beams = [];
+        state.solvedTargets = new Set();
+        state.status = 'playing';
+
+        for (const b of lv.blocks) {
+            state.grid[b.r][b.c] = BLOCK;
+        }
+
+        updateUI();
+        simulate();
+        draw();
+        winMessage.textContent = '';
+        winMessage.className = 'message-fade hidden';
+    }
+
+    function placeElement(r, c, type) {
+        state.grid[r][c] = type;
+        const existing = state.placed.findIndex(p => p.r === r && p.c === c);
+        if (existing >= 0) {
+            state.placed.splice(existing, 1);
+        } else {
+            state.moves++;
+        }
+        state.placed.push({r, c, type});
+        updateUI();
+        simulate();
+        draw();
+
+        if (checkSolved()) {
+            state.status = 'solved';
+            winMessage.textContent = '✓ Circuit complete!';
+            winMessage.className = 'message-fade';
+            setTimeout(() => {
+                solvedText.textContent = `Level ${state.level + 1} — ${levels[state.level].name}`;
+                solvedOverlay.classList.add('active');
+            }, 400);
+        }
+    }
+
+    function simulate() {
+        state.beams = [];
+        state.solvedTargets = new Set();
+
+        for (const src of state.sources) {
+            traceBeam(src.r, src.c, src.dir, src.color);
+        }
+    }
+
+    function traceBeam(startR, startC, dir, color) {
+        const visited = new Set();
+        let r = startR;
+        let c = startC;
+        let d = dir;
+        const path = [{r, c, d}];
+
+        while (true) {
+            const key = `${r},${c},${d}`;
+            if (visited.has(key)) break;
+            visited.add(key);
+
+            const cell = state.grid[r][c];
+
+            if (cell === BLOCK) break;
+
+            if (cell === PRISM) {
+                const d1 = (d + 1) % 4;
+                const d2 = (d + 3) % 4;
+                const nr1 = r + DY[d1];
+                const nc1 = c + DX[d1];
+                const nr2 = r + DY[d2];
+                const nc2 = c + DX[d2];
+                if (inBounds(nr1, nc1)) traceRay(nr1, nc1, d1, color, path, visited);
+                if (inBounds(nr2, nc2)) traceRay(nr2, nc2, d2, color, path, visited);
+                break;
+            }
+
+            if (cell === MIRROR_SLASH) {
+                d = slashReflect(d);
+            } else if (cell === MIRROR_BACKSLASH) {
+                d = backslashReflect(d);
+            }
+
+            const checkTarget = state.targets.find(t => t.r === r && t.c === c && t.color === color);
+            if (checkTarget) {
+                state.solvedTargets.add(`${r},${c},${color}`);
+            }
+
+            const nr = r + DY[d];
+            const nc = c + DX[d];
+            if (!inBounds(nr, nc)) break;
+
+            r = nr;
+            c = nc;
+            path.push({r, c, d});
+        }
+
+        state.beams.push({color, path});
+    }
+
+    function traceRay(r, c, d, color, parentPath, globalVisited) {
+        const path = [{r, c, d}];
+        const localVisited = new Set();
+
+        while (true) {
+            const key = `${r},${c},${d}`;
+            if (globalVisited.has(key) || localVisited.has(key)) break;
+            localVisited.add(key);
+
+            const cell = state.grid[r][c];
+
+            if (cell === BLOCK) break;
+
+            if (cell === PRISM) {
+                const d1 = (d + 1) % 4;
+                const d2 = (d + 3) % 4;
+                const nr1 = r + DY[d1];
+                const nc1 = c + DX[d1];
+                const nr2 = r + DY[d2];
+                const nc2 = c + DX[d2];
+                if (inBounds(nr1, nc1)) traceRay(nr1, nc1, d1, color, path, localVisited);
+                if (inBounds(nr2, nc2)) traceRay(nr2, nc2, d2, color, path, localVisited);
+                break;
+            }
+
+            if (cell === MIRROR_SLASH) {
+                d = slashReflect(d);
+            } else if (cell === MIRROR_BACKSLASH) {
+                d = backslashReflect(d);
+            }
+
+            const checkTarget = state.targets.find(t => t.r === r && t.c === c && t.color === color);
+            if (checkTarget) {
+                state.solvedTargets.add(`${r},${c},${color}`);
+            }
+
+            const nr = r + DY[d];
+            const nc = c + DX[d];
+            if (!inBounds(nr, nc)) break;
+
+            r = nr;
+            c = nc;
+            path.push({r, c, d});
+        }
+
+        parentPath.push(...path);
+    }
+
+    function slashReflect(d) {
+        switch (d) {
+            case DIR.RIGHT: return DIR.UP;
+            case DIR.DOWN: return DIR.LEFT;
+            case DIR.LEFT: return DIR.DOWN;
+            case DIR.UP: return DIR.RIGHT;
+        }
+    }
+
+    function backslashReflect(d) {
+        switch (d) {
+            case DIR.RIGHT: return DIR.DOWN;
+            case DIR.DOWN: return DIR.RIGHT;
+            case DIR.LEFT: return DIR.UP;
+            case DIR.UP: return DIR.LEFT;
+        }
+    }
+
+    function inBounds(r, c) {
+        return r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE;
+    }
+
+    function checkSolved() {
+        return state.targets.every(t => state.solvedTargets.has(`${t.r},${t.c},${t.color}`));
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, 540, 540);
+        drawGrid();
+        drawBeams();
+        drawElements();
+        drawTargets();
+        drawSources();
+    }
+
+    function drawGrid() {
+        ctx.strokeStyle = '#1f2937';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= GRID_SIZE; i++) {
+            ctx.beginPath();
+            ctx.moveTo(i * CELL_SIZE, 0);
+            ctx.lineTo(i * CELL_SIZE, 540);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(0, i * CELL_SIZE);
+            ctx.lineTo(540, i * CELL_SIZE);
+            ctx.stroke();
+        }
+    }
+
+    function drawBeams() {
+        for (const beam of state.beams) {
+            const color = COLORS[beam.color];
+            const path = beam.path;
+            if (path.length < 2) continue;
+
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 4;
+            ctx.globalAlpha = 0.7;
+            ctx.beginPath();
+            const first = path[0];
+            ctx.moveTo(first.c * CELL_SIZE + CELL_SIZE / 2, first.r * CELL_SIZE + CELL_SIZE / 2);
+            for (let i = 1; i < path.length; i++) {
+                const p = path[i];
+                ctx.lineTo(p.c * CELL_SIZE + CELL_SIZE / 2, p.r * CELL_SIZE + CELL_SIZE / 2);
+            }
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(first.c * CELL_SIZE + CELL_SIZE / 2, first.r * CELL_SIZE + CELL_SIZE / 2);
+            for (let i = 1; i < path.length; i++) {
+                const p = path[i];
+                ctx.lineTo(p.c * CELL_SIZE + CELL_SIZE / 2, p.r * CELL_SIZE + CELL_SIZE / 2);
+            }
+            ctx.stroke();
+        }
+    }
+
+    function drawElements() {
+        for (let r = 0; r < GRID_SIZE; r++) {
+            for (let c = 0; c < GRID_SIZE; c++) {
+                const cell = state.grid[r][c];
+                if (cell === 0) continue;
+
+                const x = c * CELL_SIZE;
+                const y = r * CELL_SIZE;
+                const cx = x + CELL_SIZE / 2;
+                const cy = y + CELL_SIZE / 2;
+
+                ctx.fillStyle = '#1f2937';
+                ctx.fillRect(x + 2, y + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+
+                ctx.fillStyle = '#f3f4f6';
+                ctx.font = '20px "Courier New", monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                const isBlock = levels[state.level].blocks.some(b => b.r === r && b.c === c);
+
+                if (cell === MIRROR_SLASH) {
+                    ctx.strokeStyle = isBlock ? '#6b7280' : '#93c5fd';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(x + 8, y + CELL_SIZE - 8);
+                    ctx.lineTo(x + CELL_SIZE - 8, y + 8);
+                    ctx.stroke();
+                    if (!isBlock) {
+                        ctx.fillStyle = '#93c5fd';
+                        ctx.fillText('/', cx, cy);
+                    }
+                } else if (cell === MIRROR_BACKSLASH) {
+                    ctx.strokeStyle = isBlock ? '#6b7280' : '#93c5fd';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(x + 8, y + 8);
+                    ctx.lineTo(x + CELL_SIZE - 8, y + CELL_SIZE - 8);
+                    ctx.stroke();
+                    if (!isBlock) {
+                        ctx.fillStyle = '#93c5fd';
+                        ctx.fillText('\\', cx, cy);
+                    }
+                } else if (cell === PRISM) {
+                    ctx.fillStyle = '#a78bfa';
+                    ctx.beginPath();
+                    ctx.moveTo(cx, y + 10);
+                    ctx.lineTo(x + 10, y + CELL_SIZE - 10);
+                    ctx.lineTo(x + CELL_SIZE - 10, y + CELL_SIZE - 10);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.fillStyle = '#f3f4f6';
+                    ctx.fillText('◆', cx, cy);
+                } else if (cell === BLOCK) {
+                    ctx.fillStyle = isBlock ? '#374151' : '#4b5563';
+                    ctx.fillRect(x + 8, y + 8, CELL_SIZE - 16, CELL_SIZE - 16);
+                    ctx.fillStyle = '#9ca3af';
+                    ctx.fillText('■', cx, cy);
+                }
+            }
+        }
+    }
+
+    function drawTargets() {
+        for (const t of state.targets) {
+            const x = t.c * CELL_SIZE;
+            const y = t.r * CELL_SIZE;
+            const solved = state.solvedTargets.has(`${t.r},${t.c},${t.color}`);
+
+            ctx.strokeStyle = solved ? COLORS[t.color] : '#6b7280';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x + 6, y + 6, CELL_SIZE - 12, CELL_SIZE - 12);
+
+            ctx.fillStyle = solved ? COLORS[t.color] : '#374151';
+            ctx.fillRect(x + 8, y + 8, CELL_SIZE - 16, CELL_SIZE - 16);
+
+            ctx.fillStyle = solved ? '#fff' : '#9ca3af';
+            ctx.font = '12px "Courier New", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('⊙', x + CELL_SIZE / 2, y + CELL_SIZE / 2);
+        }
+    }
+
+    function drawSources() {
+        for (const s of state.sources) {
+            const x = s.c * CELL_SIZE;
+            const y = s.r * CELL_SIZE;
+            const cx = x + CELL_SIZE / 2;
+            const cy = y + CELL_SIZE / 2;
+
+            ctx.fillStyle = COLORS[s.color];
+            ctx.beginPath();
+            ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+            ctx.fill();
+
+            const dx = DX[s.dir];
+            const dy = DY[s.dir];
+            ctx.strokeStyle = COLORS[s.color];
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx + dx * 16, cy + dy * 16);
+            ctx.stroke();
+        }
+    }
+
+    function handleClick(e) {
+        if (state.status !== 'playing') return;
+
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const mx = (e.clientX - rect.left) * scaleX;
+        const my = (e.clientY - rect.top) * scaleY;
+        const c = Math.floor(mx / CELL_SIZE);
+        const r = Math.floor(my / CELL_SIZE);
+        if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE) return;
+
+        if (isFixed(r, c)) return;
+
+        const current = state.grid[r][c];
+        const nextType = current === 0 ? MIRROR_SLASH
+            : current === MIRROR_SLASH ? MIRROR_BACKSLASH
+            : current === MIRROR_BACKSLASH ? PRISM
+            : current === PRISM ? BLOCK
+            : 0;
+
+        placeElement(r, c, nextType);
+    }
+
+    function isFixed(r, c) {
+        if (levels[state.level].sources.some(s => s.r === r && s.c === c)) return true;
+        if (levels[state.level].targets.some(t => t.r === r && t.c === c)) return true;
+        if (levels[state.level].blocks.some(b => b.r === r && b.c === c)) return true;
+        return false;
+    }
+
+    function resetLevel() {
+        loadLevel(state.level);
+        solvedOverlay.classList.remove('active');
+        completeOverlay.classList.remove('active');
+    }
+
+    function nextLevel() {
+        solvedOverlay.classList.remove('active');
+        if (state.level + 1 < levels.length) {
+            loadLevel(state.level + 1);
+            levelSelect.value = state.level;
+        } else {
+            completeOverlay.classList.add('active');
+        }
+    }
+
+    function restartGame() {
+        completeOverlay.classList.remove('active');
+        loadLevel(0);
+        levelSelect.value = 0;
+    }
+
+    function updateUI() {
+        moveCountEl.textContent = state.moves;
+    }
+
+    function showTutorial() {
+        tutorialOverlay.classList.add('active');
+    }
+
+    function hideTutorial() {
+        tutorialOverlay.classList.remove('active');
+        localStorage.setItem('signalRelayTut', '1');
+    }
+
+    function init() {
+        for (let i = 0; i < levels.length; i++) {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = `${i + 1}. ${levels[i].name}`;
+            levelSelect.appendChild(opt);
+        }
+
+        canvas.addEventListener('click', handleClick);
+
+        btnReset.addEventListener('click', resetLevel);
+        btnTutorial.addEventListener('click', showTutorial);
+        btnTutStart.addEventListener('click', hideTutorial);
+        btnNextLevel.addEventListener('click', nextLevel);
+        btnRestart.addEventListener('click', restartGame);
+
+        levelSelect.addEventListener('change', () => {
+            const idx = parseInt(levelSelect.value);
+            if (idx >= 0 && idx < levels.length) {
+                solvedOverlay.classList.remove('active');
+                completeOverlay.classList.remove('active');
+                loadLevel(idx);
+            }
+        });
+
+        if (!localStorage.getItem('signalRelayTut')) {
+            showTutorial();
+        }
+
+        loadLevel(0);
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+    if (document.readyState !== 'loading') init();
+})();
+</script>
+</body>
+</html>
