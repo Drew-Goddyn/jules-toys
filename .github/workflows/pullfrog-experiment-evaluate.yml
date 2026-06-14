@@ -397,6 +397,9 @@ jobs:
     needs: [evaluate, judge, comment]
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.update_specimen_lab == true && needs.evaluate.result == 'success' && needs.comment.result == 'success' }}
     runs-on: ubuntu-latest
+    concurrency:
+      group: pullfrog-specimen-lab-persist
+      cancel-in-progress: false
     permissions:
       actions: read
       contents: write

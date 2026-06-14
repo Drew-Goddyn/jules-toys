@@ -1,0 +1,266 @@
+{
+  "schema_version": 1,
+  "wave_id": "invalid-missing-scorecard-evidence",
+  "title": "Invalid missing scorecard evidence",
+  "status": "blocked",
+  "learning_question": "This fixture proves scorecard evidence pointers are required.",
+  "cell_types_supported": [
+    "baseline_prompt",
+    "onboarding_heavy_prompt",
+    "mechanics_depth_prompt",
+    "visual_polish_prompt",
+    "rerun_variance"
+  ],
+  "cells": [
+    {
+      "cell_id": "BAD-1",
+      "wave_id": "invalid-wave",
+      "cell_type": "baseline_prompt",
+      "question": "Invalid fixture cell.",
+      "prompt_variant": {
+        "id": "baseline",
+        "summary": "Invalid fixture."
+      },
+      "model": "opencode/big-pickle",
+      "source_issue": {
+        "number": null,
+        "url": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:tests/fixtures/pullfrog-wave/invalid-missing-scorecard-evidence.json#/cells/BAD-1/source_issue"
+        ],
+        "blocked_reason": "Fixture is intentionally blocked."
+      },
+      "build_pr": {
+        "number": null,
+        "url": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:tests/fixtures/pullfrog-wave/invalid-missing-scorecard-evidence.json#/cells/BAD-1/build_pr"
+        ],
+        "blocked_reason": "Fixture is intentionally blocked."
+      },
+      "evaluation_run": {
+        "run_id": null,
+        "url": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:tests/fixtures/pullfrog-wave/invalid-missing-scorecard-evidence.json#/cells/BAD-1/evaluation_run"
+        ],
+        "blocked_reason": "Fixture is intentionally blocked."
+      },
+      "artifact_name": null,
+      "browser_screenshot": {
+        "path": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:tests/fixtures/pullfrog-wave/invalid-missing-scorecard-evidence.json#/cells/BAD-1/browser_screenshot"
+        ],
+        "blocked_reason": "Fixture is intentionally blocked."
+      },
+      "deterministic_report": {
+        "path": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:tests/fixtures/pullfrog-wave/invalid-missing-scorecard-evidence.json#/cells/BAD-1/deterministic_report"
+        ],
+        "blocked_reason": "Fixture is intentionally blocked."
+      },
+      "scorecard": {
+        "status": "blocked",
+        "dimensions": {
+          "mechanics_depth": {
+            "score": null,
+            "rationale": "Missing evidence is intentional.",
+            "evidence": [],
+            "blocked_reason": "Fixture is intentionally blocked."
+          },
+          "onboarding_clarity": {
+            "score": null,
+            "rationale": "Blocked fixture.",
+            "evidence": [
+              "manifest:tests/fixtures/pullfrog-wave/invalid-missing-scorecard-evidence.json#/cells/BAD-1/scorecard/onboarding_clarity"
+            ],
+            "blocked_reason": "Fixture is intentionally blocked."
+          },
+          "goal_state": {
+            "score": null,
+            "rationale": "Blocked fixture.",
+            "evidence": [
+              "manifest:tests/fixtures/pullfrog-wave/invalid-missing-scorecard-evidence.json#/cells/BAD-1/scorecard/goal_state"
+            ],
+            "blocked_reason": "Fixture is intentionally blocked."
+          },
+          "replay_value": {
+            "score": null,
+            "rationale": "Blocked fixture.",
+            "evidence": [
+              "manifest:tests/fixtures/pullfrog-wave/invalid-missing-scorecard-evidence.json#/cells/BAD-1/scorecard/replay_value"
+            ],
+            "blocked_reason": "Fixture is intentionally blocked."
+          },
+          "visual_polish": {
+            "score": null,
+            "rationale": "Blocked fixture.",
+            "evidence": [
+              "manifest:tests/fixtures/pullfrog-wave/invalid-missing-scorecard-evidence.json#/cells/BAD-1/scorecard/visual_polish"
+            ],
+            "blocked_reason": "Fixture is intentionally blocked."
+          },
+          "browser_correctness": {
+            "score": null,
+            "rationale": "Blocked fixture.",
+            "evidence": [
+              "manifest:tests/fixtures/pullfrog-wave/invalid-missing-scorecard-evidence.json#/cells/BAD-1/scorecard/browser_correctness"
+            ],
+            "blocked_reason": "Fixture is intentionally blocked."
+          },
+          "prompt_adherence": {
+            "score": null,
+            "rationale": "Blocked fixture.",
+            "evidence": [
+              "manifest:tests/fixtures/pullfrog-wave/invalid-missing-scorecard-evidence.json#/cells/BAD-1/scorecard/prompt_adherence"
+            ],
+            "blocked_reason": "Fixture is intentionally blocked."
+          },
+          "review_burden": {
+            "score": null,
+            "rationale": "Blocked fixture.",
+            "evidence": [
+              "manifest:tests/fixtures/pullfrog-wave/invalid-missing-scorecard-evidence.json#/cells/BAD-1/scorecard/review_burden"
+            ],
+            "blocked_reason": "Fixture is intentionally blocked."
+          }
+        }
+      },
+      "observables": [
+        "known_gaps_from_report"
+      ],
+      "status": "blocked",
+      "blocked_reason": "Fixture is intentionally blocked.",
+      "evidence": [
+        "manifest:tests/fixtures/pullfrog-wave/invalid-missing-scorecard-evidence.json#/cells/BAD-1"
+      ],
+      "final_disposition": "blocked_fixture"
+    }
+  ],
+  "worker_report_contract": {
+    "tasks": [
+      {
+        "task_id": "extract-known-gaps",
+        "task_type": "extract_known_gaps",
+        "inputs": [
+          "deterministic_report"
+        ],
+        "output": "cited_gap_list"
+      },
+      {
+        "task_id": "classify-failure-modes",
+        "task_type": "classify_failure_modes",
+        "inputs": [
+          "known_gaps"
+        ],
+        "output": "failure_mode_counts"
+      },
+      {
+        "task_id": "compare-scorecard-deltas",
+        "task_type": "compare_scorecard_deltas",
+        "inputs": [
+          "scorecards"
+        ],
+        "output": "dimension_delta_table"
+      },
+      {
+        "task_id": "summarize-evidence",
+        "task_type": "summarize_evidence",
+        "inputs": [
+          "report"
+        ],
+        "output": "citation_first_summary"
+      },
+      {
+        "task_id": "mark-blocked-honestly",
+        "task_type": "mark_blocked_honestly",
+        "inputs": [
+          "missing_inputs"
+        ],
+        "output": "blocked_report"
+      }
+    ],
+    "jules_policy": {
+      "required": false,
+      "max_cells_per_assignment": 1,
+      "allowed_assignment_shapes": [
+        "one-report extraction"
+      ],
+      "blocked_path": "Return BLOCKED."
+    }
+  },
+  "rejection_criteria": [
+    {
+      "id": "missing_artifact",
+      "rule": "required"
+    },
+    {
+      "id": "missing_screenshot",
+      "rule": "required"
+    },
+    {
+      "id": "missing_deterministic_report",
+      "rule": "required"
+    },
+    {
+      "id": "unparseable_scorecard",
+      "rule": "required"
+    },
+    {
+      "id": "uncited_claim",
+      "rule": "required"
+    },
+    {
+      "id": "duplicate_or_ambiguous_cell_identity",
+      "rule": "required"
+    },
+    {
+      "id": "manual_specimen_data_repair",
+      "rule": "required"
+    },
+    {
+      "id": "missing_synthesis",
+      "rule": "required"
+    }
+  ],
+  "synthesis": {
+    "path": "docs/pullfrog-fleet/synthesis/invalid.md",
+    "procedure": [
+      {
+        "id": "compare_cells",
+        "description": "required"
+      },
+      {
+        "id": "identify_repeated_failure_modes",
+        "description": "required"
+      },
+      {
+        "id": "separate_effects",
+        "description": "required"
+      },
+      {
+        "id": "record_killed_hypotheses",
+        "description": "required"
+      },
+      {
+        "id": "recommend_next_smallest_wave",
+        "description": "required"
+      }
+    ]
+  },
+  "persistence_safety": {
+    "guard": "github_actions_job_concurrency",
+    "workflow": ".github/workflows/pullfrog-experiment-evaluate.yml",
+    "job": "persist-specimen-lab",
+    "group": "pullfrog-specimen-lab-persist",
+    "cancel_in_progress": false,
+    "reason": "required"
+  }
+}

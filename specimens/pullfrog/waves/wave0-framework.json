@@ -1,0 +1,847 @@
+{
+  "schema_version": 1,
+  "wave_id": "wave0-framework",
+  "title": "Wave 0 Framework Hardening",
+  "status": "blocked",
+  "learning_question": "Can the Pullfrog Specimen Lab represent controlled future waves without launching or mutating live specimen data in Wave 0?",
+  "launch_authorization": {
+    "toy_issue_creation": false,
+    "toy_pr_creation": false,
+    "workflow_dispatch": false,
+    "specimen_data_manual_edits": false,
+    "blocked_reason": "Wave 0 is framework-only; Drew must explicitly authorize any live Wave 1 launch."
+  },
+  "cell_types_supported": [
+    "baseline_prompt",
+    "onboarding_heavy_prompt",
+    "mechanics_depth_prompt",
+    "visual_polish_prompt",
+    "rerun_variance"
+  ],
+  "cells": [
+    {
+      "cell_id": "W1-BL",
+      "wave_id": "wave1-tiny-controlled",
+      "cell_type": "baseline_prompt",
+      "question": "What does the current Pullfrog toy prompt and evaluator path produce under the hardened evidence contract?",
+      "prompt_variant": {
+        "id": "current-baseline",
+        "summary": "Current brief/build/evaluate path with no quality-bar changes."
+      },
+      "model": "opencode/big-pickle",
+      "source_issue": {
+        "number": null,
+        "url": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-BL/source_issue"
+        ],
+        "blocked_reason": "No Wave 1 source issue has been authorized or created."
+      },
+      "build_pr": {
+        "number": null,
+        "url": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-BL/build_pr"
+        ],
+        "blocked_reason": "No Wave 1 build PR has been authorized or created."
+      },
+      "evaluation_run": {
+        "run_id": null,
+        "url": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-BL/evaluation_run"
+        ],
+        "blocked_reason": "No evaluator workflow dispatch has been authorized."
+      },
+      "artifact_name": null,
+      "browser_screenshot": {
+        "path": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-BL/browser_screenshot"
+        ],
+        "blocked_reason": "No artifact exists before a Wave 1 run."
+      },
+      "deterministic_report": {
+        "path": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-BL/deterministic_report"
+        ],
+        "blocked_reason": "No deterministic report exists before a Wave 1 run."
+      },
+      "scorecard": {
+        "status": "blocked",
+        "dimensions": {
+          "mechanics_depth": {
+            "score": null,
+            "rationale": "Pending execution; baseline mechanics cannot be scored in Wave 0.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-BL/scorecard/mechanics_depth"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "onboarding_clarity": {
+            "score": null,
+            "rationale": "Pending execution; baseline onboarding cannot be scored in Wave 0.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-BL/scorecard/onboarding_clarity"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "goal_state": {
+            "score": null,
+            "rationale": "Pending execution; baseline goal state cannot be scored in Wave 0.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-BL/scorecard/goal_state"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "replay_value": {
+            "score": null,
+            "rationale": "Pending execution; baseline replay value cannot be scored in Wave 0.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-BL/scorecard/replay_value"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "visual_polish": {
+            "score": null,
+            "rationale": "Pending execution; baseline visual polish cannot be scored in Wave 0.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-BL/scorecard/visual_polish"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "browser_correctness": {
+            "score": null,
+            "rationale": "Pending execution; browser correctness requires a browser smoke artifact.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-BL/scorecard/browser_correctness"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "prompt_adherence": {
+            "score": null,
+            "rationale": "Pending execution; prompt adherence requires the generated PR and evaluator report.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-BL/scorecard/prompt_adherence"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "review_burden": {
+            "score": null,
+            "rationale": "Pending execution; review burden requires the generated PR and reviewer notes.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-BL/scorecard/review_burden"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          }
+        }
+      },
+      "observables": [
+        "known_gaps_from_report",
+        "browser_smoke_status",
+        "screenshot_legibility",
+        "review_minutes",
+        "scorecard_dimension_deltas"
+      ],
+      "status": "blocked",
+      "blocked_reason": "Wave 1 live launch has not been authorized.",
+      "evidence": [
+        "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-BL"
+      ],
+      "final_disposition": "blocked_pending_wave1_authorization"
+    },
+    {
+      "cell_id": "W1-ON",
+      "wave_id": "wave1-tiny-controlled",
+      "cell_type": "onboarding_heavy_prompt",
+      "question": "Does an onboarding-heavy prompt improve first-minute clarity without increasing review burden?",
+      "prompt_variant": {
+        "id": "onboarding-heavy",
+        "summary": "Prompt emphasizes tutorial affordances, first action clarity, and visible goal state."
+      },
+      "model": "opencode/big-pickle",
+      "source_issue": {
+        "number": null,
+        "url": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-ON/source_issue"
+        ],
+        "blocked_reason": "No Wave 1 source issue has been authorized or created."
+      },
+      "build_pr": {
+        "number": null,
+        "url": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-ON/build_pr"
+        ],
+        "blocked_reason": "No Wave 1 build PR has been authorized or created."
+      },
+      "evaluation_run": {
+        "run_id": null,
+        "url": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-ON/evaluation_run"
+        ],
+        "blocked_reason": "No evaluator workflow dispatch has been authorized."
+      },
+      "artifact_name": null,
+      "browser_screenshot": {
+        "path": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-ON/browser_screenshot"
+        ],
+        "blocked_reason": "No artifact exists before a Wave 1 run."
+      },
+      "deterministic_report": {
+        "path": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-ON/deterministic_report"
+        ],
+        "blocked_reason": "No deterministic report exists before a Wave 1 run."
+      },
+      "scorecard": {
+        "status": "blocked",
+        "dimensions": {
+          "mechanics_depth": {
+            "score": null,
+            "rationale": "Pending execution; mechanics depth must be compared with the baseline cell.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-ON/scorecard/mechanics_depth"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "onboarding_clarity": {
+            "score": null,
+            "rationale": "Pending execution; this is the primary dimension for the onboarding-heavy prompt.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-ON/scorecard/onboarding_clarity"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "goal_state": {
+            "score": null,
+            "rationale": "Pending execution; goal state must cite the generated UI and deterministic report.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-ON/scorecard/goal_state"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "replay_value": {
+            "score": null,
+            "rationale": "Pending execution; replay value must not be inferred from onboarding alone.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-ON/scorecard/replay_value"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "visual_polish": {
+            "score": null,
+            "rationale": "Pending execution; visual polish requires screenshot evidence.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-ON/scorecard/visual_polish"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "browser_correctness": {
+            "score": null,
+            "rationale": "Pending execution; browser correctness requires a browser smoke artifact.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-ON/scorecard/browser_correctness"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "prompt_adherence": {
+            "score": null,
+            "rationale": "Pending execution; prompt adherence requires generated PR evidence.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-ON/scorecard/prompt_adherence"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "review_burden": {
+            "score": null,
+            "rationale": "Pending execution; review burden must capture any extra complexity from onboarding.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-ON/scorecard/review_burden"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          }
+        }
+      },
+      "observables": [
+        "first_action_affordance",
+        "hint_quality",
+        "goal_visibility",
+        "known_gaps_from_report",
+        "review_minutes"
+      ],
+      "status": "blocked",
+      "blocked_reason": "Wave 1 live launch has not been authorized.",
+      "evidence": [
+        "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-ON"
+      ],
+      "final_disposition": "blocked_pending_wave1_authorization"
+    },
+    {
+      "cell_id": "W1-MD",
+      "wave_id": "wave1-tiny-controlled",
+      "cell_type": "mechanics_depth_prompt",
+      "question": "Does a mechanics-depth prompt improve meaningful choices and failure states without breaking browser correctness?",
+      "prompt_variant": {
+        "id": "mechanics-depth",
+        "summary": "Prompt emphasizes multiple meaningful choices, failure states, and replayable mechanics."
+      },
+      "model": "opencode/big-pickle",
+      "source_issue": {
+        "number": null,
+        "url": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-MD/source_issue"
+        ],
+        "blocked_reason": "No Wave 1 source issue has been authorized or created."
+      },
+      "build_pr": {
+        "number": null,
+        "url": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-MD/build_pr"
+        ],
+        "blocked_reason": "No Wave 1 build PR has been authorized or created."
+      },
+      "evaluation_run": {
+        "run_id": null,
+        "url": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-MD/evaluation_run"
+        ],
+        "blocked_reason": "No evaluator workflow dispatch has been authorized."
+      },
+      "artifact_name": null,
+      "browser_screenshot": {
+        "path": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-MD/browser_screenshot"
+        ],
+        "blocked_reason": "No artifact exists before a Wave 1 run."
+      },
+      "deterministic_report": {
+        "path": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-MD/deterministic_report"
+        ],
+        "blocked_reason": "No deterministic report exists before a Wave 1 run."
+      },
+      "scorecard": {
+        "status": "blocked",
+        "dimensions": {
+          "mechanics_depth": {
+            "score": null,
+            "rationale": "Pending execution; this is the primary dimension for the mechanics-depth prompt.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-MD/scorecard/mechanics_depth"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "onboarding_clarity": {
+            "score": null,
+            "rationale": "Pending execution; deeper mechanics must not make the first minute opaque.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-MD/scorecard/onboarding_clarity"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "goal_state": {
+            "score": null,
+            "rationale": "Pending execution; goal state must cite deterministic and screenshot evidence.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-MD/scorecard/goal_state"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "replay_value": {
+            "score": null,
+            "rationale": "Pending execution; replay value should be evaluated against baseline and rerun cells.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-MD/scorecard/replay_value"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "visual_polish": {
+            "score": null,
+            "rationale": "Pending execution; visual polish requires screenshot evidence.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-MD/scorecard/visual_polish"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "browser_correctness": {
+            "score": null,
+            "rationale": "Pending execution; browser correctness is a guardrail dimension for mechanics complexity.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-MD/scorecard/browser_correctness"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "prompt_adherence": {
+            "score": null,
+            "rationale": "Pending execution; prompt adherence requires generated PR evidence.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-MD/scorecard/prompt_adherence"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "review_burden": {
+            "score": null,
+            "rationale": "Pending execution; review burden must account for complexity added by mechanics depth.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-MD/scorecard/review_burden"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          }
+        }
+      },
+      "observables": [
+        "meaningful_choice_count",
+        "failure_state_count",
+        "replay_loop",
+        "browser_smoke_status",
+        "known_gaps_from_report"
+      ],
+      "status": "blocked",
+      "blocked_reason": "Wave 1 live launch has not been authorized.",
+      "evidence": [
+        "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-MD"
+      ],
+      "final_disposition": "blocked_pending_wave1_authorization"
+    },
+    {
+      "cell_id": "W1-VP",
+      "wave_id": "wave1-tiny-controlled",
+      "cell_type": "visual_polish_prompt",
+      "question": "Does a visual-polish prompt improve screenshot quality without hiding shallow mechanics?",
+      "prompt_variant": {
+        "id": "visual-polish",
+        "summary": "Prompt emphasizes legibility, layout, screenshot quality, and visual affordances while preserving gameplay depth."
+      },
+      "model": "opencode/big-pickle",
+      "source_issue": {
+        "number": null,
+        "url": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-VP/source_issue"
+        ],
+        "blocked_reason": "No Wave 1 source issue has been authorized or created."
+      },
+      "build_pr": {
+        "number": null,
+        "url": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-VP/build_pr"
+        ],
+        "blocked_reason": "No Wave 1 build PR has been authorized or created."
+      },
+      "evaluation_run": {
+        "run_id": null,
+        "url": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-VP/evaluation_run"
+        ],
+        "blocked_reason": "No evaluator workflow dispatch has been authorized."
+      },
+      "artifact_name": null,
+      "browser_screenshot": {
+        "path": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-VP/browser_screenshot"
+        ],
+        "blocked_reason": "No artifact exists before a Wave 1 run."
+      },
+      "deterministic_report": {
+        "path": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-VP/deterministic_report"
+        ],
+        "blocked_reason": "No deterministic report exists before a Wave 1 run."
+      },
+      "scorecard": {
+        "status": "blocked",
+        "dimensions": {
+          "mechanics_depth": {
+            "score": null,
+            "rationale": "Pending execution; visual polish must not mask shallow mechanics.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-VP/scorecard/mechanics_depth"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "onboarding_clarity": {
+            "score": null,
+            "rationale": "Pending execution; visual polish should improve legibility and affordances.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-VP/scorecard/onboarding_clarity"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "goal_state": {
+            "score": null,
+            "rationale": "Pending execution; goal state requires UI and report evidence.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-VP/scorecard/goal_state"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "replay_value": {
+            "score": null,
+            "rationale": "Pending execution; replay value should be compared with baseline and mechanics-depth cells.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-VP/scorecard/replay_value"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "visual_polish": {
+            "score": null,
+            "rationale": "Pending execution; this is the primary dimension for the visual-polish prompt.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-VP/scorecard/visual_polish"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "browser_correctness": {
+            "score": null,
+            "rationale": "Pending execution; visual changes must preserve browser smoke correctness.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-VP/scorecard/browser_correctness"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "prompt_adherence": {
+            "score": null,
+            "rationale": "Pending execution; prompt adherence requires generated PR evidence.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-VP/scorecard/prompt_adherence"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "review_burden": {
+            "score": null,
+            "rationale": "Pending execution; review burden must capture style-only or cosmetic overreach.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-VP/scorecard/review_burden"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          }
+        }
+      },
+      "observables": [
+        "screenshot_legibility",
+        "layout_overflow",
+        "affordance_visibility",
+        "mechanics_depth_gap",
+        "review_minutes"
+      ],
+      "status": "blocked",
+      "blocked_reason": "Wave 1 live launch has not been authorized.",
+      "evidence": [
+        "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-VP"
+      ],
+      "final_disposition": "blocked_pending_wave1_authorization"
+    },
+    {
+      "cell_id": "W1-RV",
+      "wave_id": "wave1-tiny-controlled",
+      "cell_type": "rerun_variance",
+      "question": "How much variance appears when the same issue and prompt shape are rerun through the evaluator?",
+      "prompt_variant": {
+        "id": "rerun-variance",
+        "summary": "Rerun one selected issue/prompt shape to estimate build and judge variance before scaling."
+      },
+      "model": "opencode/big-pickle",
+      "source_issue": {
+        "number": null,
+        "url": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-RV/source_issue"
+        ],
+        "blocked_reason": "No Wave 1 rerun target has been selected or authorized."
+      },
+      "build_pr": {
+        "number": null,
+        "url": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-RV/build_pr"
+        ],
+        "blocked_reason": "No Wave 1 rerun PR has been authorized or created."
+      },
+      "evaluation_run": {
+        "run_id": null,
+        "url": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-RV/evaluation_run"
+        ],
+        "blocked_reason": "No evaluator workflow dispatch has been authorized."
+      },
+      "artifact_name": null,
+      "browser_screenshot": {
+        "path": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-RV/browser_screenshot"
+        ],
+        "blocked_reason": "No artifact exists before a Wave 1 run."
+      },
+      "deterministic_report": {
+        "path": null,
+        "status": "blocked",
+        "evidence": [
+          "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-RV/deterministic_report"
+        ],
+        "blocked_reason": "No deterministic report exists before a Wave 1 run."
+      },
+      "scorecard": {
+        "status": "blocked",
+        "dimensions": {
+          "mechanics_depth": {
+            "score": null,
+            "rationale": "Pending execution; variance should compare mechanics depth against the selected original cell.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-RV/scorecard/mechanics_depth"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "onboarding_clarity": {
+            "score": null,
+            "rationale": "Pending execution; onboarding variance should cite screenshot and reviewer observations.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-RV/scorecard/onboarding_clarity"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "goal_state": {
+            "score": null,
+            "rationale": "Pending execution; goal-state variance requires generated output evidence.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-RV/scorecard/goal_state"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "replay_value": {
+            "score": null,
+            "rationale": "Pending execution; replay-value variance must not be inferred from a single run.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-RV/scorecard/replay_value"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "visual_polish": {
+            "score": null,
+            "rationale": "Pending execution; visual variance requires screenshot comparison.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-RV/scorecard/visual_polish"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "browser_correctness": {
+            "score": null,
+            "rationale": "Pending execution; browser correctness variance requires deterministic report comparison.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-RV/scorecard/browser_correctness"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "prompt_adherence": {
+            "score": null,
+            "rationale": "Pending execution; prompt adherence variance requires generated PR evidence.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-RV/scorecard/prompt_adherence"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          },
+          "review_burden": {
+            "score": null,
+            "rationale": "Pending execution; review burden variance requires reviewer notes and elapsed review time.",
+            "evidence": [
+              "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-RV/scorecard/review_burden"
+            ],
+            "blocked_reason": "Wave 1 has not been authorized."
+          }
+        }
+      },
+      "observables": [
+        "score_delta",
+        "label_stability",
+        "known_gap_overlap",
+        "browser_smoke_status",
+        "review_minutes"
+      ],
+      "status": "blocked",
+      "blocked_reason": "Wave 1 live launch has not been authorized.",
+      "evidence": [
+        "manifest:specimens/pullfrog/waves/wave0-framework.json#/cells/W1-RV"
+      ],
+      "final_disposition": "blocked_pending_wave1_authorization"
+    }
+  ],
+  "worker_report_contract": {
+    "tasks": [
+      {
+        "task_id": "extract-known-gaps",
+        "task_type": "extract_known_gaps",
+        "inputs": [
+          "deterministic_report",
+          "judge_output",
+          "review_notes"
+        ],
+        "output": "cited_gap_list"
+      },
+      {
+        "task_id": "classify-failure-modes",
+        "task_type": "classify_failure_modes",
+        "inputs": [
+          "known_gaps",
+          "scorecard_dimensions"
+        ],
+        "output": "failure_mode_counts"
+      },
+      {
+        "task_id": "compare-scorecard-deltas",
+        "task_type": "compare_scorecard_deltas",
+        "inputs": [
+          "scorecards",
+          "rerun_lineage"
+        ],
+        "output": "dimension_delta_table"
+      },
+      {
+        "task_id": "summarize-evidence",
+        "task_type": "summarize_evidence",
+        "inputs": [
+          "report",
+          "screenshot",
+          "scorecard",
+          "review_notes"
+        ],
+        "output": "citation_first_summary"
+      },
+      {
+        "task_id": "mark-blocked-honestly",
+        "task_type": "mark_blocked_honestly",
+        "inputs": [
+          "missing_inputs",
+          "blocked_reason"
+        ],
+        "output": "blocked_report"
+      }
+    ],
+    "jules_policy": {
+      "required": false,
+      "max_cells_per_assignment": 1,
+      "allowed_assignment_shapes": [
+        "one-cell implementation",
+        "one-report extraction"
+      ],
+      "blocked_path": "Return BLOCKED with missing input names and do not fabricate evidence."
+    }
+  },
+  "rejection_criteria": [
+    {
+      "id": "missing_artifact",
+      "rule": "A completed cell must cite a downloaded evaluator artifact."
+    },
+    {
+      "id": "missing_screenshot",
+      "rule": "A completed cell must cite a browser smoke screenshot."
+    },
+    {
+      "id": "missing_deterministic_report",
+      "rule": "A completed cell must cite report.json from the evaluator artifact."
+    },
+    {
+      "id": "unparseable_scorecard",
+      "rule": "A scorecard must parse and include every required dimension."
+    },
+    {
+      "id": "uncited_claim",
+      "rule": "Claims in reports and synthesis must cite report, screenshot, scorecard, observation, issue, PR, workflow, artifact, manifest, or synthesis evidence."
+    },
+    {
+      "id": "duplicate_or_ambiguous_cell_identity",
+      "rule": "cell_id and the cell tuple must be unique inside a wave."
+    },
+    {
+      "id": "manual_specimen_data_repair",
+      "rule": "Manual specimen JSON edits cannot substitute for evaluator persistence."
+    },
+    {
+      "id": "missing_synthesis",
+      "rule": "A wave without synthesis does not count as learning."
+    }
+  ],
+  "synthesis": {
+    "path": "docs/pullfrog-fleet/synthesis/wave0-framework.md",
+    "procedure": [
+      {
+        "id": "compare_cells",
+        "description": "Compare cells by deterministic checks and every scorecard dimension."
+      },
+      {
+        "id": "identify_repeated_failure_modes",
+        "description": "Separate repeated gaps from one-off topic effects."
+      },
+      {
+        "id": "separate_effects",
+        "description": "Separate prompt, model, workflow, and specimen-topic effects."
+      },
+      {
+        "id": "record_killed_hypotheses",
+        "description": "Record which hypotheses the evidence killed."
+      },
+      {
+        "id": "recommend_next_smallest_wave",
+        "description": "Recommend the next smallest useful wave or stop."
+      }
+    ],
+    "wave1_authorization_stub": {
+      "cell_count": 5,
+      "cells": [
+        "W1-BL",
+        "W1-ON",
+        "W1-MD",
+        "W1-VP",
+        "W1-RV"
+      ],
+      "stop_condition": "Stop after one run per authorized cell, reject any uncited or incomplete report, synthesize before launching additional cells."
+    }
+  },
+  "persistence_safety": {
+    "guard": "github_actions_job_concurrency",
+    "workflow": ".github/workflows/pullfrog-experiment-evaluate.yml",
+    "job": "persist-specimen-lab",
+    "group": "pullfrog-specimen-lab-persist",
+    "cancel_in_progress": false,
+    "reason": "All persistence jobs write specimens/pullfrog/specimens.json and one screenshot asset to main, so they must queue instead of racing."
+  }
+}
