@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-06-14T16:33:33.049Z",
+  "generated_at": "2026-06-14T16:34:24.312Z",
   "specimens": [
     {
       "id": "pullfrog-pr-97",
@@ -104,6 +104,108 @@
             "First-click affordance only appears on Level 1, column of first source",
             "No undo/redo for wire placement",
             "No seed-based level randomization"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pullfrog-pr-98",
+      "title": "Signal Path Lab",
+      "slug": "signal-path-lab",
+      "tier": 8,
+      "kind": "Pullfrog specimen",
+      "status": "accepted",
+      "score": 3,
+      "recommendation": "accept",
+      "issue": {
+        "number": 95,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/issues/95"
+      },
+      "pr": {
+        "number": 98,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/pull/98",
+        "title": "[Pullfrog experiment] Signal Path Lab — T8 signal routing grid puzzle",
+        "head_ref": "pullfrog/95-signal-path-lab",
+        "base_ref": "main",
+        "head_sha": "284b94f59e8643df36c4d7363863acb2763cd477"
+      },
+      "workflow": {
+        "run_id": 27505113022,
+        "run_attempt": 1,
+        "run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27505113022",
+        "workflow": "Evaluate Pullfrog Experiment",
+        "event_name": "workflow_dispatch",
+        "actor": "Drew-Goddyn",
+        "ref": "main",
+        "sha": "e2e9e4eea50bed854651c251e1766f938993ab34",
+        "artifact_name": "pullfrog-experiment-evaluation-98"
+      },
+      "artifact": {
+        "name": "pullfrog-experiment-evaluation-98",
+        "workflow_run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27505113022",
+        "contains": [
+          "report.json",
+          "browser-smoke.png"
+        ]
+      },
+      "scorecard": {
+        "marker": "<!-- pullfrog-experiment-evaluator:v2 pr=98 issue=95 -->",
+        "pr_comment_url": "https://github.com/Drew-Goddyn/jules-toys/pull/98#issuecomment-4702370435",
+        "issue_comment_url": "https://github.com/Drew-Goddyn/jules-toys/issues/95#issuecomment-4702370468",
+        "updated_at": "2026-06-14T16:34:24.312Z"
+      },
+      "screenshot": {
+        "path": "specimen-lab/pullfrog/pr-98/browser-smoke.png",
+        "source": "evaluator-browser-smoke",
+        "artifact_file": "browser-smoke.png"
+      },
+      "known_gaps": [
+        "Puzzle generation undershoots the brief — blocked cells don't intersect routing rows, making initial state trivially solvable",
+        "checkReachability function is defined but never called (dead code)",
+        "No visual polish beyond basic dark theme",
+        "No sound effects, scoring, or timer",
+        "All 3 source-target pairs must be fully connected — no partial routing mechanic"
+      ],
+      "comparison": {
+        "run_count": 1,
+        "previous_score": null,
+        "score_delta": null,
+        "mechanical_pass": true,
+        "latest_label": "experiment:accepted",
+        "previous_run_id": null,
+        "summary": "First v2 evaluator run recorded for this specimen."
+      },
+      "provenance": {
+        "source": "pullfrog-evaluator-v2",
+        "repository": "Drew-Goddyn/jules-toys",
+        "free_model": "opencode/big-pickle",
+        "report_version": 2,
+        "report_generated_at": "2026-06-14T16:31:25.772Z",
+        "persisted_at": "2026-06-14T16:34:24.312Z",
+        "generated_from": "GitHub Actions evaluator artifact and Pullfrog judge output"
+      },
+      "reruns": [
+        {
+          "run_id": 27505113022,
+          "run_attempt": 1,
+          "run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27505113022",
+          "event_name": "workflow_dispatch",
+          "head_sha": "284b94f59e8643df36c4d7363863acb2763cd477",
+          "generated_at": "2026-06-14T16:31:25.772Z",
+          "mechanical_pass": true,
+          "score": 3,
+          "recommendation": "accept",
+          "label": "experiment:accepted",
+          "status": "accepted",
+          "artifact_name": "pullfrog-experiment-evaluation-98",
+          "pr_comment_url": "https://github.com/Drew-Goddyn/jules-toys/pull/98#issuecomment-4702370435",
+          "issue_comment_url": "https://github.com/Drew-Goddyn/jules-toys/issues/95#issuecomment-4702370468",
+          "known_gaps": [
+            "Puzzle generation undershoots the brief — blocked cells don't intersect routing rows, making initial state trivially solvable",
+            "checkReachability function is defined but never called (dead code)",
+            "No visual polish beyond basic dark theme",
+            "No sound effects, scoring, or timer",
+            "All 3 source-target pairs must be fully connected — no partial routing mechanic"
           ]
         }
       ]
