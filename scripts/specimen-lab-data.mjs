@@ -45,6 +45,8 @@ export function updateSpecimenLab(rootDir, { report, judge, artifactDir, prComme
   const screenshotPath = copyBrowserSmoke(rootDir, artifactDir, prNumber);
   const outcome = deriveOutcome(report, judge, qualityThreshold);
   const knownGaps = collectKnownGaps(report, judge);
+  const artifactContents = buildArtifactContents(report);
+  const playtest = summarizePlaytestEvidence(report);
   const previousRun = existing?.reruns?.at(-1) ?? null;
   const run = buildRunRecord(report, judge, {
     artifactName,
@@ -52,7 +54,8 @@ export function updateSpecimenLab(rootDir, { report, judge, artifactDir, prComme
     issueCommentUrl,
     finalLabel: outcome.finalLabel,
     status: outcome.status,
-    knownGaps
+    knownGaps,
+    playtest
   });
   const reruns = upsertRun([...(existing?.reruns ?? [])], run);
   const previousScore = previousRun?.score ?? null;
@@ -85,7 +88,7 @@ export function updateSpecimenLab(rootDir, { report, judge, artifactDir, prComme
     artifact: {
       name: artifactName,
       workflow_run_url: report.workflow?.run_url ?? null,
-      contains: ["report.json", "browser-smoke.png"]
+      contains: artifactContents
     },
     scorecard: {
       marker: scorecardMarker,
@@ -98,6 +101,7 @@ export function updateSpecimenLab(rootDir, { report, judge, artifactDir, prComme
       source: "evaluator-browser-smoke",
       artifact_file: "browser-smoke.png"
     },
+    playtest,
     known_gaps: knownGaps,
     comparison: {
       run_count: reruns.length,
@@ -243,6 +247,46 @@ function collectKnownGaps(report, judge) {
   ].filter((gap, index, gaps) => typeof gap === "string" && gap.trim() && gaps.indexOf(gap) === index);
 }
 
+function buildArtifactContents(report) {
+  const contains = new Set(["report.json", "browser-smoke.png"]);
+  const trace = report.deterministic?.playtest_trace;
+  for (const screenshot of [
+    trace?.initial_screenshot,
+    trace?.after_evidence?.screenshot
+  ]) {
+    if (typeof screenshot === "string" && screenshot.trim()) {
+      contains.add(path.basename(screenshot));
+    }
+  }
+  return [...contains];
+}
+
+function summarizePlaytestEvidence(report) {
+  const trace = report.deterministic?.playtest_trace;
+  const review = report.model_playtest_review;
+  if (!trace) {
+    return null;
+  }
+
+  const firstAttempt = trace.attempted_interactions?.[0] ?? {};
+  return {
+    trace_status: trace.status ?? null,
+    mechanical_status: trace.mechanical_status ?? null,
+    load_status: trace.load_status?.status ?? null,
+    action_status: firstAttempt.status ?? null,
+    action_type: firstAttempt.type ?? null,
+    state_changed: trace.state_changed ?? null,
+    state_change_reasons: trace.state_change_reasons ?? [],
+    feedback_observed: Boolean(trace.feedback_observed?.success_failure_progress),
+    candidate_control_count: trace.candidate_actionable_controls?.length ?? 0,
+    initial_screenshot: trace.initial_screenshot ?? null,
+    after_screenshot: trace.after_evidence?.screenshot ?? null,
+    model_review_status: review?.status ?? null,
+    model_review_model: review?.model ?? null,
+    model_review_recommendation: review?.response?.recommendation ?? null
+  };
+}
+
 function buildRunRecord(report, judge, options) {
   return {
     run_id: report.workflow?.run_id ?? null,
@@ -259,7 +303,8 @@ function buildRunRecord(report, judge, options) {
     artifact_name: options.artifactName,
     pr_comment_url: options.prCommentUrl ?? null,
     issue_comment_url: options.issueCommentUrl ?? null,
-    known_gaps: options.knownGaps
+    known_gaps: options.knownGaps,
+    playtest: options.playtest
   };
 }
 

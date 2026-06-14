@@ -1,7 +1,8 @@
 import fs from "node:fs";
+import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { loadSpecimenLab } from "../scripts/specimen-lab-data.mjs";
@@ -34,6 +35,11 @@ test("Specimen Lab updater upserts one specimen and appends rerun lineage", () =
     assert.deepEqual(specimen.reruns.map((run) => run.run_id), [101, 102]);
     assert.equal(specimen.scorecard.pr_comment_url, "https://github.com/Drew-Goddyn/jules-toys/pull/87#issuecomment-102");
     assert.ok(fs.existsSync(path.join(tempRoot, "public", "specimen-lab", "pullfrog", "pr-87", "browser-smoke.png")));
+    assert.deepEqual(specimen.artifact.contains, ["report.json", "browser-smoke.png", "playtest-initial.png", "playtest-after-interaction.png"]);
+    assert.equal(specimen.playtest.mechanical_status, "pass");
+    assert.equal(specimen.playtest.state_changed, true);
+    assert.equal(specimen.playtest.model_review_status, "skipped");
+    assert.equal(specimen.reruns[1].playtest.action_type, "control-click");
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
@@ -53,13 +59,13 @@ test("Evaluator lineage can read Specimen Lab history outside the PR worktree", 
     const metadataPath = path.join(tempRoot, "metadata.json");
     fs.writeFileSync(metadataPath, `${JSON.stringify({
       number: 87,
-      title: "[Pullfrog experiment] feat: add Lantern Loom Lab T9 light puzzle toy",
+      title: "[Pullfrog experiment] feat: add Lunar Postcards T3 toy",
       url: "https://github.com/Drew-Goddyn/jules-toys/pull/87",
       body: "Refs #86",
-      headRefName: "pullfrog/86-lantern-loom-lab",
+      headRefName: "pullfrog/86-lunar-postcards",
       headRefOid: "head-sha",
       baseRefName: "main",
-      files: ["gallery-data.js", "tier9/lantern-loom-lab/index.html", "tier9/lantern-loom-lab/screenshot.png"]
+      files: ["gallery-data.js", "tier3/lunar-postcards/index.html", "tier3/lunar-postcards/screenshot.png"]
     }, null, 2)}\n`);
 
     const reportPath = path.join(tempRoot, "lineage-report.json");
@@ -98,6 +104,223 @@ test("Evaluator lineage can read Specimen Lab history outside the PR worktree", 
     assert.deepEqual(report.lineage.previous_runs.map((run) => run.run_id), [111]);
     assert.equal(report.lineage.specimen_data_source.error, null);
     assert.ok(report.lineage.specimen_data_source.generated_at);
+    assert.equal(report.deterministic.playtest_trace.status, "skipped");
+    assert.equal(report.deterministic.playtest_trace.mechanical_status, "skipped");
+    assert.equal(report.deterministic.playtest_trace.attempted_interactions[0].status, "skipped");
+    assert.equal(report.model_playtest_review.status, "skipped");
+    assert.equal(report.recommendation.mechanical_pass, true);
+    assert.ok(report.recommendation.known_gaps.some((gap) => gap.includes("browser playtest skipped")));
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("Evaluator records a mocked Gemini playtest review separately from deterministic acceptance", async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pullfrog-gemini-review-test-"));
+  const requests = [];
+  const server = await startGeminiMockServer((body, request) => {
+    requests.push({ body, apiKey: request.headers["x-goog-api-key"] });
+    return {
+      candidates: [{
+        content: {
+          parts: [{
+            text: JSON.stringify({
+              goal_guess: "Flip the postcards and inspect the scene.",
+              first_action_guess: "Click the first visible control or card.",
+              first_action_confidence: 0.4,
+              observed_feedback: "The trace was skipped, so feedback evidence is insufficient.",
+              stuck_reason: "No browser interaction trace was captured in this fixture.",
+              clarity_score: 2,
+              interaction_confidence: 0.2,
+              known_gaps: ["Trace skipped by test fixture."],
+              recommendation: "needs-human-review"
+            })
+          }]
+        }
+      }],
+      usageMetadata: {
+        promptTokenCount: 10,
+        candidatesTokenCount: 20,
+        totalTokenCount: 30
+      }
+    };
+  });
+
+  try {
+    const metadataPath = writeEvaluatorMetadata(tempRoot);
+    const reportPath = path.join(tempRoot, "gemini-report.json");
+    const result = await runNode([
+      evaluatorPath,
+      "--pr-number", "87",
+      "--issue-number", "86",
+      "--metadata", metadataPath,
+      "--test-outcome", "success",
+      "--browser-smoke", "false",
+      "--gemini-playtest", "true",
+      "--gemini-api-key", "test-key",
+      "--gemini-endpoint", server.url,
+      "--output-dir", path.join(tempRoot, "evaluation"),
+      "--report", reportPath
+    ], { cwd: repoRoot });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].apiKey, "test-key");
+    assert.equal(requests[0].body.generationConfig.responseFormat.text.mimeType, "application/json");
+    assert.equal(requests[0].body.generationConfig.responseFormat.text.schema.required.includes("clarity_score"), true);
+
+    const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+    assert.equal(report.recommendation.mechanical_pass, true);
+    assert.equal(report.model_playtest_review.status, "completed");
+    assert.equal(report.model_playtest_review.response.recommendation, "needs-human-review");
+    assert.equal(report.model_playtest_review.deterministic_authority, "deterministic.playtest_trace");
+    assert.equal(report.model_playtest_review.usage_metadata.totalTokenCount, 30);
+  } finally {
+    await server.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("Evaluator keeps mechanical failure failed even when mocked Gemini recommends accept", async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pullfrog-gemini-mechanical-fail-test-"));
+  const server = await startGeminiMockServer(() => ({
+    candidates: [{
+      content: {
+        parts: [{
+          text: JSON.stringify({
+            goal_guess: "Play the toy.",
+            first_action_guess: "Click the visible target.",
+            first_action_confidence: 0.9,
+            observed_feedback: "Looks clear from the limited evidence.",
+            stuck_reason: null,
+            clarity_score: 5,
+            interaction_confidence: 0.9,
+            known_gaps: [],
+            recommendation: "accept"
+          })
+        }]
+      }
+    }]
+  }));
+
+  try {
+    const metadataPath = writeEvaluatorMetadata(tempRoot);
+    const reportPath = path.join(tempRoot, "mechanical-fail-report.json");
+    const result = await runNode([
+      evaluatorPath,
+      "--pr-number", "87",
+      "--issue-number", "86",
+      "--metadata", metadataPath,
+      "--test-outcome", "failure",
+      "--browser-smoke", "false",
+      "--gemini-playtest", "true",
+      "--gemini-api-key", "test-key",
+      "--gemini-endpoint", server.url,
+      "--output-dir", path.join(tempRoot, "evaluation"),
+      "--report", reportPath
+    ], { cwd: repoRoot });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+    assert.equal(report.model_playtest_review.status, "completed");
+    assert.equal(report.model_playtest_review.response.recommendation, "accept");
+    assert.equal(report.recommendation.mechanical_pass, false);
+    assert.equal(report.recommendation.deterministic_label, "experiment:failed");
+    assert.ok(report.recommendation.known_gaps.some((gap) => gap.includes("CI/test failed")));
+  } finally {
+    await server.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("Evaluator records malformed Gemini playtest JSON without failing deterministic evaluation", async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pullfrog-gemini-malformed-test-"));
+  const server = await startGeminiMockServer(() => ({
+    candidates: [{
+      content: {
+        parts: [{ text: "{not json" }]
+      }
+    }]
+  }));
+
+  try {
+    const metadataPath = writeEvaluatorMetadata(tempRoot);
+    const reportPath = path.join(tempRoot, "malformed-gemini-report.json");
+    const result = await runNode([
+      evaluatorPath,
+      "--pr-number", "87",
+      "--issue-number", "86",
+      "--metadata", metadataPath,
+      "--test-outcome", "success",
+      "--browser-smoke", "false",
+      "--gemini-playtest", "true",
+      "--gemini-api-key", "test-key",
+      "--gemini-endpoint", server.url,
+      "--output-dir", path.join(tempRoot, "evaluation"),
+      "--report", reportPath
+    ], { cwd: repoRoot });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+    assert.equal(report.recommendation.mechanical_pass, true);
+    assert.equal(report.model_playtest_review.status, "failed");
+    assert.match(report.model_playtest_review.reason, /JSON/);
+    assert.ok(report.recommendation.known_gaps.some((gap) => gap.includes("Gemini playtest review failed")));
+  } finally {
+    await server.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("Specimen Lab updater remains compatible with legacy v2 reports without playtest evidence", () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "specimen-lab-legacy-test-"));
+  try {
+    fs.mkdirSync(path.join(tempRoot, "specimens", "pullfrog"), { recursive: true });
+    fs.writeFileSync(path.join(tempRoot, "specimens", "pullfrog", "specimens.json"), `${JSON.stringify({
+      schema_version: 1,
+      generated_at: null,
+      specimens: []
+    }, null, 2)}\n`);
+
+    const artifactDir = path.join(tempRoot, "artifact-legacy");
+    fs.mkdirSync(artifactDir, { recursive: true });
+    fs.writeFileSync(path.join(artifactDir, "browser-smoke.png"), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+
+    const reportPath = path.join(tempRoot, "legacy-report.json");
+    fs.writeFileSync(reportPath, `${JSON.stringify(makeLegacyReport(333), null, 2)}\n`);
+    const judgePath = path.join(tempRoot, "legacy-judge.json");
+    fs.writeFileSync(judgePath, `${JSON.stringify({
+      quality_score: 3,
+      acceptance_recommendation: "accept",
+      novelty: "novel",
+      coherence: "coherent",
+      usefulness: "useful",
+      review_burden: "low",
+      known_gaps: [],
+      rationale: "legacy fixture"
+    }, null, 2)}\n`);
+
+    const result = spawnSync(process.execPath, [
+      updaterPath,
+      "--root-dir", tempRoot,
+      "--report", reportPath,
+      "--judge", judgePath,
+      "--artifact-dir", artifactDir,
+      "--pr-comment-url", "https://github.com/Drew-Goddyn/jules-toys/pull/87#issuecomment-333",
+      "--issue-comment-url", "https://github.com/Drew-Goddyn/jules-toys/issues/86#issuecomment-333",
+      "--scorecard-marker", "<!-- pullfrog-experiment-evaluator:v2 pr=87 issue=86 -->",
+      "--artifact-name", "pullfrog-experiment-evaluation-87",
+      "--quality-threshold", "3"
+    ], {
+      cwd: repoRoot,
+      encoding: "utf8"
+    });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const lab = loadSpecimenLab(tempRoot);
+    assert.equal(lab.specimens[0].playtest, null);
+    assert.deepEqual(lab.specimens[0].artifact.contains, ["report.json", "browser-smoke.png"]);
+    assert.equal(lab.specimens[0].reruns[0].playtest, null);
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
@@ -107,6 +330,8 @@ function runUpdate(tempRoot, runId, score, gaps) {
   const artifactDir = path.join(tempRoot, `artifact-${runId}`);
   fs.mkdirSync(artifactDir, { recursive: true });
   fs.writeFileSync(path.join(artifactDir, "browser-smoke.png"), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+  fs.writeFileSync(path.join(artifactDir, "playtest-initial.png"), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+  fs.writeFileSync(path.join(artifactDir, "playtest-after-interaction.png"), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
 
   const reportPath = path.join(tempRoot, `report-${runId}.json`);
   fs.writeFileSync(reportPath, `${JSON.stringify(makeReport(runId), null, 2)}\n`);
@@ -140,6 +365,69 @@ function runUpdate(tempRoot, runId, score, gaps) {
   });
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
+}
+
+async function startGeminiMockServer(handler) {
+  const server = http.createServer((request, response) => {
+    let raw = "";
+    request.setEncoding("utf8");
+    request.on("data", (chunk) => {
+      raw += chunk;
+    });
+    request.on("end", () => {
+      const body = raw ? JSON.parse(raw) : null;
+      const payload = handler(body, request);
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(`${JSON.stringify(payload)}\n`);
+    });
+  });
+
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+
+  const port = server.address().port;
+  return {
+    url: `http://127.0.0.1:${port}/v1beta/models/gemini-3.5-flash:generateContent`,
+    close: () => new Promise((resolve) => server.close(resolve))
+  };
+}
+
+function runNode(args, options) {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, args, {
+      cwd: options.cwd,
+      env: options.env ?? process.env,
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.on("close", (status) => {
+      resolve({ status, stdout, stderr });
+    });
+  });
+}
+
+function writeEvaluatorMetadata(tempRoot) {
+  const metadataPath = path.join(tempRoot, "metadata.json");
+  fs.writeFileSync(metadataPath, `${JSON.stringify({
+    number: 87,
+    title: "[Pullfrog experiment] feat: add Lunar Postcards T3 toy",
+    url: "https://github.com/Drew-Goddyn/jules-toys/pull/87",
+    body: "Refs #86",
+    headRefName: "pullfrog/86-lunar-postcards",
+    headRefOid: "head-sha",
+    baseRefName: "main",
+    files: ["gallery-data.js", "tier3/lunar-postcards/index.html", "tier3/lunar-postcards/screenshot.png"]
+  }, null, 2)}\n`);
+  return metadataPath;
 }
 
 function makeReport(runId) {
@@ -194,12 +482,97 @@ function makeReport(runId) {
       },
       screenshot_presence: { status: "pass", path: "tier9/lantern-loom-lab/screenshot.png" },
       external_network_dependency: { status: "pass", references: [], dynamic_apis: [] },
-      browser_smoke: { status: "pass", screenshot: "pullfrog-evaluation/browser-smoke.png" }
+      browser_smoke: { status: "pass", screenshot: "pullfrog-evaluation/browser-smoke.png" },
+      playtest_trace: makePlaytestTrace()
+    },
+    model_playtest_review: {
+      status: "skipped",
+      provider: "gemini",
+      model: "gemini-3.5-flash",
+      reason: "Gemini playtest review is disabled."
     },
     recommendation: {
       mechanical_pass: true,
       deterministic_label: "experiment:accepted",
       known_gaps: []
     }
+  };
+}
+
+function makeLegacyReport(runId) {
+  const report = makeReport(runId);
+  delete report.deterministic.playtest_trace;
+  delete report.model_playtest_review;
+  return report;
+}
+
+function makePlaytestTrace() {
+  return {
+    status: "completed",
+    load_status: {
+      status: "pass",
+      ready_state: "complete",
+      navigation_error: null
+    },
+    console_errors: [],
+    page_errors: [],
+    initial_screenshot: "pullfrog-evaluation/playtest-initial.png",
+    candidate_actionable_controls: [{
+      index: 0,
+      tag: "button",
+      role: null,
+      type: "button",
+      text: "Start",
+      aria_label: null,
+      disabled: false,
+      href: null,
+      center_x: 100,
+      center_y: 100,
+      width: 80,
+      height: 32
+    }],
+    attempted_interactions: [{
+      type: "control-click",
+      status: "attempted",
+      target: {
+        index: 0,
+        tag: "button",
+        role: null,
+        type: "button",
+        text: "Start",
+        aria_label: null
+      },
+      x: 100,
+      y: 100
+    }],
+    before_evidence: {
+      url: "http://127.0.0.1/example",
+      title: "Example",
+      text_hash: "before",
+      text_sample: "Start",
+      control_count: 1,
+      canvas_count: 0,
+      screenshot: "pullfrog-evaluation/playtest-initial.png",
+      screenshot_analysis: { status: "pass", nonblank: true }
+    },
+    after_evidence: {
+      url: "http://127.0.0.1/example",
+      title: "Example",
+      text_hash: "after",
+      text_sample: "Level complete",
+      control_count: 1,
+      canvas_count: 0,
+      screenshot: "pullfrog-evaluation/playtest-after-interaction.png",
+      screenshot_analysis: { status: "pass", nonblank: true }
+    },
+    state_changed: true,
+    state_change_reasons: ["text_changed", "pixels_changed"],
+    feedback_observed: {
+      success_failure_progress: true,
+      keywords: ["complete"],
+      reason: "Post-interaction text exposed success, failure, or progress language that was not present before the action."
+    },
+    mechanical_status: "pass",
+    reason: "The page loaded, an interaction was attempted, and deterministic evidence changed or exposed feedback."
   };
 }
