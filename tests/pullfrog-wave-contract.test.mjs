@@ -10,10 +10,19 @@ import {
   loadPullfrogWaveManifest,
   validatePullfrogWaveManifest
 } from "../scripts/validate-pullfrog-wave.mjs";
+import {
+  loadJson,
+  loadMarkdown,
+  validatePullfrogSynthesis
+} from "../scripts/validate-pullfrog-synthesis.mjs";
 
 const rootDir = process.cwd();
 const wavePath = path.join(rootDir, "specimens", "pullfrog", "waves", "wave0-framework.json");
+const dryWavePath = path.join(rootDir, "specimens", "pullfrog", "waves", "wave05-dry-rehearsal.json");
+const drySynthesisPath = path.join(rootDir, "docs", "pullfrog-fleet", "synthesis", "wave05-dry-rehearsal.md");
+const validCompletedPath = path.join(rootDir, "tests", "fixtures", "pullfrog-wave", "valid-completed-cell.json");
 const invalidEvidencePath = path.join(rootDir, "tests", "fixtures", "pullfrog-wave", "invalid-missing-scorecard-evidence.json");
+const invalidSynthesisPath = path.join(rootDir, "tests", "fixtures", "pullfrog-synthesis", "invalid-missing-citation.md");
 
 test("Wave 0 manifest is inert and covers the required future cell types", () => {
   const manifest = loadPullfrogWaveManifest(wavePath);
@@ -62,6 +71,68 @@ test("validator rejects duplicate cell identity", () => {
     /Duplicate or ambiguous cell tuple/
   );
 });
+
+test("validator accepts a completed-cell fixture with artifact, report, screenshot, scores, and synthesis", () => {
+  const manifest = loadPullfrogWaveManifest(validCompletedPath);
+
+  assert.doesNotThrow(() => validatePullfrogWaveManifest(manifest));
+  assert.equal(manifest.cells[0].status, "passed");
+  assert.ok(manifest.cells[0].artifact_name);
+  assert.ok(manifest.cells[0].browser_screenshot.path);
+  assert.ok(manifest.cells[0].deterministic_report.path);
+  assert.ok(manifest.cells[0].synthesis_reference.path);
+  for (const dimension of SCORECARD_DIMENSIONS) {
+    assert.match(String(manifest.cells[0].scorecard.dimensions[dimension].score), /^[1-5]$/);
+  }
+});
+
+for (const { name, mutate, pattern } of [
+  {
+    name: "missing artifact",
+    mutate: (manifest) => {
+      manifest.cells[0].artifact_name = null;
+    },
+    pattern: /artifact_name must be non-empty/
+  },
+  {
+    name: "missing screenshot",
+    mutate: (manifest) => {
+      manifest.cells[0].browser_screenshot.path = null;
+    },
+    pattern: /browser_screenshot\.path must be non-empty/
+  },
+  {
+    name: "missing deterministic report",
+    mutate: (manifest) => {
+      manifest.cells[0].deterministic_report.path = null;
+    },
+    pattern: /deterministic_report\.path must be non-empty/
+  },
+  {
+    name: "missing synthesis reference",
+    mutate: (manifest) => {
+      delete manifest.cells[0].synthesis_reference;
+    },
+    pattern: /synthesis_reference must be an object/
+  },
+  {
+    name: "missing synthesis procedure",
+    mutate: (manifest) => {
+      delete manifest.synthesis;
+    },
+    pattern: /synthesis must be an object/
+  }
+]) {
+  test(`validator rejects completed cells with ${name}`, () => {
+    const manifest = clone(loadPullfrogWaveManifest(validCompletedPath));
+    mutate(manifest);
+
+    assert.throws(
+      () => validatePullfrogWaveManifest(manifest),
+      pattern
+    );
+  });
+}
 
 test("validator rejects models outside the allowed free-model path", () => {
   const manifest = clone(loadPullfrogWaveManifest(wavePath));
@@ -119,6 +190,38 @@ test("validating the framework does not mutate live specimen data", () => {
 
   const after = fs.readFileSync(path.join(rootDir, "specimens", "pullfrog", "specimens.json"), "utf8");
   assert.equal(after, before);
+});
+
+test("Wave 0.5 dry rehearsal manifest validates existing specimen-derived cells without mutating live specimens", () => {
+  const before = fs.readFileSync(path.join(rootDir, "specimens", "pullfrog", "specimens.json"), "utf8");
+  const manifest = loadPullfrogWaveManifest(dryWavePath);
+
+  assert.doesNotThrow(() => validatePullfrogWaveManifest(manifest));
+  assert.equal(manifest.status, "dry_rehearsal");
+  assert.deepEqual(
+    manifest.cells.map((cell) => cell.build_pr.number).sort((a, b) => a - b),
+    [79, 85, 87]
+  );
+
+  const after = fs.readFileSync(path.join(rootDir, "specimens", "pullfrog", "specimens.json"), "utf8");
+  assert.equal(after, before);
+});
+
+test("dry synthesis quality gate accepts the cited Wave 0.5 synthesis", () => {
+  assert.doesNotThrow(() => validatePullfrogSynthesis(
+    loadJson(dryWavePath),
+    loadMarkdown(drySynthesisPath)
+  ));
+});
+
+test("dry synthesis quality gate rejects uncited material claims", () => {
+  assert.throws(
+    () => validatePullfrogSynthesis(
+      loadJson(dryWavePath),
+      loadMarkdown(invalidSynthesisPath)
+    ),
+    /uncited material claim/
+  );
 });
 
 function clone(value) {
