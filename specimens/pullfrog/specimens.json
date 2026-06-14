@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-06-14T16:34:24.312Z",
+  "generated_at": "2026-06-14T19:34:46.568Z",
   "specimens": [
     {
       "id": "pullfrog-pr-97",
@@ -10,7 +10,7 @@
       "kind": "Pullfrog specimen",
       "status": "accepted",
       "score": 3,
-      "recommendation": "accept",
+      "recommendation": "needs-human-review",
       "issue": {
         "number": 96,
         "url": "https://github.com/Drew-Goddyn/jules-toys/issues/96"
@@ -24,60 +24,80 @@
         "head_sha": "ff99e3a9d47a27188da1473aa070bab2cdd49d0c"
       },
       "workflow": {
-        "run_id": 27505113543,
+        "run_id": 27509628830,
         "run_attempt": 1,
-        "run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27505113543",
+        "run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27509628830",
         "workflow": "Evaluate Pullfrog Experiment",
         "event_name": "workflow_dispatch",
         "actor": "Drew-Goddyn",
         "ref": "main",
-        "sha": "e2e9e4eea50bed854651c251e1766f938993ab34",
+        "sha": "71e62f45d29c16fee3aabb5599632c775bd00748",
         "artifact_name": "pullfrog-experiment-evaluation-97"
       },
       "artifact": {
         "name": "pullfrog-experiment-evaluation-97",
-        "workflow_run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27505113543",
+        "workflow_run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27509628830",
         "contains": [
           "report.json",
-          "browser-smoke.png"
+          "browser-smoke.png",
+          "playtest-initial.png",
+          "playtest-after-interaction.png"
         ]
       },
       "scorecard": {
         "marker": "<!-- pullfrog-experiment-evaluator:v2 pr=97 issue=96 -->",
         "pr_comment_url": "https://github.com/Drew-Goddyn/jules-toys/pull/97#issuecomment-4702369004",
         "issue_comment_url": "https://github.com/Drew-Goddyn/jules-toys/issues/96#issuecomment-4702369032",
-        "updated_at": "2026-06-14T16:33:33.049Z"
+        "updated_at": "2026-06-14T19:34:46.568Z"
       },
       "screenshot": {
         "path": "specimen-lab/pullfrog/pr-97/browser-smoke.png",
         "source": "evaluator-browser-smoke",
         "artifact_file": "browser-smoke.png"
       },
+      "playtest": {
+        "trace_status": "completed",
+        "mechanical_status": "pass",
+        "load_status": "pass",
+        "action_status": "attempted",
+        "action_type": "control-click",
+        "state_changed": true,
+        "state_change_reasons": [
+          "pixels_changed"
+        ],
+        "feedback_observed": false,
+        "candidate_control_count": 3,
+        "initial_screenshot": "pullfrog-evaluation/playtest-initial.png",
+        "after_screenshot": "pullfrog-evaluation/playtest-after-interaction.png",
+        "model_review_status": "skipped",
+        "model_review_model": "gemini-3.5-flash",
+        "model_review_recommendation": null
+      },
       "known_gaps": [
-        "Only 3 fixed levels with no randomization → near-zero replayability",
-        "Wire rotation cycles inconsistently (H↔V two-state vs 4-state corner cycle)",
-        "Signal propagation highlights entire path simultaneously rather than per-cell traversal",
-        "Dashed goal rail is vertical/column-matching only, does not adapt to obstacles",
-        "First-click affordance only appears on Level 1, column of first source",
-        "No undo/redo for wire placement",
-        "No seed-based level randomization"
+        "Only 3 fixed levels with no randomization, seed selection, or procedural variation — limits replayability and conflicts with treatment requirement for variation",
+        "First-click affordance limited to one cell on level 1 only — does not guide the player on levels 2 or 3",
+        "Redundant path tracing: solveLevel (check only) and getFailedPaths (collect paths) both iterate tracePath over the same grid state",
+        "Limited wire rotation states — straight wires cycle H↔V, corners cycle through 4 states; no three-way, through, or crossover pieces",
+        "Goal rails are column-aligned vertical dashed lines rather than adaptive paths that route around obstacles",
+        "No undo/redo for wire placement — each click is irreversible without manual rewiring or Reset Path",
+        "Onboarding treatment is thin for an onboarding-heavy cell: a pulsing cell and dashed guide lines are barely distinguishable from baseline-level affordances"
       ],
       "comparison": {
-        "run_count": 1,
-        "previous_score": null,
-        "score_delta": null,
+        "run_count": 2,
+        "previous_score": 3,
+        "score_delta": 0,
         "mechanical_pass": true,
         "latest_label": "experiment:accepted",
-        "previous_run_id": null,
-        "summary": "First v2 evaluator run recorded for this specimen."
+        "previous_run_id": 27505113543,
+        "summary": "score unchanged; label stable at experiment:accepted."
       },
       "provenance": {
         "source": "pullfrog-evaluator-v2",
         "repository": "Drew-Goddyn/jules-toys",
         "free_model": "opencode/big-pickle",
         "report_version": 2,
-        "report_generated_at": "2026-06-14T16:31:23.902Z",
-        "persisted_at": "2026-06-14T16:33:33.049Z",
+        "report_generated_at": "2026-06-14T19:31:33.464Z",
+        "persisted_at": "2026-06-14T19:34:46.568Z",
         "generated_from": "GitHub Actions evaluator artifact and Pullfrog judge output"
       },
       "reruns": [
@@ -105,6 +125,49 @@
             "No undo/redo for wire placement",
             "No seed-based level randomization"
           ]
+        },
+        {
+          "run_id": 27509628830,
+          "run_attempt": 1,
+          "run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27509628830",
+          "event_name": "workflow_dispatch",
+          "head_sha": "ff99e3a9d47a27188da1473aa070bab2cdd49d0c",
+          "generated_at": "2026-06-14T19:31:33.464Z",
+          "mechanical_pass": true,
+          "score": 3,
+          "recommendation": "needs-human-review",
+          "label": "experiment:accepted",
+          "status": "accepted",
+          "artifact_name": "pullfrog-experiment-evaluation-97",
+          "pr_comment_url": "https://github.com/Drew-Goddyn/jules-toys/pull/97#issuecomment-4702369004",
+          "issue_comment_url": "https://github.com/Drew-Goddyn/jules-toys/issues/96#issuecomment-4702369032",
+          "known_gaps": [
+            "Only 3 fixed levels with no randomization, seed selection, or procedural variation — limits replayability and conflicts with treatment requirement for variation",
+            "First-click affordance limited to one cell on level 1 only — does not guide the player on levels 2 or 3",
+            "Redundant path tracing: solveLevel (check only) and getFailedPaths (collect paths) both iterate tracePath over the same grid state",
+            "Limited wire rotation states — straight wires cycle H↔V, corners cycle through 4 states; no three-way, through, or crossover pieces",
+            "Goal rails are column-aligned vertical dashed lines rather than adaptive paths that route around obstacles",
+            "No undo/redo for wire placement — each click is irreversible without manual rewiring or Reset Path",
+            "Onboarding treatment is thin for an onboarding-heavy cell: a pulsing cell and dashed guide lines are barely distinguishable from baseline-level affordances"
+          ],
+          "playtest": {
+            "trace_status": "completed",
+            "mechanical_status": "pass",
+            "load_status": "pass",
+            "action_status": "attempted",
+            "action_type": "control-click",
+            "state_changed": true,
+            "state_change_reasons": [
+              "pixels_changed"
+            ],
+            "feedback_observed": false,
+            "candidate_control_count": 3,
+            "initial_screenshot": "pullfrog-evaluation/playtest-initial.png",
+            "after_screenshot": "pullfrog-evaluation/playtest-after-interaction.png",
+            "model_review_status": "skipped",
+            "model_review_model": "gemini-3.5-flash",
+            "model_review_recommendation": null
+          }
         }
       ]
     },
