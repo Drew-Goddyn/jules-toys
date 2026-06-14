@@ -1,0 +1,439 @@
+{
+  "schema_version": 1,
+  "wave_id": "wave1-tiny-live",
+  "title": "Wave 1 Tiny Live Pullfrog",
+  "status": "passed",
+  "learning_question": "Does a focused onboarding-heavy prompt improve first-minute clarity over the current baseline path without increasing review burden?",
+  "launch_authorization": {
+    "toy_issue_creation": true,
+    "toy_pr_creation": true,
+    "workflow_dispatch": true,
+    "specimen_data_manual_edits": false,
+    "authorized_cells": [
+      "W1-BL",
+      "W1-ON"
+    ],
+    "unauthorized_cells": [
+      "W1-MD",
+      "W1-VP",
+      "W1-RV"
+    ],
+    "evidence": [
+      "synthesis:docs/pullfrog-fleet/synthesis/wave05-dry-rehearsal.md#Recommendation",
+      "manifest:specimens/pullfrog/waves/wave05-dry-rehearsal.json#/synthesis"
+    ]
+  },
+  "cell_types_supported": [
+    "baseline_prompt",
+    "onboarding_heavy_prompt",
+    "mechanics_depth_prompt",
+    "visual_polish_prompt",
+    "rerun_variance"
+  ],
+  "cells": [
+    {
+      "cell_id": "W1-BL",
+      "wave_id": "wave1-tiny-live",
+      "cell_type": "baseline_prompt",
+      "question": "What does the current Pullfrog toy prompt and evaluator path produce under the hardened evidence contract?",
+      "prompt_variant": {
+        "id": "current-baseline",
+        "summary": "Current brief/build/evaluate path with no operator-injected onboarding-heavy treatment."
+      },
+      "model": "opencode/big-pickle",
+      "source_issue": {
+        "number": 91,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/issues/91",
+        "status": "created",
+        "evidence": [
+          "issue:https://github.com/Drew-Goddyn/jules-toys/issues/91"
+        ]
+      },
+      "build_pr": {
+        "number": 94,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/pull/94",
+        "status": "accepted",
+        "evidence": [
+          "pr:https://github.com/Drew-Goddyn/jules-toys/pull/94"
+        ]
+      },
+      "evaluation_run": {
+        "run_id": 27484178640,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27484178640",
+        "status": "success",
+        "evidence": [
+          "workflow:https://github.com/Drew-Goddyn/jules-toys/actions/runs/27484178640"
+        ]
+      },
+      "artifact_name": "pullfrog-experiment-evaluation-94",
+      "browser_screenshot": {
+        "path": "specimen-lab/pullfrog/pr-94/browser-smoke.png",
+        "status": "present",
+        "evidence": [
+          "screenshot:specimen-lab/pullfrog/pr-94/browser-smoke.png",
+          "artifact:pullfrog-experiment-evaluation-94/browser-smoke.png"
+        ]
+      },
+      "deterministic_report": {
+        "path": "pullfrog-experiment-evaluation-94/report.json",
+        "status": "present",
+        "evidence": [
+          "report:pullfrog-experiment-evaluation-94/report.json"
+        ]
+      },
+      "scorecard": {
+        "status": "scored",
+        "dimensions": {
+          "mechanics_depth": {
+            "score": 3,
+            "rationale": "Five levels, mirrors, prisms, and loop detection exist, but the evaluator notes a shallow difficulty curve.",
+            "evidence": [
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/94#issuecomment-4700292430",
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-94/known_gaps"
+            ]
+          },
+          "onboarding_clarity": {
+            "score": 2,
+            "rationale": "The baseline has a tutorial overlay, but it opens with dense mirror/prism rules rather than a guided first action.",
+            "evidence": [
+              "screenshot:specimen-lab/pullfrog/pr-94/browser-smoke.png",
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/94#issuecomment-4700292430"
+            ]
+          },
+          "goal_state": {
+            "score": 3,
+            "rationale": "Colored source-to-target routing, level count, and move count make the goal visible.",
+            "evidence": [
+              "report:pullfrog-experiment-evaluation-94/report.json",
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/94#issuecomment-4700292430"
+            ]
+          },
+          "replay_value": {
+            "score": 2,
+            "rationale": "The specimen has five levels, but the evaluator records limited replay value and a shallow difficulty curve.",
+            "evidence": [
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-94/known_gaps",
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/94#issuecomment-4700292430"
+            ]
+          },
+          "visual_polish": {
+            "score": 2,
+            "rationale": "The evaluator records minimal visual polish and a missing solved-state pulse animation.",
+            "evidence": [
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-94/known_gaps",
+              "screenshot:specimen-lab/pullfrog/pr-94/browser-smoke.png"
+            ]
+          },
+          "browser_correctness": {
+            "score": 5,
+            "rationale": "Deterministic report passed CI, file scope, gallery registration, screenshot, network, and browser smoke checks.",
+            "evidence": [
+              "report:pullfrog-experiment-evaluation-94/report.json",
+              "workflow:https://github.com/Drew-Goddyn/jules-toys/actions/runs/27484178640"
+            ]
+          },
+          "prompt_adherence": {
+            "score": 3,
+            "rationale": "The PR meets the baseline brief structurally but misses the requested solved-state pulse animation.",
+            "evidence": [
+              "pr:https://github.com/Drew-Goddyn/jules-toys/pull/94",
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/94#issuecomment-4700292430"
+            ]
+          },
+          "review_burden": {
+            "score": 4,
+            "rationale": "The evaluator describes a low-burden, expected three-file diff with clean structure and five known gaps.",
+            "evidence": [
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/94#issuecomment-4700292430",
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-94"
+            ]
+          }
+        }
+      },
+      "synthesis_reference": {
+        "path": "docs/pullfrog-fleet/synthesis/wave1-tiny-live.md",
+        "status": "included",
+        "evidence": [
+          "synthesis:docs/pullfrog-fleet/synthesis/wave1-tiny-live.md#Comparison-Matrix"
+        ]
+      },
+      "observables": [
+        "quality_score",
+        "known_gaps_from_report",
+        "browser_smoke_status",
+        "screenshot_legibility",
+        "review_burden_signal",
+        "onboarding_treatment_delta"
+      ],
+      "status": "passed",
+      "evidence": [
+        "manifest:specimens/pullfrog/waves/wave1-tiny-live.json#/cells/W1-BL"
+      ],
+      "final_disposition": "accepted_wave1_baseline_source"
+    },
+    {
+      "cell_id": "W1-ON",
+      "wave_id": "wave1-tiny-live",
+      "cell_type": "onboarding_heavy_prompt",
+      "question": "Does an onboarding-heavy prompt improve first-minute clarity without increasing review burden?",
+      "prompt_variant": {
+        "id": "onboarding-heavy",
+        "summary": "Prompt emphasizes tutorial affordances, first action clarity, visible goal state, hints, and feedback."
+      },
+      "model": "opencode/big-pickle",
+      "source_issue": {
+        "number": 92,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/issues/92",
+        "status": "created",
+        "evidence": [
+          "issue:https://github.com/Drew-Goddyn/jules-toys/issues/92"
+        ]
+      },
+      "build_pr": {
+        "number": 93,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/pull/93",
+        "status": "accepted",
+        "evidence": [
+          "pr:https://github.com/Drew-Goddyn/jules-toys/pull/93"
+        ]
+      },
+      "evaluation_run": {
+        "run_id": 27484178648,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27484178648",
+        "status": "success",
+        "evidence": [
+          "workflow:https://github.com/Drew-Goddyn/jules-toys/actions/runs/27484178648"
+        ]
+      },
+      "artifact_name": "pullfrog-experiment-evaluation-93",
+      "browser_screenshot": {
+        "path": "specimen-lab/pullfrog/pr-93/browser-smoke.png",
+        "status": "present",
+        "evidence": [
+          "screenshot:specimen-lab/pullfrog/pr-93/browser-smoke.png",
+          "artifact:pullfrog-experiment-evaluation-93/browser-smoke.png"
+        ]
+      },
+      "deterministic_report": {
+        "path": "pullfrog-experiment-evaluation-93/report.json",
+        "status": "present",
+        "evidence": [
+          "report:pullfrog-experiment-evaluation-93/report.json"
+        ]
+      },
+      "scorecard": {
+        "status": "scored",
+        "dimensions": {
+          "mechanics_depth": {
+            "score": 2,
+            "rationale": "The evaluator calls the implementation mechanically simple with hardcoded missing cells and zero replay value.",
+            "evidence": [
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/93#issuecomment-4700292857",
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-93/known_gaps"
+            ]
+          },
+          "onboarding_clarity": {
+            "score": 4,
+            "rationale": "The screenshot and scorecard show a first-visit tutorial, guided Level 1 callout, visible goal text, and success/failure feedback.",
+            "evidence": [
+              "screenshot:specimen-lab/pullfrog/pr-93/browser-smoke.png",
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/93#issuecomment-4700292857"
+            ]
+          },
+          "goal_state": {
+            "score": 4,
+            "rationale": "The player has a clear source-to-target objective, progress dots, and explicit success/failure messages.",
+            "evidence": [
+              "pr:https://github.com/Drew-Goddyn/jules-toys/pull/93",
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/93#issuecomment-4700292857"
+            ]
+          },
+          "replay_value": {
+            "score": 2,
+            "rationale": "Three hardcoded levels are playable, but the evaluator says hardcoded missing cells eliminate replay value.",
+            "evidence": [
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-93/known_gaps",
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/93#issuecomment-4700292857"
+            ]
+          },
+          "visual_polish": {
+            "score": 2,
+            "rationale": "The screenshot shows a clear but dark and simple canvas UI, while the scorecard calls the presentation conventional.",
+            "evidence": [
+              "screenshot:specimen-lab/pullfrog/pr-93/browser-smoke.png",
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/93#issuecomment-4700292857"
+            ]
+          },
+          "browser_correctness": {
+            "score": 5,
+            "rationale": "Deterministic report passed CI, file scope, gallery registration, screenshot, network, and browser smoke checks.",
+            "evidence": [
+              "report:pullfrog-experiment-evaluation-93/report.json",
+              "workflow:https://github.com/Drew-Goddyn/jules-toys/actions/runs/27484178648"
+            ]
+          },
+          "prompt_adherence": {
+            "score": 4,
+            "rationale": "The scorecard says the onboarding treatment is present and functional, though the result remains unambitious.",
+            "evidence": [
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/93#issuecomment-4700292857",
+              "issue:https://github.com/Drew-Goddyn/jules-toys/issues/92"
+            ]
+          },
+          "review_burden": {
+            "score": 4,
+            "rationale": "The evaluator describes very low review burden with three expected files, clean code, and no dependency changes.",
+            "evidence": [
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/93#issuecomment-4700292857",
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-93"
+            ]
+          }
+        }
+      },
+      "synthesis_reference": {
+        "path": "docs/pullfrog-fleet/synthesis/wave1-tiny-live.md",
+        "status": "included",
+        "evidence": [
+          "synthesis:docs/pullfrog-fleet/synthesis/wave1-tiny-live.md#Comparison-Matrix"
+        ]
+      },
+      "observables": [
+        "first_action_affordance",
+        "hint_quality",
+        "goal_visibility",
+        "known_gaps_from_report",
+        "browser_smoke_status",
+        "review_burden_signal"
+      ],
+      "status": "passed",
+      "evidence": [
+        "manifest:specimens/pullfrog/waves/wave1-tiny-live.json#/cells/W1-ON"
+      ],
+      "final_disposition": "accepted_wave1_onboarding_source"
+    }
+  ],
+  "worker_report_contract": {
+    "tasks": [
+      {
+        "task_id": "extract-known-gaps",
+        "task_type": "extract_known_gaps",
+        "inputs": [
+          "deterministic_report",
+          "judge_output",
+          "review_notes"
+        ],
+        "output": "cited_gap_list"
+      },
+      {
+        "task_id": "classify-failure-modes",
+        "task_type": "classify_failure_modes",
+        "inputs": [
+          "known_gaps",
+          "scorecard_dimensions"
+        ],
+        "output": "failure_mode_counts"
+      },
+      {
+        "task_id": "compare-scorecard-deltas",
+        "task_type": "compare_scorecard_deltas",
+        "inputs": [
+          "scorecards",
+          "rerun_lineage"
+        ],
+        "output": "dimension_delta_table"
+      },
+      {
+        "task_id": "summarize-evidence",
+        "task_type": "summarize_evidence",
+        "inputs": [
+          "report",
+          "screenshot",
+          "scorecard",
+          "review_notes"
+        ],
+        "output": "citation_first_summary"
+      },
+      {
+        "task_id": "mark-blocked-honestly",
+        "task_type": "mark_blocked_honestly",
+        "inputs": [
+          "missing_inputs",
+          "blocked_reason"
+        ],
+        "output": "blocked_report"
+      }
+    ],
+    "jules_policy": {
+      "required": false,
+      "max_cells_per_assignment": 1,
+      "blocked_path": "Return BLOCKED with missing input names and do not fabricate evidence."
+    }
+  },
+  "rejection_criteria": [
+    {
+      "id": "missing_artifact",
+      "rule": "A completed cell must cite a downloaded evaluator artifact."
+    },
+    {
+      "id": "missing_screenshot",
+      "rule": "A completed cell must cite a browser smoke screenshot."
+    },
+    {
+      "id": "missing_deterministic_report",
+      "rule": "A completed cell must cite report.json from the evaluator artifact."
+    },
+    {
+      "id": "unparseable_scorecard",
+      "rule": "A scorecard must parse and include every required dimension."
+    },
+    {
+      "id": "uncited_claim",
+      "rule": "Claims in reports and synthesis must cite report, screenshot, scorecard, observation, issue, PR, workflow, artifact, manifest, or synthesis evidence."
+    },
+    {
+      "id": "duplicate_or_ambiguous_cell_identity",
+      "rule": "cell_id and the cell tuple must be unique inside a wave."
+    },
+    {
+      "id": "manual_specimen_data_repair",
+      "rule": "Manual specimen JSON edits cannot substitute for evaluator persistence."
+    },
+    {
+      "id": "missing_synthesis",
+      "rule": "A wave without synthesis does not count as learning."
+    }
+  ],
+  "synthesis": {
+    "path": "docs/pullfrog-fleet/synthesis/wave1-tiny-live.md",
+    "procedure": [
+      {
+        "id": "compare_cells",
+        "description": "Compare both live cells by deterministic checks, scorecard dimensions, known gaps, and screenshot evidence."
+      },
+      {
+        "id": "identify_repeated_failure_modes",
+        "description": "Separate repeated mechanics, onboarding, replay, visual, browser, prompt, and review-burden failures."
+      },
+      {
+        "id": "separate_effects",
+        "description": "Separate prompt, model, workflow, and specimen-topic effects."
+      },
+      {
+        "id": "record_killed_hypotheses",
+        "description": "Record killed and non-killable hypotheses."
+      },
+      {
+        "id": "recommend_next_smallest_wave",
+        "description": "Recommend keep, kill, or rerun for onboarding-heavy and state blockers for expansion."
+      }
+    ]
+  },
+  "persistence_safety": {
+    "guard": "github_actions_job_concurrency",
+    "workflow": ".github/workflows/pullfrog-experiment-evaluate.yml",
+    "job": "persist-specimen-lab",
+    "group": "pullfrog-specimen-lab-persist",
+    "cancel_in_progress": false,
+    "reason": "Both Wave 1 persistence jobs wrote specimens/pullfrog/specimens.json and one screenshot asset to main through queued GitHub Actions commits."
+  }
+}

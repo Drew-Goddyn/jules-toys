@@ -1,0 +1,441 @@
+{
+  "schema_version": 1,
+  "wave_id": "wave1-same-topic-rematch",
+  "title": "Wave 1 Same-Topic Onboarding Rematch",
+  "status": "passed",
+  "learning_question": "Does the onboarding-heavy prompt improve first-minute clarity when the baseline and treatment hold the same Signal Path Lab toy concept constant?",
+  "launch_authorization": {
+    "toy_issue_creation": true,
+    "toy_pr_creation": true,
+    "workflow_dispatch": true,
+    "specimen_data_manual_edits": false,
+    "authorized_cells": [
+      "W1-ST-BL",
+      "W1-ST-ON"
+    ],
+    "unauthorized_cells": [
+      "mechanics-depth",
+      "visual-polish",
+      "rerun-variance",
+      "alternate-model",
+      "larger-batch"
+    ],
+    "evidence": [
+      "synthesis:docs/pullfrog-fleet/synthesis/wave1-tiny-live.md#Non-Killable-Hypotheses",
+      "manifest:specimens/pullfrog/waves/wave1-tiny-live.json#/cells"
+    ]
+  },
+  "cell_types_supported": [
+    "baseline_prompt",
+    "onboarding_heavy_prompt",
+    "mechanics_depth_prompt",
+    "visual_polish_prompt",
+    "rerun_variance"
+  ],
+  "cells": [
+    {
+      "cell_id": "W1-ST-BL",
+      "wave_id": "wave1-same-topic-rematch",
+      "cell_type": "baseline_prompt",
+      "question": "What does the current Pullfrog baseline path produce for Signal Path Lab with no operator-injected onboarding-heavy guardrails?",
+      "prompt_variant": {
+        "id": "same-topic-current-baseline",
+        "summary": "Current Pullfrog brief/build/evaluate path for Signal Path Lab without the focused onboarding-heavy treatment."
+      },
+      "model": "opencode/big-pickle",
+      "source_issue": {
+        "number": 95,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/issues/95",
+        "status": "created",
+        "evidence": [
+          "issue:https://github.com/Drew-Goddyn/jules-toys/issues/95"
+        ]
+      },
+      "build_pr": {
+        "number": 98,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/pull/98",
+        "status": "accepted",
+        "evidence": [
+          "pr:https://github.com/Drew-Goddyn/jules-toys/pull/98"
+        ]
+      },
+      "evaluation_run": {
+        "run_id": 27505113022,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27505113022",
+        "status": "success",
+        "evidence": [
+          "workflow:https://github.com/Drew-Goddyn/jules-toys/actions/runs/27505113022"
+        ]
+      },
+      "artifact_name": "pullfrog-experiment-evaluation-98",
+      "browser_screenshot": {
+        "path": "specimen-lab/pullfrog/pr-98/browser-smoke.png",
+        "status": "present",
+        "evidence": [
+          "screenshot:specimen-lab/pullfrog/pr-98/browser-smoke.png",
+          "artifact:pullfrog-experiment-evaluation-98/browser-smoke.png"
+        ]
+      },
+      "deterministic_report": {
+        "path": "pullfrog-experiment-evaluation-98/report.json",
+        "status": "present",
+        "evidence": [
+          "report:pullfrog-experiment-evaluation-98/report.json"
+        ]
+      },
+      "scorecard": {
+        "status": "scored",
+        "dimensions": {
+          "mechanics_depth": {
+            "score": 2,
+            "rationale": "The implementation has working click-to-cycle wire components and BFS routing, but the evaluator records trivially solvable initial boards because blockers avoid the routing rows.",
+            "evidence": [
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/98#issuecomment-4702370435",
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-98/known_gaps"
+            ]
+          },
+          "onboarding_clarity": {
+            "score": 3,
+            "rationale": "The baseline tutorial explains sources, targets, wire cycling, and route feedback, but it does not give a treatment-specific first-click affordance or persistent adaptive goal guidance.",
+            "evidence": [
+              "screenshot:specimen-lab/pullfrog/pr-98/browser-smoke.png",
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/98#issuecomment-4702370435"
+            ]
+          },
+          "goal_state": {
+            "score": 3,
+            "rationale": "The source-to-target goal is visible and explained, but the evaluator records all three pairs as all-or-nothing without partial routing progression.",
+            "evidence": [
+              "screenshot:specimen-lab/pullfrog/pr-98/browser-smoke.png",
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-98/known_gaps"
+            ]
+          },
+          "replay_value": {
+            "score": 2,
+            "rationale": "The evaluator says the initial puzzle is trivially solvable and replay value is limited because the challenge must come from the player breaking paths.",
+            "evidence": [
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/98#issuecomment-4702370435",
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-98/known_gaps"
+            ]
+          },
+          "visual_polish": {
+            "score": 2,
+            "rationale": "The PR and evaluator describe basic dark-theme presentation with no polish beyond functional canvas rendering.",
+            "evidence": [
+              "pr:https://github.com/Drew-Goddyn/jules-toys/pull/98",
+              "screenshot:specimen-lab/pullfrog/pr-98/browser-smoke.png"
+            ]
+          },
+          "browser_correctness": {
+            "score": 5,
+            "rationale": "The deterministic report passed CI, file scope, gallery registration, screenshot, no-network, and runtime browser smoke checks.",
+            "evidence": [
+              "report:pullfrog-experiment-evaluation-98/report.json",
+              "workflow:https://github.com/Drew-Goddyn/jules-toys/actions/runs/27505113022"
+            ]
+          },
+          "prompt_adherence": {
+            "score": 2,
+            "rationale": "The PR self-assessment and scorecard both say the build only partially met the brief because obstacle placement sidestepped the requested routing challenge.",
+            "evidence": [
+              "pr:https://github.com/Drew-Goddyn/jules-toys/pull/98",
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/98#issuecomment-4702370435"
+            ]
+          },
+          "review_burden": {
+            "score": 4,
+            "rationale": "The evaluator describes a very-low-burden, three-file, zero-dependency diff with one small dead-code note.",
+            "evidence": [
+              "report:pullfrog-experiment-evaluation-98/report.json",
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/98#issuecomment-4702370435"
+            ]
+          }
+        }
+      },
+      "synthesis_reference": {
+        "path": "docs/pullfrog-fleet/synthesis/wave1-same-topic-rematch.md",
+        "status": "included",
+        "evidence": [
+          "synthesis:docs/pullfrog-fleet/synthesis/wave1-same-topic-rematch.md#Comparison-Matrix"
+        ]
+      },
+      "observables": [
+        "quality_score",
+        "known_gaps_from_report",
+        "browser_smoke_status",
+        "screenshot_legibility",
+        "review_burden_signal",
+        "same_topic_prompt_delta"
+      ],
+      "status": "passed",
+      "evidence": [
+        "manifest:specimens/pullfrog/waves/wave1-same-topic-rematch.json#/cells/W1-ST-BL"
+      ],
+      "final_disposition": "accepted_same_topic_baseline_source"
+    },
+    {
+      "cell_id": "W1-ST-ON",
+      "wave_id": "wave1-same-topic-rematch",
+      "cell_type": "onboarding_heavy_prompt",
+      "question": "Does the same Signal Path Lab toy concept improve first-minute clarity when the prompt adds focused onboarding guardrails?",
+      "prompt_variant": {
+        "id": "same-topic-onboarding-heavy",
+        "summary": "Same Signal Path Lab concept plus first action, goal/progress, success/failure, replay, no-idle-loop, and responsive-layout guardrails."
+      },
+      "model": "opencode/big-pickle",
+      "source_issue": {
+        "number": 96,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/issues/96",
+        "status": "created",
+        "evidence": [
+          "issue:https://github.com/Drew-Goddyn/jules-toys/issues/96"
+        ]
+      },
+      "build_pr": {
+        "number": 97,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/pull/97",
+        "status": "accepted",
+        "evidence": [
+          "pr:https://github.com/Drew-Goddyn/jules-toys/pull/97"
+        ]
+      },
+      "evaluation_run": {
+        "run_id": 27505113543,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27505113543",
+        "status": "success",
+        "evidence": [
+          "workflow:https://github.com/Drew-Goddyn/jules-toys/actions/runs/27505113543"
+        ]
+      },
+      "artifact_name": "pullfrog-experiment-evaluation-97",
+      "browser_screenshot": {
+        "path": "specimen-lab/pullfrog/pr-97/browser-smoke.png",
+        "status": "present",
+        "evidence": [
+          "screenshot:specimen-lab/pullfrog/pr-97/browser-smoke.png",
+          "artifact:pullfrog-experiment-evaluation-97/browser-smoke.png"
+        ]
+      },
+      "deterministic_report": {
+        "path": "pullfrog-experiment-evaluation-97/report.json",
+        "status": "present",
+        "evidence": [
+          "report:pullfrog-experiment-evaluation-97/report.json"
+        ]
+      },
+      "scorecard": {
+        "status": "scored",
+        "dimensions": {
+          "mechanics_depth": {
+            "score": 3,
+            "rationale": "The onboarding-heavy build has three sequential levels and bitmask/DFS routing, but the evaluator still calls the genre conventional and the levels fixed.",
+            "evidence": [
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/97#issuecomment-4702369004",
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-97/known_gaps"
+            ]
+          },
+          "onboarding_clarity": {
+            "score": 4,
+            "rationale": "The scorecard credits the onboarding treatments, and the screenshot shows an immediately visible source, target, dashed rail, level count, status, and controls.",
+            "evidence": [
+              "screenshot:specimen-lab/pullfrog/pr-97/browser-smoke.png",
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/97#issuecomment-4702369004"
+            ]
+          },
+          "goal_state": {
+            "score": 4,
+            "rationale": "Persistent goal rails, level count, and success/failure overlays make the route objective more visible than the baseline path.",
+            "evidence": [
+              "pr:https://github.com/Drew-Goddyn/jules-toys/pull/97",
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/97#issuecomment-4702369004"
+            ]
+          },
+          "replay_value": {
+            "score": 2,
+            "rationale": "Three fixed levels are playable, but the persisted known gaps say no randomization or seed-based variation leaves near-zero replayability.",
+            "evidence": [
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-97/known_gaps",
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/97#issuecomment-4702369004"
+            ]
+          },
+          "visual_polish": {
+            "score": 3,
+            "rationale": "The scorecard calls the UI cohesive and touch-friendly, but the screenshot remains a sparse dark canvas presentation.",
+            "evidence": [
+              "screenshot:specimen-lab/pullfrog/pr-97/browser-smoke.png",
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/97#issuecomment-4702369004"
+            ]
+          },
+          "browser_correctness": {
+            "score": 5,
+            "rationale": "The deterministic report passed CI, file scope, gallery registration, screenshot, no-network, and runtime browser smoke checks.",
+            "evidence": [
+              "report:pullfrog-experiment-evaluation-97/report.json",
+              "workflow:https://github.com/Drew-Goddyn/jules-toys/actions/runs/27505113543"
+            ]
+          },
+          "prompt_adherence": {
+            "score": 4,
+            "rationale": "The PR body says all seven onboarding treatments were applied, while the known gaps narrow the misses to depth, adaptive rails, and replay.",
+            "evidence": [
+              "pr:https://github.com/Drew-Goddyn/jules-toys/pull/97",
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-97/known_gaps"
+            ]
+          },
+          "review_burden": {
+            "score": 4,
+            "rationale": "The evaluator describes a very-low-burden, three-file, zero-dependency diff despite the larger single-file implementation.",
+            "evidence": [
+              "report:pullfrog-experiment-evaluation-97/report.json",
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/97#issuecomment-4702369004"
+            ]
+          }
+        }
+      },
+      "synthesis_reference": {
+        "path": "docs/pullfrog-fleet/synthesis/wave1-same-topic-rematch.md",
+        "status": "included",
+        "evidence": [
+          "synthesis:docs/pullfrog-fleet/synthesis/wave1-same-topic-rematch.md#Comparison-Matrix"
+        ]
+      },
+      "observables": [
+        "quality_score",
+        "known_gaps_from_report",
+        "browser_smoke_status",
+        "screenshot_legibility",
+        "review_burden_signal",
+        "same_topic_prompt_delta"
+      ],
+      "status": "passed",
+      "evidence": [
+        "manifest:specimens/pullfrog/waves/wave1-same-topic-rematch.json#/cells/W1-ST-ON"
+      ],
+      "final_disposition": "accepted_same_topic_onboarding_source"
+    }
+  ],
+  "worker_report_contract": {
+    "tasks": [
+      {
+        "task_id": "extract-known-gaps",
+        "task_type": "extract_known_gaps",
+        "inputs": [
+          "deterministic_report",
+          "judge_output",
+          "review_notes"
+        ],
+        "output": "cited_gap_list"
+      },
+      {
+        "task_id": "classify-failure-modes",
+        "task_type": "classify_failure_modes",
+        "inputs": [
+          "known_gaps",
+          "scorecard_dimensions"
+        ],
+        "output": "failure_mode_counts"
+      },
+      {
+        "task_id": "compare-scorecard-deltas",
+        "task_type": "compare_scorecard_deltas",
+        "inputs": [
+          "scorecards",
+          "rerun_lineage"
+        ],
+        "output": "dimension_delta_table"
+      },
+      {
+        "task_id": "summarize-evidence",
+        "task_type": "summarize_evidence",
+        "inputs": [
+          "report",
+          "screenshot",
+          "scorecard",
+          "review_notes"
+        ],
+        "output": "citation_first_summary"
+      },
+      {
+        "task_id": "mark-blocked-honestly",
+        "task_type": "mark_blocked_honestly",
+        "inputs": [
+          "missing_inputs",
+          "blocked_reason"
+        ],
+        "output": "blocked_report"
+      }
+    ],
+    "jules_policy": {
+      "required": false,
+      "max_cells_per_assignment": 1,
+      "blocked_path": "Return BLOCKED with missing input names and do not fabricate evidence."
+    }
+  },
+  "rejection_criteria": [
+    {
+      "id": "missing_artifact",
+      "rule": "A completed cell must cite a downloaded evaluator artifact."
+    },
+    {
+      "id": "missing_screenshot",
+      "rule": "A completed cell must cite a browser smoke screenshot."
+    },
+    {
+      "id": "missing_deterministic_report",
+      "rule": "A completed cell must cite report.json from the evaluator artifact."
+    },
+    {
+      "id": "unparseable_scorecard",
+      "rule": "A scorecard must parse and include every required dimension."
+    },
+    {
+      "id": "uncited_claim",
+      "rule": "Claims in reports and synthesis must cite report, screenshot, scorecard, observation, issue, PR, workflow, artifact, manifest, or synthesis evidence."
+    },
+    {
+      "id": "duplicate_or_ambiguous_cell_identity",
+      "rule": "cell_id and the cell tuple must be unique inside a wave."
+    },
+    {
+      "id": "manual_specimen_data_repair",
+      "rule": "Manual specimen JSON edits cannot substitute for evaluator persistence."
+    },
+    {
+      "id": "missing_synthesis",
+      "rule": "A wave without synthesis does not count as learning."
+    }
+  ],
+  "synthesis": {
+    "path": "docs/pullfrog-fleet/synthesis/wave1-same-topic-rematch.md",
+    "procedure": [
+      {
+        "id": "compare_cells",
+        "description": "Compare same-topic cells by accepted score, known gap count, artifact, screenshot, deterministic report, and every scorecard dimension."
+      },
+      {
+        "id": "identify_repeated_failure_modes",
+        "description": "Classify repeated mechanics, onboarding, goal/replay, visual, browser, prompt, and review-burden failures."
+      },
+      {
+        "id": "separate_effects",
+        "description": "Separate prompt, model, workflow, and specimen-topic effects while marking remaining uncertainty."
+      },
+      {
+        "id": "record_killed_hypotheses",
+        "description": "Record killed and non-killable hypotheses from the same-topic rematch."
+      },
+      {
+        "id": "recommend_next_smallest_wave",
+        "description": "Recommend exactly one next step and state what still blocks live Wave 1 scale-up."
+      }
+    ]
+  },
+  "persistence_safety": {
+    "guard": "github_actions_job_concurrency",
+    "workflow": ".github/workflows/pullfrog-experiment-evaluate.yml",
+    "job": "persist-specimen-lab",
+    "group": "pullfrog-specimen-lab-persist",
+    "cancel_in_progress": false,
+    "reason": "Both completed cells used workflow_dispatch with update_specimen_lab=true; specimen data was updated by GitHub Actions, not manual JSON edits."
+  }
+}
