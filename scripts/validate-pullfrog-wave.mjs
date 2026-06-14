@@ -146,6 +146,7 @@ function validateCells(cells, errors) {
     validateArtifactReference(cell.browser_screenshot, `${label}.browser_screenshot`, cell, errors);
     validateArtifactReference(cell.deterministic_report, `${label}.deterministic_report`, cell, errors);
     validateScorecard(cell.scorecard, `${label}.scorecard`, cell, errors);
+    validateSynthesisReference(cell.synthesis_reference, `${label}.synthesis_reference`, cell, errors);
     validateObservables(cell.observables, `${label}.observables`, errors);
 
     const tupleKey = [
@@ -249,6 +250,19 @@ function validateScorecard(scorecard, label, cell, errors) {
   for (const dimension of extraDimensions) {
     errors.push(`${label}.dimensions has unsupported dimension ${dimension}.`);
   }
+}
+
+function validateSynthesisReference(value, label, cell, errors) {
+  if (cell.status === "blocked" && value === undefined) {
+    return;
+  }
+
+  requireObject(value, label, errors);
+  if (!value || typeof value !== "object") return;
+
+  requireNonEmptyString(value.status, `${label}.status`, errors);
+  requireNonEmptyString(value.path, `${label}.path`, errors);
+  validateEvidenceArray(value.evidence, `${label}.evidence`, errors);
 }
 
 function validateObservables(value, label, errors) {

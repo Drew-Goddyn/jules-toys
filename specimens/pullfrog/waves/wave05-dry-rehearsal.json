@@ -1,0 +1,548 @@
+{
+  "schema_version": 1,
+  "wave_id": "wave05-dry-rehearsal",
+  "title": "Wave 0.5 Dry Rehearsal",
+  "status": "dry_rehearsal",
+  "learning_question": "Can existing Pullfrog specimens exercise Wave 1-style comparison and synthesis without creating or mutating live specimen records?",
+  "dry_rehearsal": true,
+  "source_specimen_snapshot": {
+    "path": "specimens/pullfrog/specimens.json",
+    "schema_version": 1,
+    "specimen_ids": [
+      "pullfrog-pr-79",
+      "pullfrog-pr-85",
+      "pullfrog-pr-87"
+    ],
+    "input_limit": "Existing accepted specimen records only; these were not generated as controlled prompt variants."
+  },
+  "launch_authorization": {
+    "toy_issue_creation": false,
+    "toy_pr_creation": false,
+    "workflow_dispatch": false,
+    "specimen_data_manual_edits": false,
+    "blocked_reason": "Wave 0.5 is a dry rehearsal over existing specimens."
+  },
+  "cell_types_supported": [
+    "baseline_prompt",
+    "onboarding_heavy_prompt",
+    "mechanics_depth_prompt",
+    "visual_polish_prompt",
+    "rerun_variance"
+  ],
+  "cells": [
+    {
+      "cell_id": "W05-PR79",
+      "wave_id": "wave05-dry-rehearsal",
+      "cell_type": "baseline_prompt",
+      "question": "What does the existing Signal Cabinet Relay specimen reveal when scored through the richer Wave 1 dimensions?",
+      "prompt_variant": {
+        "id": "existing-specimen-pr-79",
+        "summary": "Dry pseudo-cell mapped from accepted specimen pullfrog-pr-79; not a controlled prompt variant."
+      },
+      "model": "opencode/big-pickle",
+      "source_issue": {
+        "number": 77,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/issues/77",
+        "status": "accepted_specimen_source",
+        "evidence": [
+          "issue:https://github.com/Drew-Goddyn/jules-toys/issues/77"
+        ]
+      },
+      "build_pr": {
+        "number": 79,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/pull/79",
+        "status": "accepted_specimen_source",
+        "evidence": [
+          "pr:https://github.com/Drew-Goddyn/jules-toys/pull/79"
+        ]
+      },
+      "evaluation_run": {
+        "run_id": 27480430420,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27480430420",
+        "status": "success",
+        "evidence": [
+          "workflow:https://github.com/Drew-Goddyn/jules-toys/actions/runs/27480430420"
+        ]
+      },
+      "artifact_name": "pullfrog-experiment-evaluation-79",
+      "browser_screenshot": {
+        "path": "specimen-lab/pullfrog/pr-79/browser-smoke.png",
+        "status": "present",
+        "evidence": [
+          "screenshot:specimen-lab/pullfrog/pr-79/browser-smoke.png"
+        ]
+      },
+      "deterministic_report": {
+        "path": "pullfrog-experiment-evaluation-79/report.json",
+        "status": "present",
+        "evidence": [
+          "report:pullfrog-experiment-evaluation-79/report.json"
+        ]
+      },
+      "scorecard": {
+        "status": "dry_scored",
+        "dimensions": {
+          "mechanics_depth": {
+            "score": 2,
+            "rationale": "Known gaps call out linear traversal, fixed topology, and reduced agency.",
+            "evidence": [
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-79/known_gaps"
+            ]
+          },
+          "onboarding_clarity": {
+            "score": 3,
+            "rationale": "The specimen does not flag first-action confusion, but it lacks richer affordances.",
+            "evidence": [
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-79/known_gaps"
+            ]
+          },
+          "goal_state": {
+            "score": 1,
+            "rationale": "Known gaps explicitly say there is no goal state, scoring, or puzzle progression.",
+            "evidence": [
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-79/known_gaps"
+            ]
+          },
+          "replay_value": {
+            "score": 1,
+            "rationale": "Known gaps describe limited replay value and no progression.",
+            "evidence": [
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-79/known_gaps"
+            ]
+          },
+          "visual_polish": {
+            "score": 3,
+            "rationale": "No major visual polish failure is recorded, but screenshot evidence is limited.",
+            "evidence": [
+              "screenshot:specimen-lab/pullfrog/pr-79/browser-smoke.png"
+            ]
+          },
+          "browser_correctness": {
+            "score": 2,
+            "rationale": "Known gaps say the screenshot is an SVG approximation, not a live browser capture.",
+            "evidence": [
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-79/known_gaps"
+            ]
+          },
+          "prompt_adherence": {
+            "score": 3,
+            "rationale": "The specimen was accepted with score 3, but gaps indicate shallow implementation.",
+            "evidence": [
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/79"
+            ]
+          },
+          "review_burden": {
+            "score": 3,
+            "rationale": "The accepted specimen has six known gaps, enough to require synthesis triage.",
+            "evidence": [
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-79/known_gaps"
+            ]
+          }
+        }
+      },
+      "synthesis_reference": {
+        "path": "docs/pullfrog-fleet/synthesis/wave05-dry-rehearsal.md",
+        "status": "included",
+        "evidence": [
+          "synthesis:docs/pullfrog-fleet/synthesis/wave05-dry-rehearsal.md#W05-PR79"
+        ]
+      },
+      "observables": [
+        "known_gaps_from_report",
+        "browser_smoke_status",
+        "screenshot_legibility",
+        "scorecard_dimension_deltas",
+        "review_burden_signal"
+      ],
+      "status": "passed",
+      "evidence": [
+        "manifest:specimens/pullfrog/waves/wave05-dry-rehearsal.json#/cells/W05-PR79"
+      ],
+      "final_disposition": "accepted_dry_rehearsal_source"
+    },
+    {
+      "cell_id": "W05-PR85",
+      "wave_id": "wave05-dry-rehearsal",
+      "cell_type": "baseline_prompt",
+      "question": "What does the existing Clockwork Canal Locks specimen reveal when scored through the richer Wave 1 dimensions?",
+      "prompt_variant": {
+        "id": "existing-specimen-pr-85",
+        "summary": "Dry pseudo-cell mapped from accepted specimen pullfrog-pr-85; not a controlled prompt variant."
+      },
+      "model": "opencode/big-pickle",
+      "source_issue": {
+        "number": 84,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/issues/84",
+        "status": "accepted_specimen_source",
+        "evidence": [
+          "issue:https://github.com/Drew-Goddyn/jules-toys/issues/84"
+        ]
+      },
+      "build_pr": {
+        "number": 85,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/pull/85",
+        "status": "accepted_specimen_source",
+        "evidence": [
+          "pr:https://github.com/Drew-Goddyn/jules-toys/pull/85"
+        ]
+      },
+      "evaluation_run": {
+        "run_id": 27480568238,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27480568238",
+        "status": "success",
+        "evidence": [
+          "workflow:https://github.com/Drew-Goddyn/jules-toys/actions/runs/27480568238"
+        ]
+      },
+      "artifact_name": "pullfrog-experiment-evaluation-85",
+      "browser_screenshot": {
+        "path": "specimen-lab/pullfrog/pr-85/browser-smoke.png",
+        "status": "present",
+        "evidence": [
+          "screenshot:specimen-lab/pullfrog/pr-85/browser-smoke.png"
+        ]
+      },
+      "deterministic_report": {
+        "path": "pullfrog-experiment-evaluation-85/report.json",
+        "status": "present",
+        "evidence": [
+          "report:pullfrog-experiment-evaluation-85/report.json"
+        ]
+      },
+      "scorecard": {
+        "status": "dry_scored",
+        "dimensions": {
+          "mechanics_depth": {
+            "score": 3,
+            "rationale": "Known gaps show several simplifications but still a functioning lock mechanic.",
+            "evidence": [
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-85/known_gaps"
+            ]
+          },
+          "onboarding_clarity": {
+            "score": 2,
+            "rationale": "Known gaps explicitly cite no tutorial or visual hints for gates and levels.",
+            "evidence": [
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-85/known_gaps"
+            ]
+          },
+          "goal_state": {
+            "score": 3,
+            "rationale": "The canal interaction has a goal, but stranding rules are tight for new players.",
+            "evidence": [
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-85/known_gaps"
+            ]
+          },
+          "replay_value": {
+            "score": 2,
+            "rationale": "The recorded gaps do not show multiple levels or deeper replay loops.",
+            "evidence": [
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-85/known_gaps"
+            ]
+          },
+          "visual_polish": {
+            "score": 2,
+            "rationale": "Known gaps say the visual polish is functional but not engaging.",
+            "evidence": [
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-85/known_gaps"
+            ]
+          },
+          "browser_correctness": {
+            "score": 3,
+            "rationale": "The specimen has screenshot and report artifacts, but gaps cite possible small-viewport overflow.",
+            "evidence": [
+              "screenshot:specimen-lab/pullfrog/pr-85/browser-smoke.png"
+            ]
+          },
+          "prompt_adherence": {
+            "score": 3,
+            "rationale": "The specimen was accepted with score 3, with several prompt-quality gaps remaining.",
+            "evidence": [
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/85"
+            ]
+          },
+          "review_burden": {
+            "score": 2,
+            "rationale": "Eight known gaps create the largest review triage burden in the dry set.",
+            "evidence": [
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-85/known_gaps"
+            ]
+          }
+        }
+      },
+      "synthesis_reference": {
+        "path": "docs/pullfrog-fleet/synthesis/wave05-dry-rehearsal.md",
+        "status": "included",
+        "evidence": [
+          "synthesis:docs/pullfrog-fleet/synthesis/wave05-dry-rehearsal.md#W05-PR85"
+        ]
+      },
+      "observables": [
+        "known_gaps_from_report",
+        "browser_smoke_status",
+        "screenshot_legibility",
+        "scorecard_dimension_deltas",
+        "review_burden_signal"
+      ],
+      "status": "passed",
+      "evidence": [
+        "manifest:specimens/pullfrog/waves/wave05-dry-rehearsal.json#/cells/W05-PR85"
+      ],
+      "final_disposition": "accepted_dry_rehearsal_source"
+    },
+    {
+      "cell_id": "W05-PR87",
+      "wave_id": "wave05-dry-rehearsal",
+      "cell_type": "baseline_prompt",
+      "question": "What does the existing Lantern Loom Lab specimen reveal when scored through the richer Wave 1 dimensions?",
+      "prompt_variant": {
+        "id": "existing-specimen-pr-87",
+        "summary": "Dry pseudo-cell mapped from accepted specimen pullfrog-pr-87; not a controlled prompt variant."
+      },
+      "model": "opencode/big-pickle",
+      "source_issue": {
+        "number": 86,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/issues/86",
+        "status": "accepted_specimen_source",
+        "evidence": [
+          "issue:https://github.com/Drew-Goddyn/jules-toys/issues/86"
+        ]
+      },
+      "build_pr": {
+        "number": 87,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/pull/87",
+        "status": "accepted_specimen_source",
+        "evidence": [
+          "pr:https://github.com/Drew-Goddyn/jules-toys/pull/87"
+        ]
+      },
+      "evaluation_run": {
+        "run_id": 27479860208,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27479860208",
+        "status": "success",
+        "evidence": [
+          "workflow:https://github.com/Drew-Goddyn/jules-toys/actions/runs/27479860208"
+        ]
+      },
+      "artifact_name": "pullfrog-experiment-evaluation-87",
+      "browser_screenshot": {
+        "path": "specimen-lab/pullfrog/pr-87/browser-smoke.png",
+        "status": "present",
+        "evidence": [
+          "screenshot:specimen-lab/pullfrog/pr-87/browser-smoke.png"
+        ]
+      },
+      "deterministic_report": {
+        "path": "pullfrog-experiment-evaluation-87/report.json",
+        "status": "present",
+        "evidence": [
+          "report:pullfrog-experiment-evaluation-87/report.json"
+        ]
+      },
+      "scorecard": {
+        "status": "dry_scored",
+        "dimensions": {
+          "mechanics_depth": {
+            "score": 3,
+            "rationale": "The beam-routing mechanic works, but gaps cite one static layout and mirror ambiguity.",
+            "evidence": [
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-87/known_gaps"
+            ]
+          },
+          "onboarding_clarity": {
+            "score": 3,
+            "rationale": "The hint button exists, but it highlights the next empty cell rather than optimal placement.",
+            "evidence": [
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-87/known_gaps"
+            ]
+          },
+          "goal_state": {
+            "score": 2,
+            "rationale": "The single static puzzle limits visible progression and goal depth.",
+            "evidence": [
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-87/known_gaps"
+            ]
+          },
+          "replay_value": {
+            "score": 2,
+            "rationale": "Known gaps explicitly cite no procedural generation or multi-level progression.",
+            "evidence": [
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-87/known_gaps"
+            ]
+          },
+          "visual_polish": {
+            "score": 2,
+            "rationale": "Known gaps say the result does not match the requested dark observatory workbench aesthetic.",
+            "evidence": [
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-87/known_gaps"
+            ]
+          },
+          "browser_correctness": {
+            "score": 3,
+            "rationale": "The specimen has screenshot and report artifacts with no recorded browser failure.",
+            "evidence": [
+              "screenshot:specimen-lab/pullfrog/pr-87/browser-smoke.png"
+            ]
+          },
+          "prompt_adherence": {
+            "score": 3,
+            "rationale": "The specimen was accepted with score 3, but the aesthetic and mechanics gaps remain.",
+            "evidence": [
+              "scorecard:https://github.com/Drew-Goddyn/jules-toys/pull/87"
+            ]
+          },
+          "review_burden": {
+            "score": 3,
+            "rationale": "Five known gaps are fewer than the other dry cells but still require triage.",
+            "evidence": [
+              "manifest:specimens/pullfrog/specimens.json#/specimens/pullfrog-pr-87/known_gaps"
+            ]
+          }
+        }
+      },
+      "synthesis_reference": {
+        "path": "docs/pullfrog-fleet/synthesis/wave05-dry-rehearsal.md",
+        "status": "included",
+        "evidence": [
+          "synthesis:docs/pullfrog-fleet/synthesis/wave05-dry-rehearsal.md#W05-PR87"
+        ]
+      },
+      "observables": [
+        "known_gaps_from_report",
+        "browser_smoke_status",
+        "screenshot_legibility",
+        "scorecard_dimension_deltas",
+        "review_burden_signal"
+      ],
+      "status": "passed",
+      "evidence": [
+        "manifest:specimens/pullfrog/waves/wave05-dry-rehearsal.json#/cells/W05-PR87"
+      ],
+      "final_disposition": "accepted_dry_rehearsal_source"
+    }
+  ],
+  "worker_report_contract": {
+    "tasks": [
+      {
+        "task_id": "extract-known-gaps",
+        "task_type": "extract_known_gaps",
+        "inputs": [
+          "deterministic_report",
+          "judge_output",
+          "review_notes"
+        ],
+        "output": "cited_gap_list"
+      },
+      {
+        "task_id": "classify-failure-modes",
+        "task_type": "classify_failure_modes",
+        "inputs": [
+          "known_gaps",
+          "scorecard_dimensions"
+        ],
+        "output": "failure_mode_counts"
+      },
+      {
+        "task_id": "compare-scorecard-deltas",
+        "task_type": "compare_scorecard_deltas",
+        "inputs": [
+          "scorecards",
+          "rerun_lineage"
+        ],
+        "output": "dimension_delta_table"
+      },
+      {
+        "task_id": "summarize-evidence",
+        "task_type": "summarize_evidence",
+        "inputs": [
+          "report",
+          "screenshot",
+          "scorecard",
+          "review_notes"
+        ],
+        "output": "citation_first_summary"
+      },
+      {
+        "task_id": "mark-blocked-honestly",
+        "task_type": "mark_blocked_honestly",
+        "inputs": [
+          "missing_inputs",
+          "blocked_reason"
+        ],
+        "output": "blocked_report"
+      }
+    ],
+    "jules_policy": {
+      "required": false,
+      "max_cells_per_assignment": 1,
+      "blocked_path": "Return BLOCKED with missing input names and do not fabricate evidence."
+    }
+  },
+  "rejection_criteria": [
+    {
+      "id": "missing_artifact",
+      "rule": "A completed cell must cite a downloaded evaluator artifact."
+    },
+    {
+      "id": "missing_screenshot",
+      "rule": "A completed cell must cite a browser smoke screenshot."
+    },
+    {
+      "id": "missing_deterministic_report",
+      "rule": "A completed cell must cite report.json from the evaluator artifact."
+    },
+    {
+      "id": "unparseable_scorecard",
+      "rule": "A scorecard must parse and include every required dimension."
+    },
+    {
+      "id": "uncited_claim",
+      "rule": "Claims in reports and synthesis must cite report, screenshot, scorecard, observation, issue, PR, workflow, artifact, manifest, or synthesis evidence."
+    },
+    {
+      "id": "duplicate_or_ambiguous_cell_identity",
+      "rule": "cell_id and the cell tuple must be unique inside a wave."
+    },
+    {
+      "id": "manual_specimen_data_repair",
+      "rule": "Manual specimen JSON edits cannot substitute for evaluator persistence."
+    },
+    {
+      "id": "missing_synthesis",
+      "rule": "A wave without synthesis does not count as learning."
+    }
+  ],
+  "synthesis": {
+    "path": "docs/pullfrog-fleet/synthesis/wave05-dry-rehearsal.md",
+    "procedure": [
+      {
+        "id": "compare_cells",
+        "description": "Compare dry cells by accepted score, known gap count, rerun count, artifact, screenshot, deterministic report, and every scorecard dimension."
+      },
+      {
+        "id": "identify_repeated_failure_modes",
+        "description": "Classify repeated mechanics, onboarding, goal/replay, visual, browser, prompt, and review-burden failures."
+      },
+      {
+        "id": "separate_effects",
+        "description": "Separate prompt, model, workflow, and specimen-topic effects while marking dry-data uncertainty."
+      },
+      {
+        "id": "record_killed_hypotheses",
+        "description": "Record killed and non-killable hypotheses."
+      },
+      {
+        "id": "recommend_next_smallest_wave",
+        "description": "Recommend exactly one next step and state what still blocks live Wave 1."
+      }
+    ]
+  },
+  "persistence_safety": {
+    "guard": "github_actions_job_concurrency",
+    "workflow": ".github/workflows/pullfrog-experiment-evaluate.yml",
+    "job": "persist-specimen-lab",
+    "group": "pullfrog-specimen-lab-persist",
+    "cancel_in_progress": false,
+    "reason": "Dry rehearsal does not write specimen data; future live persistence must still queue."
+  }
+}

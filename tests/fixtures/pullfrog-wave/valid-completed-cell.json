@@ -1,0 +1,261 @@
+{
+  "schema_version": 1,
+  "wave_id": "valid-completed-cell",
+  "title": "Valid completed-cell fixture",
+  "status": "fixture",
+  "learning_question": "Can the validator accept a real completed Pullfrog cell shape?",
+  "cell_types_supported": [
+    "baseline_prompt",
+    "onboarding_heavy_prompt",
+    "mechanics_depth_prompt",
+    "visual_polish_prompt",
+    "rerun_variance"
+  ],
+  "cells": [
+    {
+      "cell_id": "FIXTURE-COMPLETE-1",
+      "wave_id": "valid-completed-cell",
+      "cell_type": "baseline_prompt",
+      "question": "Does a completed fixture carry every artifact required by the measurement contract?",
+      "prompt_variant": {
+        "id": "fixture-baseline",
+        "summary": "Fixture prompt variant for validator acceptance."
+      },
+      "model": "opencode/big-pickle",
+      "source_issue": {
+        "number": 501,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/issues/501",
+        "status": "recorded",
+        "evidence": [
+          "issue:https://github.com/Drew-Goddyn/jules-toys/issues/501"
+        ]
+      },
+      "build_pr": {
+        "number": 502,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/pull/502",
+        "status": "recorded",
+        "evidence": [
+          "pr:https://github.com/Drew-Goddyn/jules-toys/pull/502"
+        ]
+      },
+      "evaluation_run": {
+        "run_id": 9000502,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/9000502",
+        "status": "success",
+        "evidence": [
+          "workflow:https://github.com/Drew-Goddyn/jules-toys/actions/runs/9000502"
+        ]
+      },
+      "artifact_name": "pullfrog-experiment-evaluation-502",
+      "browser_screenshot": {
+        "path": "specimen-lab/pullfrog/pr-502/browser-smoke.png",
+        "status": "present",
+        "evidence": [
+          "screenshot:specimen-lab/pullfrog/pr-502/browser-smoke.png"
+        ]
+      },
+      "deterministic_report": {
+        "path": "artifacts/pullfrog-experiment-evaluation-502/report.json",
+        "status": "present",
+        "evidence": [
+          "report:artifacts/pullfrog-experiment-evaluation-502/report.json"
+        ]
+      },
+      "scorecard": {
+        "status": "scored",
+        "dimensions": {
+          "mechanics_depth": {
+            "score": 3,
+            "rationale": "Fixture records an acceptable mechanics score.",
+            "evidence": [
+              "scorecard:fixture/FIXTURE-COMPLETE-1/mechanics_depth"
+            ]
+          },
+          "onboarding_clarity": {
+            "score": 4,
+            "rationale": "Fixture records a clear onboarding score.",
+            "evidence": [
+              "scorecard:fixture/FIXTURE-COMPLETE-1/onboarding_clarity"
+            ]
+          },
+          "goal_state": {
+            "score": 3,
+            "rationale": "Fixture records a visible goal-state score.",
+            "evidence": [
+              "scorecard:fixture/FIXTURE-COMPLETE-1/goal_state"
+            ]
+          },
+          "replay_value": {
+            "score": 3,
+            "rationale": "Fixture records a bounded replay-value score.",
+            "evidence": [
+              "scorecard:fixture/FIXTURE-COMPLETE-1/replay_value"
+            ]
+          },
+          "visual_polish": {
+            "score": 4,
+            "rationale": "Fixture records a screenshot-backed visual score.",
+            "evidence": [
+              "screenshot:specimen-lab/pullfrog/pr-502/browser-smoke.png"
+            ]
+          },
+          "browser_correctness": {
+            "score": 5,
+            "rationale": "Fixture records a passing browser-smoke score.",
+            "evidence": [
+              "report:artifacts/pullfrog-experiment-evaluation-502/report.json"
+            ]
+          },
+          "prompt_adherence": {
+            "score": 4,
+            "rationale": "Fixture records prompt-adherence evidence.",
+            "evidence": [
+              "pr:https://github.com/Drew-Goddyn/jules-toys/pull/502"
+            ]
+          },
+          "review_burden": {
+            "score": 3,
+            "rationale": "Fixture records a review-burden score.",
+            "evidence": [
+              "observation:fixture-review-burden"
+            ]
+          }
+        }
+      },
+      "synthesis_reference": {
+        "path": "docs/pullfrog-fleet/synthesis/valid-completed-cell.md",
+        "status": "included",
+        "evidence": [
+          "synthesis:docs/pullfrog-fleet/synthesis/valid-completed-cell.md"
+        ]
+      },
+      "observables": [
+        "known_gaps_from_report",
+        "browser_smoke_status",
+        "screenshot_legibility",
+        "review_minutes"
+      ],
+      "status": "passed",
+      "evidence": [
+        "manifest:tests/fixtures/pullfrog-wave/valid-completed-cell.json#/cells/FIXTURE-COMPLETE-1"
+      ],
+      "final_disposition": "accepted_fixture"
+    }
+  ],
+  "worker_report_contract": {
+    "tasks": [
+      {
+        "task_id": "extract-known-gaps",
+        "task_type": "extract_known_gaps",
+        "inputs": [
+          "deterministic_report"
+        ],
+        "output": "cited_gap_list"
+      },
+      {
+        "task_id": "classify-failure-modes",
+        "task_type": "classify_failure_modes",
+        "inputs": [
+          "known_gaps"
+        ],
+        "output": "failure_mode_counts"
+      },
+      {
+        "task_id": "compare-scorecard-deltas",
+        "task_type": "compare_scorecard_deltas",
+        "inputs": [
+          "scorecards"
+        ],
+        "output": "dimension_delta_table"
+      },
+      {
+        "task_id": "summarize-evidence",
+        "task_type": "summarize_evidence",
+        "inputs": [
+          "report"
+        ],
+        "output": "citation_first_summary"
+      },
+      {
+        "task_id": "mark-blocked-honestly",
+        "task_type": "mark_blocked_honestly",
+        "inputs": [
+          "missing_inputs"
+        ],
+        "output": "blocked_report"
+      }
+    ],
+    "jules_policy": {
+      "required": false,
+      "max_cells_per_assignment": 1,
+      "blocked_path": "Return BLOCKED."
+    }
+  },
+  "rejection_criteria": [
+    {
+      "id": "missing_artifact",
+      "rule": "required"
+    },
+    {
+      "id": "missing_screenshot",
+      "rule": "required"
+    },
+    {
+      "id": "missing_deterministic_report",
+      "rule": "required"
+    },
+    {
+      "id": "unparseable_scorecard",
+      "rule": "required"
+    },
+    {
+      "id": "uncited_claim",
+      "rule": "required"
+    },
+    {
+      "id": "duplicate_or_ambiguous_cell_identity",
+      "rule": "required"
+    },
+    {
+      "id": "manual_specimen_data_repair",
+      "rule": "required"
+    },
+    {
+      "id": "missing_synthesis",
+      "rule": "required"
+    }
+  ],
+  "synthesis": {
+    "path": "docs/pullfrog-fleet/synthesis/valid-completed-cell.md",
+    "procedure": [
+      {
+        "id": "compare_cells",
+        "description": "required"
+      },
+      {
+        "id": "identify_repeated_failure_modes",
+        "description": "required"
+      },
+      {
+        "id": "separate_effects",
+        "description": "required"
+      },
+      {
+        "id": "record_killed_hypotheses",
+        "description": "required"
+      },
+      {
+        "id": "recommend_next_smallest_wave",
+        "description": "required"
+      }
+    ]
+  },
+  "persistence_safety": {
+    "guard": "github_actions_job_concurrency",
+    "workflow": ".github/workflows/pullfrog-experiment-evaluate.yml",
+    "job": "persist-specimen-lab",
+    "group": "pullfrog-specimen-lab-persist",
+    "cancel_in_progress": false,
+    "reason": "required"
+  }
+}
