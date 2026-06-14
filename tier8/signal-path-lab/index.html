@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signal Path Lab</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #0a0e17;
+  color: #c8d6e5;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 16px;
+}
+#app {
+  max-width: 520px;
+  width: 100%;
+  text-align: center;
+}
+h1 {
+  font-size: 1.3rem;
+  font-weight: 300;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #48dbfb;
+  margin-bottom: 4px;
+}
+#meta {
+  font-size: 0.8rem;
+  color: #576574;
+  margin-bottom: 12px;
+}
+#meta span { color: #8395a7; }
+#canvas-wrap {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+#canvas-wrap canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  cursor: pointer;
+  touch-action: none;
+}
+#overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border-radius: 8px;
+  background: rgba(10,14,23,0.85);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+#overlay.show { opacity: 1; pointer-events: auto; }
+#overlay h2 {
+  font-size: 1.5rem;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  margin-bottom: 12px;
+}
+#overlay.success h2 { color: #1dd1a1; }
+#overlay.fail h2 { color: #ff6b6b; }
+#overlay .sub {
+  font-size: 0.85rem;
+  color: #8395a7;
+  margin-bottom: 16px;
+}
+#overlay button {
+  background: transparent;
+  border: 1px solid #48dbfb;
+  color: #48dbfb;
+  padding: 8px 24px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+#overlay button:hover { background: rgba(72,219,251,0.1); }
+#controls {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+#controls button {
+  background: transparent;
+  border: 1px solid #576574;
+  color: #c8d6e5;
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+#controls button:hover { border-color: #48dbfb; color: #48dbfb; }
+#controls button:disabled { opacity: 0.35; cursor: not-allowed; }
+#controls button.primary {
+  border-color: #48dbfb;
+  color: #48dbfb;
+}
+#controls button.primary:hover { background: rgba(72,219,251,0.1); }
+#signal-bar {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 10px;
+  min-height: 28px;
+  align-items: center;
+}
+.signal-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: #576574;
+  transition: all 0.3s;
+}
+.signal-dot.on { background: #1dd1a1; box-shadow: 0 0 8px #1dd1a1; }
+.signal-dot.off { background: #ff6b6b; box-shadow: 0 0 8px #ff6b6b; }
+#signal-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  color: #576574;
+  margin-left: 8px;
+}
+@media (max-width: 400px) {
+  h1 { font-size: 1rem; }
+  #controls button { font-size: 0.7rem; padding: 5px 10px; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>Signal Path Lab</h1>
+  <div id="meta">Level <span id="level-num">1</span> / <span id="level-total">3</span></div>
+  <div id="canvas-wrap">
+    <canvas id="c"></canvas>
+    <div id="overlay"><h2 id="overlay-title"></h2><div class="sub" id="overlay-sub"></div><button id="overlay-btn"></button></div>
+  </div>
+  <div id="signal-bar"><div id="signal-dots"></div><span id="signal-label">Idle</span></div>
+  <div id="controls">
+    <button id="send-btn" class="primary">Send Signal</button>
+    <button id="reset-btn">Reset Path</button>
+  </div>
+</div>
+<script>
+(function(){
+const CONN_U=1, CONN_R=2, CONN_D=4, CONN_L=8;
+const EMPTY=0, H_WIRE=10, V_WIRE=5;
+const NE_C=3, SE_C=6, SW_C=12, NW_C=9;
+const WIRE_CONNS={};
+WIRE_CONNS[H_WIRE]=[CONN_L,CONN_R];
+WIRE_CONNS[V_WIRE]=[CONN_U,CONN_D];
+WIRE_CONNS[NE_C]=[CONN_U,CONN_R];
+WIRE_CONNS[SE_C]=[CONN_R,CONN_D];
+WIRE_CONNS[SW_C]=[CONN_D,CONN_L];
+WIRE_CONNS[NW_C]=[CONN_L,CONN_U];
+const CORNER_ROT=[NE_C,SE_C,SW_C,NW_C];
+const DIR_DR=[-1,0,1,0];
+const DIR_DC=[0,1,0,-1];
+const DIR_NAMES=['up','right','down','left'];
+
+const LEVELS=[
+  {
+    srcTgt:[{s:2,t:2}],
+    blocks:[],
+    desc:'Route signal from source to target'
+  },
+  {
+    srcTgt:[{s:1,t:1},{s:6,t:5}],
+    blocks:[{r:3,c:3},{r:3,c:4},{r:4,c:2},{r:4,c:5},{r:5,c:3}],
+    desc:'Route two signals simultaneously'
+  },
+  {
+    srcTgt:[{s:0,t:7},{s:7,t:0},{s:3,t:3}],
+    blocks:[
+      {r:2,c:2},{r:2,c:3},{r:2,c:4},{r:2,c:5},
+      {r:4,c:1},{r:4,c:6},
+      {r:5,c:2},{r:5,c:3},{r:5,c:4},{r:5,c:5}
+    ],
+    desc:'Route three signals through obstacles'
+  }
+];
+
+const SZ=8;
+const canvas=document.getElementById('c');
+const ctx=canvas.getContext('2d');
+const overlayEl=document.getElementById('overlay');
+const overlayTitle=document.getElementById('overlay-title');
+const overlaySub=document.getElementById('overlay-sub');
+const overlayBtn=document.getElementById('overlay-btn');
+const levelNum=document.getElementById('level-num');
+const levelTotal=document.getElementById('level-total');
+const signalDots=document.getElementById('signal-dots');
+const signalLabel=document.getElementById('signal-label');
+const sendBtn=document.getElementById('send-btn');
+const resetBtn=document.getElementById('reset-btn');
+
+let DPR=1;
+let levelIdx=0;
+let grid=[];
+let sources=[];
+let targets=[];
+let blocks=[];
+let pulseCells=[];
+let animFrame=null;
+let isAnimating=false;
+let checking=false;
+
+function resizeCanvas(){
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  const rect=canvas.parentElement.getBoundingClientRect();
+  const w=Math.min(rect.width,480);
+  canvas.style.width=w+'px';
+  canvas.style.height=w+'px';
+  canvas.width=w*DPR;
+  canvas.height=w*DPR;
+}
+
+function cellX(c){return c*(canvas.width/SZ);}
+function cellY(r){return r*(canvas.height/SZ);}
+function cellSize(){return canvas.width/SZ;}
+
+function getConnections(wire){
+  const c=WIRE_CONNS[wire];
+  return c||[];
+}
+
+function rotateWire(wire){
+  if(wire===EMPTY) return H_WIRE;
+  if(wire===H_WIRE) return V_WIRE;
+  if(wire===V_WIRE) return H_WIRE;
+  const idx=CORNER_ROT.indexOf(wire);
+  if(idx>=0) return CORNER_ROT[(idx+1)%4];
+  return H_WIRE;
+}
+
+function initLevel(lev){
+  grid=Array.from({length:SZ},()=>Array(SZ).fill(EMPTY));
+  sources=lev.srcTgt.map(p=>({r:0,c:p.s,tc:p.t}));
+  targets=lev.srcTgt.map(p=>({r:SZ-1,c:p.t,sc:p.s}));
+  blocks=[];
+  for(const b of lev.blocks){
+    blocks.push(b);
+    grid[b.r][b.c]=-1;
+  }
+  pulseCells=[];
+  overlayEl.classList.remove('show','success','fail');
+  levelNum.textContent=levelIdx+1;
+  levelTotal.textContent=LEVELS.length;
+  isAnimating=false;
+  checking=false;
+  sendBtn.disabled=false;
+  resetBtn.disabled=false;
+  updateSignalBar(null);
+  draw();
+}
+
+function tracePath(grid,sr,stc,tr,ttc){
+  // start below source, going down
+  let r=sr+1,c=stc;
+  let fromDir=CONN_U;
+  const visited=new Set();
+  const path=[];
+  while(r>=0&&r<SZ&&c>=0&&c<SZ){
+    const key=r*SZ+c;
+    if(visited.has(key)) return null;
+    visited.add(key);
+    if(r===tr&&c===ttc){
+      if(fromDir===CONN_U) { path.push({r,c}); return path; }
+      return null;
+    }
+    const cell=grid[r][c];
+    if(cell<=0) return null;
+    const conns=getConnections(cell);
+    if(!conns.includes(fromDir)) return null;
+    const outDir=conns.find(d=>d!==fromDir);
+    if(outDir===undefined) return null;
+    path.push({r,c,enterDir:fromDir,exitDir:outDir});
+    r+=DIR_DR[outDir];
+    c+=DIR_DC[outDir];
+    fromDir=1<<((outDir+2)%4);
+  }
+  return null;
+}
+
+function solveLevel(){
+  for(const src of sources){
+    const tgt=targets.find(t=>t.sc===src.c);
+    if(!tgt) return null;
+    const path=tracePath(grid,src.r,src.c,tgt.r,tgt.c);
+    if(!path) return null;
+  }
+  return true;
+}
+
+function getFailedPaths(){
+  const results=[];
+  for(const src of sources){
+    const tgt=targets.find(t=>t.sc===src.c);
+    const path=tracePath(grid,src.r,src.c,tgt.r,tgt.c);
+    results.push({src,tgt,path,ok:path!==null});
+  }
+  return results;
+}
+
+function animateSignal(paths,success,cb){
+  isAnimating=true;
+  checking=true;
+  sendBtn.disabled=true;
+  resetBtn.disabled=true;
+  let maxLen=0;
+  for(const p of paths) if(p.path&&p.path.length>maxLen) maxLen=p.path.length;
+  if(maxLen===0) maxLen=1;
+  let step=0;
+  const totalSteps=maxLen+2;
+
+  function tick(){
+    step++;
+    pulseCells=[];
+    for(const p of paths){
+      if(p.path&&step-1<p.path.length){
+        pulseCells.push(p.path[step-1]);
+      }
+    }
+    draw();
+    if(step<=totalSteps){
+      animFrame=requestAnimationFrame(tick);
+    }else{
+      finish();
+    }
+  }
+
+  function finish(){
+    pulseCells=[];
+    if(success){
+      overlayTitle.textContent='Level Complete';
+      overlaySub.textContent='All signals connected!';
+      overlayBtn.textContent='Next Level';
+      overlayBtn.onclick=()=>{
+        overlayEl.classList.remove('show');
+        levelIdx++;
+        if(levelIdx>=LEVELS.length) levelIdx=0;
+        initLevel(LEVELS[levelIdx]);
+      };
+      overlayEl.className='show success';
+      flashGreen();
+      updateSignalBar('success');
+    }else{
+      overlayTitle.textContent='Signal Lost';
+      overlaySub.textContent='Path interrupted — try a different route';
+      overlayBtn.textContent='OK';
+      overlayBtn.onclick=()=>{
+        overlayEl.classList.remove('show');
+        resetBoard();
+      };
+      overlayEl.className='show fail';
+      flashRed();
+      updateSignalBar('fail');
+    }
+    isAnimating=false;
+    checking=false;
+    sendBtn.disabled=false;
+    resetBtn.disabled=false;
+    draw();
+    if(cb) cb();
+  }
+
+  step=0;
+  tick();
+}
+
+function flashGreen(){
+  const wrap=canvas.parentElement;
+  wrap.style.transition='box-shadow 0.15s';
+  wrap.style.boxShadow='inset 0 0 60px rgba(29,209,161,0.4), 0 0 40px rgba(29,209,161,0.2)';
+  setTimeout(()=>{wrap.style.boxShadow='none';},600);
+}
+
+function flashRed(){
+  const wrap=canvas.parentElement;
+  wrap.style.transition='box-shadow 0.15s';
+  wrap.style.boxShadow='inset 0 0 60px rgba(255,107,107,0.4), 0 0 40px rgba(255,107,107,0.2)';
+  setTimeout(()=>{wrap.style.boxShadow='none';},600);
+}
+
+function resetBoard(){
+  for(let r=0;r<SZ;r++) for(let c=0;c<SZ;c++){
+    if(grid[r][c]!==-1) grid[r][c]=EMPTY;
+  }
+  pulseCells=[];
+  overlayEl.classList.remove('show');
+  updateSignalBar(null);
+  draw();
+}
+
+function updateSignalBar(state){
+  signalDots.innerHTML='';
+  if(state==='success'){
+    for(let i=0;i<Math.min(sources.length,5);i++){
+      const d=document.createElement('div');
+      d.className='signal-dot on';
+      signalDots.appendChild(d);
+    }
+    signalLabel.textContent='All Connected';
+    signalLabel.style.color='#1dd1a1';
+  }else if(state==='fail'){
+    for(let i=0;i<Math.min(sources.length,5);i++){
+      const d=document.createElement('div');
+      d.className='signal-dot off';
+      signalDots.appendChild(d);
+    }
+    signalLabel.textContent='Signal Lost';
+    signalLabel.style.color='#ff6b6b';
+  }else{
+    for(let i=0;i<Math.min(sources.length,5);i++){
+      const d=document.createElement('div');
+      d.className='signal-dot';
+      signalDots.appendChild(d);
+    }
+    signalLabel.textContent='Idle';
+    signalLabel.style.color='#576574';
+  }
+}
+
+function draw(){
+  const cs=cellSize();
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='#0f1629';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // grid lines
+  ctx.strokeStyle='rgba(72,219,251,0.08)';
+  ctx.lineWidth=1*DPR;
+  for(let i=0;i<=SZ;i++){
+    ctx.beginPath(); ctx.moveTo(i*cs,0); ctx.lineTo(i*cs,canvas.height); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,i*cs); ctx.lineTo(canvas.width,i*cs); ctx.stroke();
+  }
+
+  // goal rails (dashed lines from source cols to target cols)
+  for(const src of sources){
+    const tgt=targets.find(t=>t.sc===src.c);
+    if(!tgt) continue;
+    ctx.save();
+    ctx.setLineDash([4*DPR,4*DPR]);
+    ctx.strokeStyle='rgba(72,219,251,0.2)';
+    ctx.lineWidth=1.5*DPR;
+    ctx.beginPath();
+    ctx.moveTo(src.c*cs+cs/2,-cs); ctx.lineTo(tgt.c*cs+cs/2,canvas.height+cs);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // cells
+  for(let r=0;r<SZ;r++) for(let c=0;c<SZ;c++){
+    const x=c*cs, y=r*cs;
+    const val=grid[r][c];
+    const isPulse=pulseCells.some(p=>p.r===r&&p.c===c);
+
+    if(val===-1){
+      ctx.fillStyle='#1a1f35';
+      ctx.fillRect(x,y,cs,cs);
+      ctx.strokeStyle='#2a3050';
+      ctx.lineWidth=1*DPR;
+      ctx.beginPath();
+      ctx.moveTo(x+4*DPR,y+4*DPR); ctx.lineTo(x+cs-4*DPR,y+cs-4*DPR);
+      ctx.moveTo(x+cs-4*DPR,y+4*DPR); ctx.lineTo(x+4*DPR,y+cs-4*DPR);
+      ctx.stroke();
+    }else if(val===EMPTY){
+      // Check if this is a first-click affordance cell
+      if(isFirstAffordance(r,c)){
+        const t=Date.now()/1000;
+        const pulse=0.3+0.7*(0.5+0.5*Math.sin(t*3));
+        ctx.fillStyle=`rgba(72,219,251,${pulse*0.15})`;
+        ctx.fillRect(x,y,cs,cs);
+      }
+    }else{
+      // wire
+      const conns=getConnections(val);
+      ctx.fillStyle='#1a1f35';
+      ctx.fillRect(x,y,cs,cs);
+      ctx.strokeStyle=isPulse?'#48dbfb':'#2e86de';
+      ctx.lineWidth=isPulse?4*DPR:3*DPR;
+      ctx.shadowColor=isPulse?'#48dbfb':'transparent';
+      ctx.shadowBlur=isPulse?12*DPR:0;
+      const cx=x+cs/2, cy=y+cs/2;
+      const half=cs*0.35;
+      if(conns.includes(CONN_U)){ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx,cy-half);ctx.stroke();}
+      if(conns.includes(CONN_D)){ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx,cy+half);ctx.stroke();}
+      if(conns.includes(CONN_L)){ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx-half,cy);ctx.stroke();}
+      if(conns.includes(CONN_R)){ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+half,cy);ctx.stroke();}
+      ctx.shadowBlur=0;
+      ctx.shadowColor='transparent';
+      // center dot
+      ctx.fillStyle=isPulse?'#48dbfb':'#2e86de';
+      ctx.beginPath(); ctx.arc(cx,cy,2.5*DPR,0,Math.PI*2); ctx.fill();
+    }
+
+    // source indicator
+    if(sources.some(s=>s.c===c&&r===0)){
+      ctx.fillStyle='rgba(29,209,161,0.2)';
+      ctx.fillRect(x,y,cs,cs);
+      ctx.fillStyle='#1dd1a1';
+      ctx.font=`bold ${cs*0.45}px monospace`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('S',x+cs/2,y+cs/2);
+    }
+    // target indicator
+    if(targets.some(t=>t.c===c&&r===SZ-1)){
+      ctx.fillStyle='rgba(255,107,107,0.2)';
+      ctx.fillRect(x,y,cs,cs);
+      ctx.fillStyle='#ff6b6b';
+      ctx.font=`bold ${cs*0.45}px monospace`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('T',x+cs/2,y+cs/2);
+    }
+  }
+}
+
+let affordanceRow=-1, affordanceCol=-1;
+
+function isFirstAffordance(r,c){
+  if(levelIdx!==0||grid[r][c]!==EMPTY) return false;
+  return r===affordanceRow&&c===affordanceCol;
+}
+
+function computeAffordance(){
+  if(LEVELS[levelIdx].srcTgt.length>0){
+    affordanceRow=1;
+    affordanceCol=sources[0].c;
+  }
+}
+
+function handleClick(e){
+  if(isAnimating||checking) return;
+  const rect=canvas.getBoundingClientRect();
+  const scaleX=canvas.width/rect.width;
+  const scaleY=canvas.height/rect.height;
+  const mx=(e.clientX-rect.left)*scaleX;
+  const my=(e.clientY-rect.top)*scaleY;
+  const cs=cellSize();
+  const c=Math.floor(mx/cs);
+  const r=Math.floor(my/cs);
+  if(r<0||r>=SZ||c<0||c>=SZ) return;
+  if(r===0||r===SZ-1) return; // source/target row
+  if(grid[r][c]===-1) return; // blocked
+  grid[r][c]=rotateWire(grid[r][c]);
+  pulseCells=[];
+  overlayEl.classList.remove('show');
+  draw();
+}
+
+function doSendSignal(){
+  if(isAnimating||checking) return;
+  const result=solveLevel();
+  if(result){
+    const paths=getFailedPaths();
+    updateSignalBar('success');
+    animateSignal(paths,true);
+  }else{
+    const paths=getFailedPaths();
+    updateSignalBar('fail');
+    animateSignal(paths,false);
+  }
+}
+
+// init
+function init(){
+  resizeCanvas();
+  levelIdx=0;
+  initLevel(LEVELS[0]);
+  computeAffordance();
+  draw();
+
+  canvas.addEventListener('click',handleClick);
+  canvas.addEventListener('touchstart',(e)=>{
+    e.preventDefault();
+    const touch=e.touches[0];
+    handleClick({clientX:touch.clientX,clientY:touch.clientY});
+  },{passive:false});
+
+  sendBtn.addEventListener('click',doSendSignal);
+  resetBtn.addEventListener('click',resetBoard);
+
+  window.addEventListener('resize',()=>{
+    resizeCanvas();
+    draw();
+  });
+}
+
+document.addEventListener('DOMContentLoaded',init);
+if(document.readyState!=='loading') init();
+})();
+</script>
+</body>
+</html>
