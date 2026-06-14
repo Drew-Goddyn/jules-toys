@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import http from "node:http";
+import https from "node:https";
+import crypto from "node:crypto";
+import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
@@ -17,73 +20,109 @@ const metadata = readJson(args.metadata);
 const prNumber = Number(args.prNumber ?? metadata?.number);
 const issueNumber = Number(args.issueNumber ?? inferIssueNumber(metadata));
 const testOutcome = normalizeOutcome(args.testOutcome);
-
-if (!Number.isInteger(prNumber) || prNumber <= 0) {
-  throw new Error("A positive --pr-number is required.");
-}
-
-fs.mkdirSync(outputDir, { recursive: true });
-
-const changedFiles = getChangedFiles(metadata);
-const toyDirs = findToyDirs(changedFiles);
-const gallery = loadGallerySafely();
-const candidate = selectCandidateToy(toyDirs, gallery.items);
-const scope = evaluateChangedFileScope(changedFiles, toyDirs);
-const registration = evaluateGalleryRegistration(candidate, gallery.error);
-const screenshot = evaluateScreenshot(candidate?.item);
-const network = evaluateExternalNetwork(candidate?.item);
-const browserSmoke = await runBrowserSmoke(candidate?.item);
-const specimenLab = loadSpecimenLabSafely(lineageRootDir);
-const workflow = buildWorkflowMetadata();
-const scorecardMarker = `<!-- pullfrog-experiment-evaluator:v2 pr=${prNumber} issue=${Number.isInteger(issueNumber) && issueNumber > 0 ? issueNumber : "unknown"} -->`;
-const lineage = buildLineage(prNumber, specimenLab, workflow, scorecardMarker, lineageRootDir);
-const mechanicalPass = [
-  testOutcome.status === "pass",
-  scope.status === "pass",
-  registration.status === "pass",
-  screenshot.status === "pass",
-  network.status === "pass",
-  browserSmoke.status !== "fail"
-].every(Boolean);
-
-const report = {
-  version: 2,
-  generated_at: new Date().toISOString(),
-  repository: process.env.GITHUB_REPOSITORY ?? "Drew-Goddyn/jules-toys",
-  workflow,
-  lineage,
-  pr: {
-    number: prNumber,
-    url: metadata?.url ?? `https://github.com/Drew-Goddyn/jules-toys/pull/${prNumber}`,
-    title: metadata?.title ?? null,
-    head_ref: metadata?.headRefName ?? null,
-    base_ref: metadata?.baseRefName ?? null,
-    head_sha: metadata?.headRefOid ?? null
-  },
-  issue: {
-    number: Number.isInteger(issueNumber) && issueNumber > 0 ? issueNumber : null,
-    url: Number.isInteger(issueNumber) && issueNumber > 0
-      ? `https://github.com/Drew-Goddyn/jules-toys/issues/${issueNumber}`
-      : null
-  },
-  deterministic: {
-    ci_test_result: testOutcome,
-    changed_file_scope: scope,
-    gallery_registration: registration,
-    screenshot_presence: screenshot,
-    external_network_dependency: network,
-    browser_smoke: browserSmoke
-  },
-  recommendation: {
-    mechanical_pass: mechanicalPass,
-    deterministic_label: mechanicalPass ? "experiment:accepted" : "experiment:failed",
-    known_gaps: collectKnownGaps(scope, registration, screenshot, network, browserSmoke, testOutcome)
+const geminiPlaytestReviewSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "goal_guess",
+    "first_action_guess",
+    "first_action_confidence",
+    "observed_feedback",
+    "stuck_reason",
+    "clarity_score",
+    "interaction_confidence",
+    "known_gaps",
+    "recommendation"
+  ],
+  properties: {
+    goal_guess: { type: "string" },
+    first_action_guess: { type: "string" },
+    first_action_confidence: { type: "number", minimum: 0, maximum: 1 },
+    observed_feedback: { type: "string" },
+    stuck_reason: { type: ["string", "null"] },
+    clarity_score: { type: "integer", minimum: 1, maximum: 5 },
+    interaction_confidence: { type: "number", minimum: 0, maximum: 1 },
+    known_gaps: { type: "array", items: { type: "string" } },
+    recommendation: {
+      type: "string",
+      enum: ["accept", "needs-human-review", "reject"]
+    }
   }
 };
 
-fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
-console.log(`Wrote Pullfrog experiment evaluation report to ${path.relative(rootDir, reportPath)}`);
-console.log(`Mechanical result: ${mechanicalPass ? "pass" : "fail"}`);
+async function main() {
+  if (!Number.isInteger(prNumber) || prNumber <= 0) {
+    throw new Error("A positive --pr-number is required.");
+  }
+
+  fs.mkdirSync(outputDir, { recursive: true });
+
+  const changedFiles = getChangedFiles(metadata);
+  const toyDirs = findToyDirs(changedFiles);
+  const gallery = loadGallerySafely();
+  const candidate = selectCandidateToy(toyDirs, gallery.items);
+  const scope = evaluateChangedFileScope(changedFiles, toyDirs);
+  const registration = evaluateGalleryRegistration(candidate, gallery.error);
+  const screenshot = evaluateScreenshot(candidate?.item);
+  const network = evaluateExternalNetwork(candidate?.item);
+  const browserSmoke = await runBrowserSmoke(candidate?.item);
+  const playtestTrace = await runBrowserPlaytest(candidate?.item);
+  const modelPlaytestReview = await runModelPlaytestReview(playtestTrace);
+  const specimenLab = loadSpecimenLabSafely(lineageRootDir);
+  const workflow = buildWorkflowMetadata();
+  const scorecardMarker = `<!-- pullfrog-experiment-evaluator:v2 pr=${prNumber} issue=${Number.isInteger(issueNumber) && issueNumber > 0 ? issueNumber : "unknown"} -->`;
+  const lineage = buildLineage(prNumber, specimenLab, workflow, scorecardMarker, lineageRootDir);
+  const mechanicalPass = [
+    testOutcome.status === "pass",
+    scope.status === "pass",
+    registration.status === "pass",
+    screenshot.status === "pass",
+    network.status === "pass",
+    browserSmoke.status !== "fail",
+    playtestTrace.mechanical_status !== "fail"
+  ].every(Boolean);
+
+  const report = {
+    version: 2,
+    generated_at: new Date().toISOString(),
+    repository: process.env.GITHUB_REPOSITORY ?? "Drew-Goddyn/jules-toys",
+    workflow,
+    lineage,
+    pr: {
+      number: prNumber,
+      url: metadata?.url ?? `https://github.com/Drew-Goddyn/jules-toys/pull/${prNumber}`,
+      title: metadata?.title ?? null,
+      head_ref: metadata?.headRefName ?? null,
+      base_ref: metadata?.baseRefName ?? null,
+      head_sha: metadata?.headRefOid ?? null
+    },
+    issue: {
+      number: Number.isInteger(issueNumber) && issueNumber > 0 ? issueNumber : null,
+      url: Number.isInteger(issueNumber) && issueNumber > 0
+        ? `https://github.com/Drew-Goddyn/jules-toys/issues/${issueNumber}`
+        : null
+    },
+    deterministic: {
+      ci_test_result: testOutcome,
+      changed_file_scope: scope,
+      gallery_registration: registration,
+      screenshot_presence: screenshot,
+      external_network_dependency: network,
+      browser_smoke: browserSmoke,
+      playtest_trace: playtestTrace
+    },
+    model_playtest_review: modelPlaytestReview,
+    recommendation: {
+      mechanical_pass: mechanicalPass,
+      deterministic_label: mechanicalPass ? "experiment:accepted" : "experiment:failed",
+      known_gaps: collectKnownGaps(scope, registration, screenshot, network, browserSmoke, playtestTrace, modelPlaytestReview, testOutcome)
+    }
+  };
+
+  fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+  console.log(`Wrote Pullfrog experiment evaluation report to ${path.relative(rootDir, reportPath)}`);
+  console.log(`Mechanical result: ${mechanicalPass ? "pass" : "fail"}`);
+}
 
 function parseArgs(argv) {
   const parsed = {};
@@ -456,6 +495,542 @@ async function runBrowserSmoke(item) {
   };
 }
 
+async function runBrowserPlaytest(item) {
+  if (args.browserSmoke === "false") {
+    return skippedPlaytestTrace("Browser playtest disabled by --browser-smoke false.");
+  }
+
+  if (!item) {
+    return skippedPlaytestTrace("No registered gallery item found.");
+  }
+
+  const distDir = path.join(rootDir, "dist");
+  if (!fs.existsSync(path.join(distDir, item.path))) {
+    return skippedPlaytestTrace("Built dist toy route was not found. Run npm test or npm run build first.");
+  }
+
+  const chromePath = findChrome();
+  if (!chromePath) {
+    return skippedPlaytestTrace("No Chrome or Chromium executable found.");
+  }
+
+  const server = http.createServer((request, response) => {
+    serveStaticFile(distDir, request, response);
+  });
+  let cdp = null;
+  let chrome = null;
+  let userDataDir = null;
+
+  try {
+    await new Promise((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(0, "127.0.0.1", resolve);
+    });
+
+    const port = server.address().port;
+    const url = `http://127.0.0.1:${port}/${item.path}`;
+    const debugPort = await reserveLocalPort();
+    userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "pullfrog-playtest-chrome-"));
+    chrome = spawn(chromePath, [
+      "--headless=new",
+      "--disable-gpu",
+      "--disable-dev-shm-usage",
+      "--no-sandbox",
+      "--hide-scrollbars",
+      "--run-all-compositor-stages-before-draw",
+      "--window-size=1280,900",
+      `--remote-debugging-port=${debugPort}`,
+      `--user-data-dir=${userDataDir}`,
+      "about:blank"
+    ], {
+      stdio: "ignore"
+    });
+
+    const page = await waitForDebugPage(debugPort, 12000);
+    cdp = await DevToolsConnection.connect(page.webSocketDebuggerUrl);
+    const observed = captureBrowserObservations(cdp);
+
+    await cdp.send("Page.enable");
+    await cdp.send("Runtime.enable");
+    await cdp.send("Log.enable");
+
+    const navigateResult = await cdp.send("Page.navigate", { url });
+    const loadStatus = await waitForPageLoad(cdp, navigateResult, 12000);
+    const beforeState = await snapshotPageState(cdp);
+    const initialScreenshotPath = path.join(outputDir, "playtest-initial.png");
+    await captureDevToolsScreenshot(cdp, initialScreenshotPath);
+    const beforeScreenshotHash = hashFile(initialScreenshotPath);
+    const initialScreenshotAnalysis = await analyzeScreenshot(initialScreenshotPath);
+    const action = choosePlaytestAction(beforeState);
+    const attemptedInteraction = await performPlaytestAction(cdp, action);
+
+    if (attemptedInteraction.status === "attempted") {
+      await delay(900);
+    }
+
+    const afterState = await snapshotPageState(cdp);
+    const afterScreenshotPath = path.join(outputDir, "playtest-after-interaction.png");
+    await captureDevToolsScreenshot(cdp, afterScreenshotPath);
+    const afterScreenshotHash = hashFile(afterScreenshotPath);
+    const afterScreenshotAnalysis = await analyzeScreenshot(afterScreenshotPath);
+    const stateChange = summarizeStateChange(beforeState, afterState, beforeScreenshotHash, afterScreenshotHash);
+    const feedback = detectFeedback(beforeState.text_sample, afterState.text_sample);
+    const mechanicalStatus = determinePlaytestMechanicalStatus({
+      loadStatus,
+      observed,
+      initialScreenshotAnalysis,
+      attemptedInteraction,
+      stateChange,
+      feedback
+    });
+
+    return {
+      status: mechanicalStatus === "fail" ? "fail" : "completed",
+      load_status: loadStatus,
+      console_errors: observed.console_errors,
+      page_errors: observed.page_errors,
+      initial_screenshot: path.relative(rootDir, initialScreenshotPath),
+      candidate_actionable_controls: beforeState.controls,
+      attempted_interactions: [attemptedInteraction],
+      before_evidence: {
+        url: beforeState.url,
+        title: beforeState.title,
+        text_hash: beforeState.text_hash,
+        text_sample: beforeState.text_sample,
+        control_count: beforeState.controls.length,
+        canvas_count: beforeState.canvases.length,
+        screenshot: path.relative(rootDir, initialScreenshotPath),
+        screenshot_analysis: initialScreenshotAnalysis
+      },
+      after_evidence: {
+        url: afterState.url,
+        title: afterState.title,
+        text_hash: afterState.text_hash,
+        text_sample: afterState.text_sample,
+        control_count: afterState.controls.length,
+        canvas_count: afterState.canvases.length,
+        screenshot: path.relative(rootDir, afterScreenshotPath),
+        screenshot_analysis: afterScreenshotAnalysis
+      },
+      state_changed: stateChange.changed,
+      state_change_reasons: stateChange.reasons,
+      feedback_observed: feedback,
+      mechanical_status: mechanicalStatus,
+      reason: playtestReason(mechanicalStatus, attemptedInteraction, stateChange, feedback)
+    };
+  } catch (error) {
+    return erroredPlaytestTrace(error);
+  } finally {
+    if (cdp) {
+      cdp.close();
+    }
+    if (chrome && chrome.exitCode === null) {
+      chrome.kill("SIGTERM");
+      await waitForChildExit(chrome, 2000);
+    }
+    if (server.listening) {
+      await new Promise((resolve) => server.close(resolve));
+    }
+    if (userDataDir) {
+      fs.rmSync(userDataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    }
+  }
+}
+
+function skippedPlaytestTrace(reason) {
+  return {
+    status: "skipped",
+    load_status: { status: "skipped", reason },
+    console_errors: [],
+    page_errors: [],
+    initial_screenshot: null,
+    candidate_actionable_controls: [],
+    attempted_interactions: [{ type: "none", status: "skipped", reason }],
+    before_evidence: null,
+    after_evidence: null,
+    state_changed: null,
+    state_change_reasons: [],
+    feedback_observed: {
+      success_failure_progress: false,
+      keywords: [],
+      reason: "No interaction was attempted."
+    },
+    mechanical_status: "skipped",
+    reason
+  };
+}
+
+function erroredPlaytestTrace(error) {
+  const reason = error instanceof Error ? error.message : String(error);
+  return {
+    status: "error",
+    load_status: { status: "unknown", reason },
+    console_errors: [],
+    page_errors: [{ message: reason }],
+    initial_screenshot: null,
+    candidate_actionable_controls: [],
+    attempted_interactions: [{ type: "none", status: "error", reason }],
+    before_evidence: null,
+    after_evidence: null,
+    state_changed: null,
+    state_change_reasons: [],
+    feedback_observed: {
+      success_failure_progress: false,
+      keywords: [],
+      reason: "The browser harness errored before interaction."
+    },
+    mechanical_status: "inconclusive",
+    reason
+  };
+}
+
+function captureBrowserObservations(cdp) {
+  const observed = {
+    console_errors: [],
+    page_errors: []
+  };
+
+  cdp.on("Runtime.consoleAPICalled", (params) => {
+    if (!["error", "assert"].includes(params.type)) {
+      return;
+    }
+    observed.console_errors.push({
+      type: params.type,
+      text: (params.args ?? []).map((arg) => arg.value ?? arg.description ?? "").filter(Boolean).join(" ").slice(0, 500)
+    });
+  });
+
+  cdp.on("Runtime.exceptionThrown", (params) => {
+    observed.page_errors.push({
+      message: params.exceptionDetails?.text ?? params.exceptionDetails?.exception?.description ?? "Runtime exception",
+      line: params.exceptionDetails?.lineNumber ?? null,
+      column: params.exceptionDetails?.columnNumber ?? null
+    });
+  });
+
+  cdp.on("Log.entryAdded", (params) => {
+    const entry = params.entry ?? {};
+    if (entry.level !== "error") {
+      return;
+    }
+    observed.console_errors.push({
+      type: entry.source ?? "log",
+      text: String(entry.text ?? "").slice(0, 500),
+      url: entry.url ?? null
+    });
+  });
+
+  return observed;
+}
+
+async function waitForPageLoad(cdp, navigateResult, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  let readyState = "unknown";
+
+  while (Date.now() < deadline) {
+    try {
+      const result = await cdp.send("Runtime.evaluate", {
+        expression: "document.readyState",
+        returnByValue: true
+      });
+      readyState = result.result?.value ?? "unknown";
+      if (readyState === "complete") {
+        return {
+          status: navigateResult.errorText ? "fail" : "pass",
+          ready_state: readyState,
+          navigation_error: navigateResult.errorText ?? null
+        };
+      }
+    } catch {
+      // Retry until Chrome has created the execution context for the navigated page.
+    }
+    await delay(100);
+  }
+
+  return {
+    status: "fail",
+    ready_state: readyState,
+    navigation_error: navigateResult.errorText ?? "Timed out waiting for document.readyState=complete."
+  };
+}
+
+async function snapshotPageState(cdp) {
+  const expression = `(() => {
+    const visible = (element) => {
+      const rect = element.getBoundingClientRect();
+      const style = window.getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity || 1) > 0;
+    };
+    const labelFor = (element) => {
+      const aria = element.getAttribute("aria-label");
+      if (aria) return aria;
+      const labelledBy = element.getAttribute("aria-labelledby");
+      if (labelledBy) {
+        return labelledBy.split(/\\s+/).map((id) => document.getElementById(id)?.innerText ?? "").join(" ").trim();
+      }
+      return "";
+    };
+    const controlSelector = "button,a[href],input,select,textarea,[role='button'],[role='link'],[tabindex],summary";
+    const controls = Array.from(document.querySelectorAll(controlSelector))
+      .filter(visible)
+      .slice(0, 20)
+      .map((element, index) => {
+        const rect = element.getBoundingClientRect();
+        return {
+          index,
+          tag: element.tagName.toLowerCase(),
+          role: element.getAttribute("role"),
+          type: element.getAttribute("type"),
+          text: (element.innerText || element.value || labelFor(element) || element.title || "").replace(/\\s+/g, " ").trim().slice(0, 120),
+          aria_label: element.getAttribute("aria-label"),
+          disabled: Boolean(element.disabled || element.getAttribute("aria-disabled") === "true"),
+          href: element.href || null,
+          center_x: Math.round(rect.left + rect.width / 2),
+          center_y: Math.round(rect.top + rect.height / 2),
+          width: Math.round(rect.width),
+          height: Math.round(rect.height)
+        };
+      });
+    const canvases = Array.from(document.querySelectorAll("canvas"))
+      .filter(visible)
+      .slice(0, 5)
+      .map((element, index) => {
+        const rect = element.getBoundingClientRect();
+        return {
+          index,
+          center_x: Math.round(rect.left + rect.width / 2),
+          center_y: Math.round(rect.top + rect.height / 2),
+          width: Math.round(rect.width),
+          height: Math.round(rect.height)
+        };
+      });
+    const text = (document.body?.innerText ?? "").replace(/\\s+/g, " ").trim();
+    return {
+      url: location.href,
+      title: document.title,
+      ready_state: document.readyState,
+      text_sample: text.slice(0, 2000),
+      text_length: text.length,
+      controls,
+      canvases,
+      viewport: { width: window.innerWidth, height: window.innerHeight }
+    };
+  })()`;
+  const result = await cdp.send("Runtime.evaluate", {
+    expression,
+    returnByValue: true
+  });
+  const value = result.result?.value ?? {};
+  return {
+    ...value,
+    text_hash: hashText(value.text_sample ?? ""),
+    controls: value.controls ?? [],
+    canvases: value.canvases ?? []
+  };
+}
+
+async function captureDevToolsScreenshot(cdp, filePath) {
+  const result = await cdp.send("Page.captureScreenshot", {
+    format: "png",
+    captureBeyondViewport: false
+  });
+  fs.writeFileSync(filePath, Buffer.from(result.data, "base64"));
+}
+
+function choosePlaytestAction(pageState) {
+  const control = pageState.controls.find((candidate) => !candidate.disabled && Number.isFinite(candidate.center_x) && Number.isFinite(candidate.center_y));
+  if (control) {
+    return {
+      type: "control-click",
+      target: {
+        index: control.index,
+        tag: control.tag,
+        role: control.role,
+        type: control.type,
+        text: control.text,
+        aria_label: control.aria_label
+      },
+      x: control.center_x,
+      y: control.center_y
+    };
+  }
+
+  const canvas = pageState.canvases.find((candidate) => Number.isFinite(candidate.center_x) && Number.isFinite(candidate.center_y));
+  if (canvas) {
+    return {
+      type: "canvas-center-click",
+      target: canvas,
+      x: canvas.center_x,
+      y: canvas.center_y
+    };
+  }
+
+  if (pageState.viewport) {
+    return {
+      type: "viewport-center-click",
+      target: { width: pageState.viewport.width, height: pageState.viewport.height },
+      x: Math.round(pageState.viewport.width / 2),
+      y: Math.round(pageState.viewport.height / 2)
+    };
+  }
+
+  return null;
+}
+
+async function performPlaytestAction(cdp, action) {
+  if (!action) {
+    return {
+      type: "none",
+      status: "skipped",
+      reason: "No visible actionable control, canvas, or viewport target was available."
+    };
+  }
+
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    x: action.x,
+    y: action.y,
+    button: "none"
+  });
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mousePressed",
+    x: action.x,
+    y: action.y,
+    button: "left",
+    clickCount: 1
+  });
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseReleased",
+    x: action.x,
+    y: action.y,
+    button: "left",
+    clickCount: 1
+  });
+
+  return {
+    ...action,
+    status: "attempted"
+  };
+}
+
+function summarizeStateChange(beforeState, afterState, beforeScreenshotHash, afterScreenshotHash) {
+  const reasons = [];
+  if (beforeState.url !== afterState.url) {
+    reasons.push("url_changed");
+  }
+  if (beforeState.title !== afterState.title) {
+    reasons.push("title_changed");
+  }
+  if (beforeState.text_hash !== afterState.text_hash || beforeState.text_length !== afterState.text_length) {
+    reasons.push("text_changed");
+  }
+  if (beforeState.controls.length !== afterState.controls.length) {
+    reasons.push("control_count_changed");
+  }
+  if (beforeScreenshotHash !== afterScreenshotHash) {
+    reasons.push("pixels_changed");
+  }
+
+  return {
+    changed: reasons.length > 0,
+    reasons
+  };
+}
+
+function detectFeedback(beforeText, afterText) {
+  const before = String(beforeText ?? "").toLowerCase();
+  const after = String(afterText ?? "").toLowerCase();
+  const keywords = [
+    "success",
+    "complete",
+    "completed",
+    "solved",
+    "correct",
+    "incorrect",
+    "fail",
+    "failed",
+    "try again",
+    "progress",
+    "level",
+    "score",
+    "next",
+    "win",
+    "won"
+  ].filter((keyword) => after.includes(keyword));
+  const newKeywords = keywords.filter((keyword) => !before.includes(keyword));
+
+  return {
+    success_failure_progress: newKeywords.length > 0,
+    keywords: newKeywords,
+    reason: newKeywords.length > 0
+      ? "Post-interaction text exposed success, failure, or progress language that was not present before the action."
+      : "No new success, failure, or progress language was detected after the action."
+  };
+}
+
+function determinePlaytestMechanicalStatus({ loadStatus, observed, initialScreenshotAnalysis, attemptedInteraction, stateChange, feedback }) {
+  if (loadStatus.status === "fail" || initialScreenshotAnalysis.status === "fail" || observed.page_errors.length > 0) {
+    return "fail";
+  }
+
+  if (attemptedInteraction.status !== "attempted") {
+    return "inconclusive";
+  }
+
+  if (stateChange.changed || feedback.success_failure_progress) {
+    return "pass";
+  }
+
+  return "inconclusive";
+}
+
+function playtestReason(mechanicalStatus, attemptedInteraction, stateChange, feedback) {
+  if (mechanicalStatus === "pass") {
+    return "The page loaded, an interaction was attempted, and deterministic evidence changed or exposed feedback.";
+  }
+  if (mechanicalStatus === "fail") {
+    return "The browser playtest found a load, screenshot, or page-error failure.";
+  }
+  if (attemptedInteraction.status !== "attempted") {
+    return attemptedInteraction.reason;
+  }
+  if (!stateChange.changed && !feedback.success_failure_progress) {
+    return "The first attempted interaction produced no detected state change or success/failure/progress feedback.";
+  }
+  return "The browser playtest was inconclusive.";
+}
+
+async function reserveLocalPort() {
+  const server = http.createServer();
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const port = server.address().port;
+  await new Promise((resolve) => server.close(resolve));
+  return port;
+}
+
+async function waitForDebugPage(port, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  let lastError = null;
+
+  while (Date.now() < deadline) {
+    try {
+      const pages = await requestJson(`http://127.0.0.1:${port}/json`);
+      const page = pages.find((candidate) => candidate.type === "page" && candidate.webSocketDebuggerUrl);
+      if (page) {
+        return page;
+      }
+    } catch (error) {
+      lastError = error;
+    }
+    await delay(100);
+  }
+
+  throw new Error(`Timed out waiting for Chrome DevTools page${lastError ? `: ${lastError.message}` : ""}`);
+}
+
 function runChrome(chromePath, chromeArgs, timeoutMs) {
   return new Promise((resolve) => {
     const child = spawn(chromePath, chromeArgs, {
@@ -620,7 +1195,454 @@ function trimTail(text) {
   return text.split(/\r?\n/).slice(-8).join("\n").trim();
 }
 
-function collectKnownGaps(scope, registration, screenshot, network, browserSmoke, testResult) {
+async function runModelPlaytestReview(playtestTrace) {
+  const enabled = args.geminiPlaytest === "true" || process.env.PULLFROG_GEMINI_PLAYTEST === "true";
+  const model = args.geminiModel ?? process.env.PULLFROG_GEMINI_MODEL ?? "gemini-3.5-flash";
+
+  if (!enabled) {
+    return {
+      status: "skipped",
+      provider: "gemini",
+      model,
+      reason: "Gemini playtest review is disabled. Set --gemini-playtest true or PULLFROG_GEMINI_PLAYTEST=true to enable it."
+    };
+  }
+
+  const apiKey = args.geminiApiKey ?? process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return {
+      status: "skipped",
+      provider: "gemini",
+      model,
+      reason: "GEMINI_API_KEY is not set."
+    };
+  }
+
+  const endpoint = args.geminiEndpoint
+    ?? process.env.PULLFROG_GEMINI_ENDPOINT
+    ?? `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+
+  try {
+    const prompt = buildGeminiPlaytestPrompt(playtestTrace);
+    const response = await requestJson(endpoint, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-goog-api-key": apiKey
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{ text: prompt }]
+        }],
+        generationConfig: {
+          responseFormat: {
+            text: {
+              mimeType: "application/json",
+              schema: geminiPlaytestReviewSchema
+            }
+          }
+        }
+      }),
+      timeoutMs: 30000
+    });
+    const text = extractGeminiText(response);
+    const parsed = JSON.parse(text);
+    validateGeminiPlaytestReview(parsed);
+
+    return {
+      status: "completed",
+      provider: "gemini",
+      model,
+      prompt_version: "pullfrog-playtest-review-v1",
+      schema: "pullfrog-playtest-review-v1",
+      endpoint: redactEndpoint(endpoint),
+      deterministic_authority: "deterministic.playtest_trace",
+      sent_trace_status: playtestTrace.status,
+      response: parsed,
+      response_json_chars: text.length,
+      usage_metadata: sanitizeUsageMetadata(response.usageMetadata)
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      provider: "gemini",
+      model,
+      prompt_version: "pullfrog-playtest-review-v1",
+      schema: "pullfrog-playtest-review-v1",
+      endpoint: redactEndpoint(endpoint),
+      deterministic_authority: "deterministic.playtest_trace",
+      sent_trace_status: playtestTrace.status,
+      reason: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+function buildGeminiPlaytestPrompt(playtestTrace) {
+  return [
+    "You are reviewing a Pullfrog toy playtest trace captured by a deterministic browser harness.",
+    "You are not driving the browser and you are not the source of mechanical pass/fail.",
+    "Base every answer only on the trace evidence. If evidence is missing or inconclusive, say so.",
+    "Return strict JSON matching the supplied schema.",
+    "",
+    "Trace:",
+    JSON.stringify(compactTraceForModel(playtestTrace), null, 2)
+  ].join("\n");
+}
+
+function compactTraceForModel(playtestTrace) {
+  return {
+    status: playtestTrace.status,
+    mechanical_status: playtestTrace.mechanical_status,
+    load_status: playtestTrace.load_status,
+    console_error_count: playtestTrace.console_errors?.length ?? 0,
+    page_error_count: playtestTrace.page_errors?.length ?? 0,
+    candidate_actionable_controls: playtestTrace.candidate_actionable_controls,
+    attempted_interactions: playtestTrace.attempted_interactions,
+    before_evidence: playtestTrace.before_evidence
+      ? {
+          url: playtestTrace.before_evidence.url,
+          title: playtestTrace.before_evidence.title,
+          text_sample: playtestTrace.before_evidence.text_sample,
+          control_count: playtestTrace.before_evidence.control_count,
+          canvas_count: playtestTrace.before_evidence.canvas_count
+        }
+      : null,
+    after_evidence: playtestTrace.after_evidence
+      ? {
+          url: playtestTrace.after_evidence.url,
+          title: playtestTrace.after_evidence.title,
+          text_sample: playtestTrace.after_evidence.text_sample,
+          control_count: playtestTrace.after_evidence.control_count,
+          canvas_count: playtestTrace.after_evidence.canvas_count
+        }
+      : null,
+    state_changed: playtestTrace.state_changed,
+    state_change_reasons: playtestTrace.state_change_reasons,
+    feedback_observed: playtestTrace.feedback_observed,
+    reason: playtestTrace.reason
+  };
+}
+
+function extractGeminiText(response) {
+  const text = (response.candidates ?? [])
+    .flatMap((candidate) => candidate.content?.parts ?? [])
+    .map((part) => part.text)
+    .filter((part) => typeof part === "string")
+    .join("");
+
+  if (!text.trim()) {
+    throw new Error("Gemini response did not include text content.");
+  }
+
+  return text;
+}
+
+function validateGeminiPlaytestReview(review) {
+  const stringFields = ["goal_guess", "first_action_guess", "observed_feedback", "recommendation"];
+  for (const field of stringFields) {
+    if (typeof review[field] !== "string" || !review[field].trim()) {
+      throw new Error(`Gemini review field ${field} must be a non-empty string.`);
+    }
+  }
+
+  for (const field of ["first_action_confidence", "interaction_confidence"]) {
+    if (typeof review[field] !== "number" || review[field] < 0 || review[field] > 1) {
+      throw new Error(`Gemini review field ${field} must be a number from 0 to 1.`);
+    }
+  }
+
+  if (!Number.isInteger(review.clarity_score) || review.clarity_score < 1 || review.clarity_score > 5) {
+    throw new Error("Gemini review field clarity_score must be an integer from 1 to 5.");
+  }
+
+  if (review.stuck_reason !== null && typeof review.stuck_reason !== "string") {
+    throw new Error("Gemini review field stuck_reason must be a string or null.");
+  }
+
+  if (!Array.isArray(review.known_gaps) || review.known_gaps.some((gap) => typeof gap !== "string")) {
+    throw new Error("Gemini review field known_gaps must be an array of strings.");
+  }
+
+  if (!["accept", "needs-human-review", "reject"].includes(review.recommendation)) {
+    throw new Error("Gemini review field recommendation has an unsupported value.");
+  }
+}
+
+function sanitizeUsageMetadata(usageMetadata) {
+  if (!usageMetadata || typeof usageMetadata !== "object") {
+    return null;
+  }
+
+  return {
+    promptTokenCount: usageMetadata.promptTokenCount ?? null,
+    candidatesTokenCount: usageMetadata.candidatesTokenCount ?? null,
+    totalTokenCount: usageMetadata.totalTokenCount ?? null
+  };
+}
+
+function redactEndpoint(endpoint) {
+  try {
+    const url = new URL(endpoint);
+    url.search = "";
+    return url.toString();
+  } catch {
+    return "unparseable endpoint";
+  }
+}
+
+function requestJson(url, options = {}) {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    const client = parsed.protocol === "https:" ? https : http;
+    const request = client.request(parsed, {
+      method: options.method ?? "GET",
+      headers: options.headers ?? {},
+      timeout: options.timeoutMs ?? 10000
+    }, (response) => {
+      let data = "";
+      response.setEncoding("utf8");
+      response.on("data", (chunk) => {
+        data += chunk;
+      });
+      response.on("end", () => {
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          reject(new Error(`HTTP ${response.statusCode}: ${data.slice(0, 500)}`));
+          return;
+        }
+
+        try {
+          resolve(JSON.parse(data));
+        } catch (error) {
+          reject(new Error(`Response was not valid JSON: ${error.message}`));
+        }
+      });
+    });
+
+    request.on("timeout", () => {
+      request.destroy(new Error(`Timed out requesting ${redactEndpoint(url)}`));
+    });
+    request.on("error", reject);
+    if (options.body) {
+      request.write(options.body);
+    }
+    request.end();
+  });
+}
+
+class DevToolsConnection {
+  static connect(webSocketUrl) {
+    return new Promise((resolve, reject) => {
+      const parsed = new URL(webSocketUrl);
+      const socket = net.connect(Number(parsed.port), parsed.hostname);
+      const key = crypto.randomBytes(16).toString("base64");
+      let buffer = Buffer.alloc(0);
+
+      socket.once("connect", () => {
+        socket.write([
+          `GET ${parsed.pathname}${parsed.search} HTTP/1.1`,
+          `Host: ${parsed.host}`,
+          "Upgrade: websocket",
+          "Connection: Upgrade",
+          `Sec-WebSocket-Key: ${key}`,
+          "Sec-WebSocket-Version: 13",
+          "",
+          ""
+        ].join("\r\n"));
+      });
+
+      const onData = (chunk) => {
+        buffer = Buffer.concat([buffer, chunk]);
+        const headerEnd = buffer.indexOf("\r\n\r\n");
+        if (headerEnd === -1) {
+          return;
+        }
+
+        const header = buffer.subarray(0, headerEnd).toString("utf8");
+        if (!header.startsWith("HTTP/1.1 101")) {
+          reject(new Error(`Chrome DevTools WebSocket handshake failed: ${header.split(/\r?\n/)[0]}`));
+          socket.destroy();
+          return;
+        }
+
+        socket.off("data", onData);
+        const connection = new DevToolsConnection(socket);
+        const remaining = buffer.subarray(headerEnd + 4);
+        if (remaining.length > 0) {
+          connection.handleData(remaining);
+        }
+        resolve(connection);
+      };
+
+      socket.on("data", onData);
+      socket.once("error", reject);
+    });
+  }
+
+  constructor(socket) {
+    this.socket = socket;
+    this.buffer = Buffer.alloc(0);
+    this.nextId = 1;
+    this.pending = new Map();
+    this.handlers = new Map();
+    this.socket.on("data", (chunk) => this.handleData(chunk));
+    this.socket.on("close", () => {
+      for (const { reject } of this.pending.values()) {
+        reject(new Error("Chrome DevTools WebSocket closed."));
+      }
+      this.pending.clear();
+    });
+  }
+
+  on(method, handler) {
+    const handlers = this.handlers.get(method) ?? [];
+    handlers.push(handler);
+    this.handlers.set(method, handlers);
+  }
+
+  send(method, params = {}) {
+    const id = this.nextId++;
+    const payload = JSON.stringify({ id, method, params });
+    this.writeFrame(payload);
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error(`Timed out waiting for DevTools response to ${method}.`));
+      }, 10000);
+      this.pending.set(id, { resolve, reject, timer });
+    });
+  }
+
+  close() {
+    this.socket.end();
+  }
+
+  handleData(chunk) {
+    this.buffer = Buffer.concat([this.buffer, chunk]);
+    while (this.buffer.length >= 2) {
+      const first = this.buffer[0];
+      const second = this.buffer[1];
+      const opcode = first & 0x0f;
+      const masked = Boolean(second & 0x80);
+      let length = second & 0x7f;
+      let offset = 2;
+
+      if (length === 126) {
+        if (this.buffer.length < offset + 2) {
+          return;
+        }
+        length = this.buffer.readUInt16BE(offset);
+        offset += 2;
+      } else if (length === 127) {
+        if (this.buffer.length < offset + 8) {
+          return;
+        }
+        const bigLength = this.buffer.readBigUInt64BE(offset);
+        if (bigLength > BigInt(Number.MAX_SAFE_INTEGER)) {
+          throw new Error("WebSocket frame is too large.");
+        }
+        length = Number(bigLength);
+        offset += 8;
+      }
+
+      const maskLength = masked ? 4 : 0;
+      if (this.buffer.length < offset + maskLength + length) {
+        return;
+      }
+
+      let payload = this.buffer.subarray(offset + maskLength, offset + maskLength + length);
+      if (masked) {
+        const mask = this.buffer.subarray(offset, offset + 4);
+        payload = Buffer.from(payload.map((byte, index) => byte ^ mask[index % 4]));
+      }
+      this.buffer = this.buffer.subarray(offset + maskLength + length);
+
+      if (opcode === 1) {
+        this.handleMessage(payload.toString("utf8"));
+      } else if (opcode === 8) {
+        this.close();
+      } else if (opcode === 9) {
+        this.writeFrame(payload, 10);
+      }
+    }
+  }
+
+  handleMessage(text) {
+    const message = JSON.parse(text);
+    if (message.id) {
+      const pending = this.pending.get(message.id);
+      if (!pending) {
+        return;
+      }
+      clearTimeout(pending.timer);
+      this.pending.delete(message.id);
+      if (message.error) {
+        pending.reject(new Error(message.error.message ?? JSON.stringify(message.error)));
+      } else {
+        pending.resolve(message.result ?? {});
+      }
+      return;
+    }
+
+    for (const handler of this.handlers.get(message.method) ?? []) {
+      handler(message.params ?? {});
+    }
+  }
+
+  writeFrame(data, opcode = 1) {
+    const payload = Buffer.isBuffer(data) ? data : Buffer.from(data);
+    const mask = crypto.randomBytes(4);
+    let header;
+    if (payload.length < 126) {
+      header = Buffer.alloc(2);
+      header[1] = 0x80 | payload.length;
+    } else if (payload.length < 65536) {
+      header = Buffer.alloc(4);
+      header[1] = 0x80 | 126;
+      header.writeUInt16BE(payload.length, 2);
+    } else {
+      header = Buffer.alloc(10);
+      header[1] = 0x80 | 127;
+      header.writeBigUInt64BE(BigInt(payload.length), 2);
+    }
+    header[0] = 0x80 | opcode;
+
+    const masked = Buffer.from(payload.map((byte, index) => byte ^ mask[index % 4]));
+    this.socket.write(Buffer.concat([header, mask, masked]));
+  }
+}
+
+function hashText(text) {
+  return crypto.createHash("sha256").update(String(text)).digest("hex");
+}
+
+function hashFile(filePath) {
+  return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function waitForChildExit(child, timeoutMs) {
+  if (child.exitCode !== null) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      if (child.exitCode === null) {
+        child.kill("SIGKILL");
+      }
+      resolve();
+    }, timeoutMs);
+    child.once("close", () => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
+}
+
+function collectKnownGaps(scope, registration, screenshot, network, browserSmoke, playtestTrace, modelPlaytestReview, testResult) {
   const gaps = [];
 
   for (const [label, check] of [
@@ -629,14 +1651,25 @@ function collectKnownGaps(scope, registration, screenshot, network, browserSmoke
     ["gallery registration", registration],
     ["screenshot", screenshot],
     ["external network/dependency", network],
-    ["browser smoke", browserSmoke]
+    ["browser smoke", browserSmoke],
+    ["browser playtest", playtestTrace]
   ]) {
     if (check.status === "fail") {
       gaps.push(`${label} failed${check.reason ? `: ${check.reason}` : ""}`);
+    } else if (check.mechanical_status === "fail") {
+      gaps.push(`${label} mechanical failure${check.reason ? `: ${check.reason}` : ""}`);
+    } else if (check.mechanical_status === "inconclusive") {
+      gaps.push(`${label} inconclusive${check.reason ? `: ${check.reason}` : ""}`);
     } else if (check.status === "skipped") {
       gaps.push(`${label} skipped${check.reason ? `: ${check.reason}` : ""}`);
     }
   }
 
+  if (modelPlaytestReview.status === "failed") {
+    gaps.push(`Gemini playtest review failed${modelPlaytestReview.reason ? `: ${modelPlaytestReview.reason}` : ""}`);
+  }
+
   return gaps;
 }
+
+await main();

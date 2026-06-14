@@ -23,6 +23,11 @@ on:
         required: true
         default: false
         type: boolean
+      gemini_playtest_review:
+        description: Enable optional Gemini playtest review when GEMINI_API_KEY is configured
+        required: true
+        default: false
+        type: boolean
   pull_request:
     types: [labeled]
     branches: ["main"]
@@ -113,6 +118,9 @@ jobs:
 
       - name: Evaluate experiment
         working-directory: pr-worktree
+        env:
+          GEMINI_API_KEY: ${{ github.event_name == 'workflow_dispatch' && inputs.gemini_playtest_review == true && secrets.GEMINI_API_KEY || '' }}
+          PULLFROG_GEMINI_PLAYTEST: ${{ github.event_name == 'workflow_dispatch' && inputs.gemini_playtest_review == true && 'true' || 'false' }}
         run: |
           node ../evaluator-source/scripts/evaluate-pullfrog-experiment.mjs \
             --pr-number "${{ steps.resolve.outputs.pr_number }}" \
@@ -121,7 +129,8 @@ jobs:
             --test-outcome "${{ steps.tests.outcome }}" \
             --lineage-root ../evaluator-source \
             --output-dir pullfrog-evaluation \
-            --report pullfrog-evaluation/report.json
+            --report pullfrog-evaluation/report.json \
+            --gemini-playtest "$PULLFROG_GEMINI_PLAYTEST"
 
       - name: Publish report output
         id: report-output
@@ -308,7 +317,9 @@ jobs:
             const screenshot = report.deterministic.screenshot_presence;
             const network = report.deterministic.external_network_dependency;
             const smoke = report.deterministic.browser_smoke;
+            const playtest = report.deterministic.playtest_trace;
             const tests = report.deterministic.ci_test_result;
+            const modelPlaytest = report.model_playtest_review;
             const gaps = [
               ...(report.recommendation.known_gaps ?? []),
               ...(judge?.known_gaps ?? [])
@@ -339,6 +350,7 @@ jobs:
               line("Screenshot presence", screenshot, `${screenshot.path ?? "none"}; PNG: ${screenshot.is_png === true}`),
               line("External network/dependency check", network, `${network.references.length} references; ${network.dynamic_apis.length} dynamic APIs`),
               line("Runtime/browser smoke", smoke, smoke.screenshot ?? smoke.reason),
+              line("Runtime/playtest trace", playtest, `${playtest.mechanical_status ?? "unknown"}; ${playtest.reason ?? "no detail"}`),
               "",
               "### Free-model judge",
               "",
@@ -353,6 +365,14 @@ jobs:
               judge ? `- Usefulness: ${judge.usefulness}` : null,
               judge ? `- Review burden: ${judge.review_burden}` : null,
               judge ? `- Rationale: ${judge.rationale}` : null,
+              "",
+              "### Optional Gemini playtest review",
+              "",
+              `- Status: ${modelPlaytest?.status ?? "missing"}`,
+              modelPlaytest?.model ? `- Model: ${modelPlaytest.model}` : null,
+              modelPlaytest?.response?.recommendation ? `- Recommendation: ${modelPlaytest.response.recommendation}` : null,
+              modelPlaytest?.reason ? `- Reason: ${modelPlaytest.reason}` : null,
+              "- Authority: deterministic browser checks remain the mechanical source of truth",
               "",
               "### Outcome",
               "",
