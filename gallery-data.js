@@ -270,6 +270,16 @@ window.galleryItems = [
     oneLine: "GPT-5 comparison: changes modes, palettes, title, seed, layers, live motion, history, and exports local PNG/JSON presets."
   },
   {
+    tier: 9,
+    title: "Signal Path Lab: Blackout Protocol",
+    slug: "signal-path-lab",
+    path: "tier9/signal-path-lab/index.html",
+    screenshot: "tier9/signal-path-lab/screenshot.png",
+    kind: "Interactive signal router",
+    tags: ["signals", "routing", "grid", "puzzle"],
+    oneLine: "Routes signal wires through a cascading-blackout grid, manages heat overload, and survives instability pulses to restore the network."
+  },
+  {
     tier: 10,
     title: "Starship Rogue Circuit",
     slug: "starship-rogue-circuit",
