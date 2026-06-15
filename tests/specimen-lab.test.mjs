@@ -358,6 +358,7 @@ test("Evaluator records mocked NVIDIA review after polling a 202 pending respons
     assert.equal(requests[0].body.stream, false);
     assert.equal(requests[0].body.temperature, 0);
     assert.ok(requests[0].body.messages.some((message) => String(message.content).includes("deterministic browser harness")));
+    assert.ok(requests[0].body.messages.some((message) => String(message.content).includes("raw JSON object only")));
 
     const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
     assert.equal(report.recommendation.mechanical_pass, true);
@@ -367,6 +368,84 @@ test("Evaluator records mocked NVIDIA review after polling a 202 pending respons
     assert.equal(report.model_playtest_review.deterministic_authority, "deterministic.playtest_trace");
     assert.equal(report.model_playtest_review.response.recommendation, "needs-human-review");
     assert.equal(report.model_playtest_review.usage_metadata.total_tokens, 33);
+  } finally {
+    await server.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("Evaluator accepts fenced NVIDIA playtest JSON", async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pullfrog-nvidia-fenced-json-test-"));
+  const review = reviewPayload({
+    recommendation: "needs-human-review",
+    known_gaps: ["The model wrapped the advisory JSON in a Markdown fence."]
+  });
+  const server = await startNvidiaMockServer(() => nvidiaChatTextResponse([
+    "```json",
+    JSON.stringify(review),
+    "```"
+  ].join("\n")));
+
+  try {
+    const report = await runNvidiaReviewFixture(tempRoot, server, "nvidia-fenced-report.json");
+
+    assert.equal(report.recommendation.mechanical_pass, true);
+    assert.equal(report.model_playtest_review.status, "completed");
+    assert.equal(report.model_playtest_review.provider, "nvidia");
+    assert.equal(report.model_playtest_review.response.recommendation, "needs-human-review");
+    assert.deepEqual(report.model_playtest_review.response.known_gaps, ["The model wrapped the advisory JSON in a Markdown fence."]);
+  } finally {
+    await server.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("Evaluator accepts plain-fenced NVIDIA playtest JSON", async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pullfrog-nvidia-plain-fenced-json-test-"));
+  const review = reviewPayload({
+    recommendation: "needs-human-review",
+    known_gaps: ["The model wrapped the advisory JSON in a plain Markdown fence."]
+  });
+  const server = await startNvidiaMockServer(() => nvidiaChatTextResponse([
+    "```",
+    JSON.stringify(review),
+    "```"
+  ].join("\n")));
+
+  try {
+    const report = await runNvidiaReviewFixture(tempRoot, server, "nvidia-plain-fenced-report.json");
+
+    assert.equal(report.recommendation.mechanical_pass, true);
+    assert.equal(report.model_playtest_review.status, "completed");
+    assert.equal(report.model_playtest_review.provider, "nvidia");
+    assert.equal(report.model_playtest_review.response.recommendation, "needs-human-review");
+    assert.deepEqual(report.model_playtest_review.response.known_gaps, ["The model wrapped the advisory JSON in a plain Markdown fence."]);
+  } finally {
+    await server.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("Evaluator accepts prose-wrapped single NVIDIA playtest JSON object", async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pullfrog-nvidia-prose-json-test-"));
+  const review = reviewPayload({
+    recommendation: "reject",
+    known_gaps: ["The trace does not prove the first interaction is understandable."]
+  });
+  const server = await startNvidiaMockServer(() => nvidiaChatTextResponse([
+    "Here is the advisory review based only on the trace:",
+    JSON.stringify(review),
+    "I am not changing the deterministic pass/fail result."
+  ].join("\n")));
+
+  try {
+    const report = await runNvidiaReviewFixture(tempRoot, server, "nvidia-prose-report.json");
+
+    assert.equal(report.recommendation.mechanical_pass, true);
+    assert.equal(report.model_playtest_review.status, "completed");
+    assert.equal(report.model_playtest_review.provider, "nvidia");
+    assert.equal(report.model_playtest_review.response.recommendation, "reject");
+    assert.deepEqual(report.model_playtest_review.response.known_gaps, ["The trace does not prove the first interaction is understandable."]);
   } finally {
     await server.close();
     fs.rmSync(tempRoot, { recursive: true, force: true });
@@ -409,6 +488,27 @@ test("Evaluator keeps mechanical failure failed even when mocked NVIDIA recommen
     assert.equal(report.recommendation.mechanical_pass, false);
     assert.equal(report.recommendation.deterministic_label, "experiment:failed");
     assert.ok(report.recommendation.known_gaps.some((gap) => gap.includes("CI/test failed")));
+  } finally {
+    await server.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("Evaluator records ambiguous NVIDIA playtest JSON without failing deterministic evaluation", async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pullfrog-nvidia-ambiguous-json-test-"));
+  const server = await startNvidiaMockServer(() => nvidiaChatTextResponse([
+    JSON.stringify(reviewPayload({ recommendation: "accept" })),
+    JSON.stringify(reviewPayload({ recommendation: "reject" }))
+  ].join("\n")));
+
+  try {
+    const report = await runNvidiaReviewFixture(tempRoot, server, "ambiguous-nvidia-report.json");
+
+    assert.equal(report.recommendation.mechanical_pass, true);
+    assert.equal(report.model_playtest_review.status, "failed");
+    assert.equal(report.model_playtest_review.provider, "nvidia");
+    assert.match(report.model_playtest_review.reason, /multiple valid JSON objects/i);
+    assert.ok(report.recommendation.known_gaps.some((gap) => gap.includes("model playtest review failed (nvidia)")));
   } finally {
     await server.close();
     fs.rmSync(tempRoot, { recursive: true, force: true });
@@ -622,10 +722,14 @@ function reviewPayload(overrides = {}) {
 }
 
 function nvidiaChatResponse(review, usage = {}) {
+  return nvidiaChatTextResponse(JSON.stringify(review), usage);
+}
+
+function nvidiaChatTextResponse(content, usage = {}) {
   return {
     choices: [{
       message: {
-        content: JSON.stringify(review)
+        content
       }
     }],
     usage
@@ -674,6 +778,29 @@ function writeEvaluatorMetadata(tempRoot) {
     files: ["gallery-data.js", "tier3/lunar-postcards/index.html", "tier3/lunar-postcards/screenshot.png"]
   }, null, 2)}\n`);
   return metadataPath;
+}
+
+async function runNvidiaReviewFixture(tempRoot, server, reportName, options = {}) {
+  const metadataPath = writeEvaluatorMetadata(tempRoot);
+  const reportPath = path.join(tempRoot, reportName);
+  const result = await runNode([
+    evaluatorPath,
+    "--pr-number", "87",
+    "--issue-number", "86",
+    "--metadata", metadataPath,
+    "--test-outcome", options.testOutcome ?? "success",
+    "--browser-smoke", "false",
+    "--model-playtest", "true",
+    "--model-playtest-provider", "nvidia",
+    "--model-playtest-model", options.model ?? "moonshotai/kimi-k2.6",
+    "--nvidia-api-key", "test-key",
+    "--nvidia-endpoint", server.url,
+    "--output-dir", path.join(tempRoot, "evaluation"),
+    "--report", reportPath
+  ], { cwd: repoRoot });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  return JSON.parse(fs.readFileSync(reportPath, "utf8"));
 }
 
 function makeReport(runId) {

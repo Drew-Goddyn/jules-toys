@@ -1327,7 +1327,8 @@ async function runGeminiPlaytestReview(playtestTrace, config) {
       timeoutMs: 30000
     });
     const text = extractGeminiText(response);
-    const parsed = JSON.parse(text);
+    const jsonText = normalizeModelPlaytestReviewJson(text, "Gemini");
+    const parsed = JSON.parse(jsonText);
     validateModelPlaytestReview(parsed, "Gemini");
 
     return {
@@ -1340,7 +1341,7 @@ async function runGeminiPlaytestReview(playtestTrace, config) {
       deterministic_authority: "deterministic.playtest_trace",
       sent_trace_status: playtestTrace.status,
       response: parsed,
-      response_json_chars: text.length,
+      response_json_chars: jsonText.length,
       usage_metadata: sanitizeUsageMetadata(response.usageMetadata)
     };
   } catch (error) {
@@ -1392,7 +1393,7 @@ async function runNvidiaPlaytestReview(playtestTrace, config) {
       messages: [
         {
           role: "system",
-          content: "Return only strict JSON matching the requested schema. Do not decide mechanical pass/fail."
+          content: "Return one raw JSON object only, with no Markdown fences, prose, comments, or trailing text. Match the requested schema exactly. Do not decide mechanical pass/fail."
         },
         { role: "user", content: prompt }
       ],
@@ -1401,7 +1402,8 @@ async function runNvidiaPlaytestReview(playtestTrace, config) {
       stream: false
     });
     const text = extractOpenAiCompatibleText(response);
-    const parsed = JSON.parse(text);
+    const jsonText = normalizeModelPlaytestReviewJson(text, "NVIDIA");
+    const parsed = JSON.parse(jsonText);
     validateModelPlaytestReview(parsed, "NVIDIA");
 
     return {
@@ -1414,7 +1416,7 @@ async function runNvidiaPlaytestReview(playtestTrace, config) {
       deterministic_authority: "deterministic.playtest_trace",
       sent_trace_status: playtestTrace.status,
       response: parsed,
-      response_json_chars: text.length,
+      response_json_chars: jsonText.length,
       usage_metadata: sanitizeOpenAiUsageMetadata(response?.usage)
     };
   } catch (error) {
@@ -1437,7 +1439,8 @@ function buildModelPlaytestPrompt(playtestTrace) {
     "You are reviewing a Pullfrog toy playtest trace captured by a deterministic browser harness.",
     "You are not driving the browser and you are not the source of mechanical pass/fail.",
     "Base every answer only on the trace evidence. If evidence is missing or inconclusive, say so.",
-    "Return strict JSON matching the supplied schema.",
+    "Return one raw JSON object only. Do not wrap it in Markdown fences or add prose before or after it.",
+    "The raw JSON object must match the supplied schema.",
     "",
     "Trace:",
     JSON.stringify(compactTraceForModel(playtestTrace), null, 2)
@@ -1490,6 +1493,106 @@ function extractGeminiText(response) {
   }
 
   return text;
+}
+
+function normalizeModelPlaytestReviewJson(rawText, providerLabel) {
+  const text = String(rawText ?? "").trim();
+  if (!text) {
+    throw new Error(`${providerLabel} review did not include JSON text.`);
+  }
+
+  const parsedWhole = parseJsonObjectCandidate(text);
+  if (parsedWhole.ok) {
+    return text;
+  }
+
+  const candidates = extractValidJsonObjectCandidates(text);
+  if (candidates.length === 1) {
+    return candidates[0].text;
+  }
+
+  if (candidates.length > 1) {
+    throw new Error(`${providerLabel} review contained multiple valid JSON objects; refusing ambiguous advisory output.`);
+  }
+
+  const reason = parsedWhole.error ? ` ${parsedWhole.error.message}` : "";
+  throw new Error(`${providerLabel} review did not contain a valid JSON object.${reason}`);
+}
+
+function parseJsonObjectCandidate(text) {
+  try {
+    const value = JSON.parse(text);
+    return {
+      ok: Boolean(value && typeof value === "object" && !Array.isArray(value)),
+      value,
+      error: null
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      value: null,
+      error
+    };
+  }
+}
+
+function extractValidJsonObjectCandidates(text) {
+  const candidates = [];
+
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] !== "{") {
+      continue;
+    }
+
+    const end = findJsonObjectEnd(text, index);
+    if (end === -1) {
+      continue;
+    }
+
+    const candidateText = text.slice(index, end + 1).trim();
+    const parsed = parseJsonObjectCandidate(candidateText);
+    if (parsed.ok) {
+      candidates.push({ text: candidateText, value: parsed.value });
+    }
+
+    index = end;
+  }
+
+  return candidates;
+}
+
+function findJsonObjectEnd(text, startIndex) {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = startIndex; index < text.length; index += 1) {
+    const char = text[index];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === "\"") {
+      inString = true;
+    } else if (char === "{") {
+      depth += 1;
+    } else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return index;
+      }
+    }
+  }
+
+  return -1;
 }
 
 function validateModelPlaytestReview(review, providerLabel) {
