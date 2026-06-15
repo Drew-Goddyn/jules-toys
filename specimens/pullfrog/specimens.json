@@ -1,7 +1,153 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-06-14T19:34:46.568Z",
+  "generated_at": "2026-06-15T05:19:57.025Z",
   "specimens": [
+    {
+      "id": "pullfrog-pr-104",
+      "title": "Signal Path Lab: Blackout Protocol",
+      "slug": "signal-blackout",
+      "tier": 8,
+      "kind": "Pullfrog specimen",
+      "status": "accepted",
+      "score": 3,
+      "recommendation": "accept",
+      "issue": {
+        "number": 102,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/issues/102"
+      },
+      "pr": {
+        "number": 104,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/pull/104",
+        "title": "[Pullfrog experiment] W2-FM-ON: Signal Path Lab — Blackout Protocol (T8 routing puzzle)",
+        "head_ref": "pullfrog/102-signal-blackout",
+        "base_ref": "main",
+        "head_sha": "45563c2c43ec2eafb47cb14b500c216f7fc5b442"
+      },
+      "workflow": {
+        "run_id": 27525623017,
+        "run_attempt": 1,
+        "run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27525623017",
+        "workflow": "Evaluate Pullfrog Experiment",
+        "event_name": "workflow_dispatch",
+        "actor": "Drew-Goddyn",
+        "ref": "main",
+        "sha": "7c1b0c1ff076c6f942e35df7149ba959eee4700c",
+        "artifact_name": "pullfrog-experiment-evaluation-104"
+      },
+      "artifact": {
+        "name": "pullfrog-experiment-evaluation-104",
+        "workflow_run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27525623017",
+        "contains": [
+          "report.json",
+          "browser-smoke.png",
+          "playtest-initial.png",
+          "playtest-after-interaction.png"
+        ]
+      },
+      "scorecard": {
+        "marker": "<!-- pullfrog-experiment-evaluator:v2 pr=104 issue=102 -->",
+        "pr_comment_url": "https://github.com/Drew-Goddyn/jules-toys/pull/104#issuecomment-4704806964",
+        "issue_comment_url": "https://github.com/Drew-Goddyn/jules-toys/issues/102#issuecomment-4704807036",
+        "updated_at": "2026-06-15T05:19:57.025Z"
+      },
+      "screenshot": {
+        "path": "specimen-lab/pullfrog/pr-104/browser-smoke.png",
+        "source": "evaluator-browser-smoke",
+        "artifact_file": "browser-smoke.png"
+      },
+      "playtest": {
+        "trace_status": "completed",
+        "mechanical_status": "pass",
+        "load_status": "pass",
+        "action_status": "attempted",
+        "action_type": "control-click",
+        "state_changed": true,
+        "state_change_reasons": [
+          "text_changed",
+          "control_count_changed",
+          "pixels_changed"
+        ],
+        "feedback_observed": false,
+        "candidate_control_count": 3,
+        "initial_screenshot": "pullfrog-evaluation/playtest-initial.png",
+        "after_screenshot": "pullfrog-evaluation/playtest-after-interaction.png",
+        "model_review_status": "failed",
+        "model_review_provider": "nvidia",
+        "model_review_model": "moonshotai/kimi-k2.6",
+        "model_review_recommendation": null
+      },
+      "known_gaps": [
+        "model playtest review failed (nvidia): Unexpected token '`', \" ```json\n{\n\"... is not valid JSON",
+        "model playtest review failed (nvidia): JSON parse error in LLM response — not a content/mechanical issue",
+        "wire model simplified to omnidirectional vs brief's straight/corner toggle",
+        "limited visual polish and glow effects",
+        "only 5 levels with modest replay value"
+      ],
+      "comparison": {
+        "run_count": 1,
+        "previous_score": null,
+        "score_delta": null,
+        "mechanical_pass": true,
+        "latest_label": "experiment:accepted",
+        "previous_run_id": null,
+        "summary": "First v2 evaluator run recorded for this specimen."
+      },
+      "provenance": {
+        "source": "pullfrog-evaluator-v2",
+        "repository": "Drew-Goddyn/jules-toys",
+        "free_model": "opencode/big-pickle",
+        "report_version": 2,
+        "report_generated_at": "2026-06-15T05:17:30.020Z",
+        "persisted_at": "2026-06-15T05:19:57.025Z",
+        "generated_from": "GitHub Actions evaluator artifact and Pullfrog judge output"
+      },
+      "reruns": [
+        {
+          "run_id": 27525623017,
+          "run_attempt": 1,
+          "run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27525623017",
+          "event_name": "workflow_dispatch",
+          "head_sha": "45563c2c43ec2eafb47cb14b500c216f7fc5b442",
+          "generated_at": "2026-06-15T05:17:30.020Z",
+          "mechanical_pass": true,
+          "score": 3,
+          "recommendation": "accept",
+          "label": "experiment:accepted",
+          "status": "accepted",
+          "artifact_name": "pullfrog-experiment-evaluation-104",
+          "pr_comment_url": "https://github.com/Drew-Goddyn/jules-toys/pull/104#issuecomment-4704806964",
+          "issue_comment_url": "https://github.com/Drew-Goddyn/jules-toys/issues/102#issuecomment-4704807036",
+          "known_gaps": [
+            "model playtest review failed (nvidia): Unexpected token '`', \" ```json\n{\n\"... is not valid JSON",
+            "model playtest review failed (nvidia): JSON parse error in LLM response — not a content/mechanical issue",
+            "wire model simplified to omnidirectional vs brief's straight/corner toggle",
+            "limited visual polish and glow effects",
+            "only 5 levels with modest replay value"
+          ],
+          "playtest": {
+            "trace_status": "completed",
+            "mechanical_status": "pass",
+            "load_status": "pass",
+            "action_status": "attempted",
+            "action_type": "control-click",
+            "state_changed": true,
+            "state_change_reasons": [
+              "text_changed",
+              "control_count_changed",
+              "pixels_changed"
+            ],
+            "feedback_observed": false,
+            "candidate_control_count": 3,
+            "initial_screenshot": "pullfrog-evaluation/playtest-initial.png",
+            "after_screenshot": "pullfrog-evaluation/playtest-after-interaction.png",
+            "model_review_status": "failed",
+            "model_review_provider": "nvidia",
+            "model_review_model": "moonshotai/kimi-k2.6",
+            "model_review_recommendation": null
+          }
+        }
+      ]
+    },
     {
       "id": "pullfrog-pr-97",
       "title": "Signal Path Lab",
