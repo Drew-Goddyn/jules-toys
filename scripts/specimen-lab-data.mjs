@@ -282,6 +282,7 @@ function summarizePlaytestEvidence(report) {
     initial_screenshot: trace.initial_screenshot ?? null,
     after_screenshot: trace.after_evidence?.screenshot ?? null,
     model_review_status: review?.status ?? null,
+    model_review_provider: review?.provider ?? null,
     model_review_model: review?.model ?? null,
     model_review_recommendation: review?.response?.recommendation ?? null
   };

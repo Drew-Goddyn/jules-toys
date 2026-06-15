@@ -28,6 +28,23 @@ on:
         required: true
         default: false
         type: boolean
+      model_playtest_provider:
+        description: Optional model playtest review provider
+        required: true
+        default: none
+        type: choice
+        options:
+          - none
+          - gemini
+          - nvidia
+      model_playtest_model:
+        description: Optional provider model ID, such as moonshotai/kimi-k2.6
+        required: false
+        default: ""
+      nvidia_playtest_endpoint:
+        description: Optional NVIDIA/OpenAI-compatible endpoint or base URL
+        required: false
+        default: https://integrate.api.nvidia.com/v1
   pull_request:
     types: [labeled]
     branches: ["main"]
@@ -119,8 +136,13 @@ jobs:
       - name: Evaluate experiment
         working-directory: pr-worktree
         env:
-          GEMINI_API_KEY: ${{ github.event_name == 'workflow_dispatch' && inputs.gemini_playtest_review == true && secrets.GEMINI_API_KEY || '' }}
-          PULLFROG_GEMINI_PLAYTEST: ${{ github.event_name == 'workflow_dispatch' && inputs.gemini_playtest_review == true && 'true' || 'false' }}
+          GEMINI_API_KEY: ${{ github.event_name == 'workflow_dispatch' && (inputs.gemini_playtest_review == true || inputs.model_playtest_provider == 'gemini') && secrets.GEMINI_API_KEY || '' }}
+          PULLFROG_GEMINI_PLAYTEST: ${{ github.event_name == 'workflow_dispatch' && (inputs.gemini_playtest_review == true || inputs.model_playtest_provider == 'gemini') && 'true' || 'false' }}
+          PULLFROG_MODEL_PLAYTEST: ${{ github.event_name == 'workflow_dispatch' && (inputs.gemini_playtest_review == true || inputs.model_playtest_provider != 'none') && 'true' || 'false' }}
+          PULLFROG_MODEL_PLAYTEST_PROVIDER: ${{ github.event_name == 'workflow_dispatch' && inputs.model_playtest_provider != 'none' && inputs.model_playtest_provider || 'gemini' }}
+          PULLFROG_MODEL_PLAYTEST_MODEL: ${{ github.event_name == 'workflow_dispatch' && inputs.model_playtest_model || '' }}
+          NVIDIA_API_KEY: ${{ github.event_name == 'workflow_dispatch' && inputs.model_playtest_provider == 'nvidia' && secrets.NVIDIA_API_KEY || '' }}
+          PULLFROG_NVIDIA_ENDPOINT: ${{ github.event_name == 'workflow_dispatch' && inputs.model_playtest_provider == 'nvidia' && inputs.nvidia_playtest_endpoint || '' }}
         run: |
           node ../evaluator-source/scripts/evaluate-pullfrog-experiment.mjs \
             --pr-number "${{ steps.resolve.outputs.pr_number }}" \
@@ -130,7 +152,11 @@ jobs:
             --lineage-root ../evaluator-source \
             --output-dir pullfrog-evaluation \
             --report pullfrog-evaluation/report.json \
-            --gemini-playtest "$PULLFROG_GEMINI_PLAYTEST"
+            --gemini-playtest "$PULLFROG_GEMINI_PLAYTEST" \
+            --model-playtest "$PULLFROG_MODEL_PLAYTEST" \
+            --model-playtest-provider "$PULLFROG_MODEL_PLAYTEST_PROVIDER" \
+            --model-playtest-model "$PULLFROG_MODEL_PLAYTEST_MODEL" \
+            --nvidia-endpoint "$PULLFROG_NVIDIA_ENDPOINT"
 
       - name: Publish report output
         id: report-output
@@ -366,9 +392,10 @@ jobs:
               judge ? `- Review burden: ${judge.review_burden}` : null,
               judge ? `- Rationale: ${judge.rationale}` : null,
               "",
-              "### Optional Gemini playtest review",
+              "### Optional model playtest review",
               "",
               `- Status: ${modelPlaytest?.status ?? "missing"}`,
+              modelPlaytest?.provider ? `- Provider: ${modelPlaytest.provider}` : null,
               modelPlaytest?.model ? `- Model: ${modelPlaytest.model}` : null,
               modelPlaytest?.response?.recommendation ? `- Recommendation: ${modelPlaytest.response.recommendation}` : null,
               modelPlaytest?.reason ? `- Reason: ${modelPlaytest.reason}` : null,
