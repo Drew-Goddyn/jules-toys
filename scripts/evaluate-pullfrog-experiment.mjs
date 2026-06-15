@@ -20,7 +20,11 @@ const metadata = readJson(args.metadata);
 const prNumber = Number(args.prNumber ?? metadata?.number);
 const issueNumber = Number(args.issueNumber ?? inferIssueNumber(metadata));
 const testOutcome = normalizeOutcome(args.testOutcome);
-const geminiPlaytestReviewSchema = {
+const modelPlaytestPromptVersion = "pullfrog-playtest-review-v1";
+const nvidiaDefaultEndpoint = "https://integrate.api.nvidia.com/v1/chat/completions";
+const nvidiaPendingPollAttempts = 5;
+const nvidiaPendingPollDelayMs = 1000;
+const modelPlaytestReviewSchema = {
   type: "object",
   additionalProperties: false,
   required: [
@@ -1196,34 +1200,111 @@ function trimTail(text) {
 }
 
 async function runModelPlaytestReview(playtestTrace) {
-  const enabled = args.geminiPlaytest === "true" || process.env.PULLFROG_GEMINI_PLAYTEST === "true";
-  const model = args.geminiModel ?? process.env.PULLFROG_GEMINI_MODEL ?? "gemini-3.5-flash";
+  const config = resolveModelPlaytestConfig();
 
-  if (!enabled) {
+  if (!config.enabled) {
     return {
       status: "skipped",
-      provider: "gemini",
-      model,
-      reason: "Gemini playtest review is disabled. Set --gemini-playtest true or PULLFROG_GEMINI_PLAYTEST=true to enable it."
+      provider: config.provider,
+      model: config.model,
+      reason: "Model playtest review is disabled. Set --model-playtest true or PULLFROG_MODEL_PLAYTEST=true to enable it; legacy --gemini-playtest true remains supported."
     };
   }
 
-  const apiKey = args.geminiApiKey ?? process.env.GEMINI_API_KEY;
+  if (config.provider === "gemini") {
+    return runGeminiPlaytestReview(playtestTrace, config);
+  }
+
+  if (config.provider === "nvidia") {
+    return runNvidiaPlaytestReview(playtestTrace, config);
+  }
+
+  return {
+    status: "failed",
+    provider: config.provider,
+    model: config.model,
+    reason: `Unsupported model playtest provider: ${config.provider}.`
+  };
+}
+
+function resolveModelPlaytestConfig() {
+  const legacyGeminiEnabled = isFlagTrue(args.geminiPlaytest) || isFlagTrue(process.env.PULLFROG_GEMINI_PLAYTEST);
+  const genericEnabled = isFlagTrue(args.modelPlaytest) || isFlagTrue(process.env.PULLFROG_MODEL_PLAYTEST);
+  const provider = normalizeModelPlaytestProvider(firstNonEmpty(
+    args.modelPlaytestProvider,
+    process.env.PULLFROG_MODEL_PLAYTEST_PROVIDER,
+    "gemini"
+  ));
+
+  return {
+    enabled: genericEnabled || legacyGeminiEnabled,
+    provider,
+    model: resolveModelPlaytestModel(provider)
+  };
+}
+
+function resolveModelPlaytestModel(provider) {
+  if (provider === "nvidia") {
+    return firstNonEmpty(
+      args.modelPlaytestModel,
+      process.env.PULLFROG_MODEL_PLAYTEST_MODEL,
+      args.nvidiaModel,
+      process.env.PULLFROG_NVIDIA_MODEL
+    ) ?? null;
+  }
+
+  if (provider === "gemini") {
+    return firstNonEmpty(
+      args.modelPlaytestModel,
+      process.env.PULLFROG_MODEL_PLAYTEST_MODEL,
+      args.geminiModel,
+      process.env.PULLFROG_GEMINI_MODEL,
+      "gemini-3.5-flash"
+    );
+  }
+
+  return firstNonEmpty(
+    args.modelPlaytestModel,
+    process.env.PULLFROG_MODEL_PLAYTEST_MODEL
+  ) ?? null;
+}
+
+function normalizeModelPlaytestProvider(value) {
+  return String(value ?? "gemini").trim().toLowerCase();
+}
+
+function isFlagTrue(value) {
+  return String(value ?? "").trim().toLowerCase() === "true";
+}
+
+function firstNonEmpty(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+  return undefined;
+}
+
+async function runGeminiPlaytestReview(playtestTrace, config) {
+  const apiKey = firstNonEmpty(args.geminiApiKey, process.env.GEMINI_API_KEY);
   if (!apiKey) {
     return {
       status: "skipped",
       provider: "gemini",
-      model,
+      model: config.model,
       reason: "GEMINI_API_KEY is not set."
     };
   }
 
-  const endpoint = args.geminiEndpoint
-    ?? process.env.PULLFROG_GEMINI_ENDPOINT
-    ?? `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  const endpoint = firstNonEmpty(
+    args.geminiEndpoint,
+    process.env.PULLFROG_GEMINI_ENDPOINT,
+    `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent`
+  );
 
   try {
-    const prompt = buildGeminiPlaytestPrompt(playtestTrace);
+    const prompt = buildModelPlaytestPrompt(playtestTrace);
     const response = await requestJson(endpoint, {
       method: "POST",
       headers: {
@@ -1238,7 +1319,7 @@ async function runModelPlaytestReview(playtestTrace) {
           responseFormat: {
             text: {
               mimeType: "application/json",
-              schema: geminiPlaytestReviewSchema
+              schema: modelPlaytestReviewSchema
             }
           }
         }
@@ -1247,14 +1328,14 @@ async function runModelPlaytestReview(playtestTrace) {
     });
     const text = extractGeminiText(response);
     const parsed = JSON.parse(text);
-    validateGeminiPlaytestReview(parsed);
+    validateModelPlaytestReview(parsed, "Gemini");
 
     return {
       status: "completed",
       provider: "gemini",
-      model,
-      prompt_version: "pullfrog-playtest-review-v1",
-      schema: "pullfrog-playtest-review-v1",
+      model: config.model,
+      prompt_version: modelPlaytestPromptVersion,
+      schema: modelPlaytestPromptVersion,
       endpoint: redactEndpoint(endpoint),
       deterministic_authority: "deterministic.playtest_trace",
       sent_trace_status: playtestTrace.status,
@@ -1266,9 +1347,9 @@ async function runModelPlaytestReview(playtestTrace) {
     return {
       status: "failed",
       provider: "gemini",
-      model,
-      prompt_version: "pullfrog-playtest-review-v1",
-      schema: "pullfrog-playtest-review-v1",
+      model: config.model,
+      prompt_version: modelPlaytestPromptVersion,
+      schema: modelPlaytestPromptVersion,
       endpoint: redactEndpoint(endpoint),
       deterministic_authority: "deterministic.playtest_trace",
       sent_trace_status: playtestTrace.status,
@@ -1277,7 +1358,81 @@ async function runModelPlaytestReview(playtestTrace) {
   }
 }
 
-function buildGeminiPlaytestPrompt(playtestTrace) {
+async function runNvidiaPlaytestReview(playtestTrace, config) {
+  if (!config.model) {
+    return {
+      status: "skipped",
+      provider: "nvidia",
+      model: null,
+      reason: "NVIDIA playtest review requires --model-playtest-model, --nvidia-model, PULLFROG_MODEL_PLAYTEST_MODEL, or PULLFROG_NVIDIA_MODEL."
+    };
+  }
+
+  const apiKey = firstNonEmpty(args.nvidiaApiKey, process.env.NVIDIA_API_KEY);
+  if (!apiKey) {
+    return {
+      status: "skipped",
+      provider: "nvidia",
+      model: config.model,
+      reason: "NVIDIA_API_KEY is not set."
+    };
+  }
+
+  const endpoint = firstNonEmpty(
+    args.nvidiaEndpoint,
+    process.env.PULLFROG_NVIDIA_ENDPOINT,
+    nvidiaDefaultEndpoint
+  );
+  const chatEndpoint = nvidiaChatEndpoint(endpoint);
+
+  try {
+    const prompt = buildModelPlaytestPrompt(playtestTrace);
+    const response = await requestNvidiaChatCompletion(endpoint, apiKey, {
+      model: config.model,
+      messages: [
+        {
+          role: "system",
+          content: "Return only strict JSON matching the requested schema. Do not decide mechanical pass/fail."
+        },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0,
+      max_tokens: 1200,
+      stream: false
+    });
+    const text = extractOpenAiCompatibleText(response);
+    const parsed = JSON.parse(text);
+    validateModelPlaytestReview(parsed, "NVIDIA");
+
+    return {
+      status: "completed",
+      provider: "nvidia",
+      model: config.model,
+      prompt_version: modelPlaytestPromptVersion,
+      schema: modelPlaytestPromptVersion,
+      endpoint: redactEndpoint(chatEndpoint),
+      deterministic_authority: "deterministic.playtest_trace",
+      sent_trace_status: playtestTrace.status,
+      response: parsed,
+      response_json_chars: text.length,
+      usage_metadata: sanitizeOpenAiUsageMetadata(response?.usage)
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      provider: "nvidia",
+      model: config.model,
+      prompt_version: modelPlaytestPromptVersion,
+      schema: modelPlaytestPromptVersion,
+      endpoint: redactEndpoint(chatEndpoint),
+      deterministic_authority: "deterministic.playtest_trace",
+      sent_trace_status: playtestTrace.status,
+      reason: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+function buildModelPlaytestPrompt(playtestTrace) {
   return [
     "You are reviewing a Pullfrog toy playtest trace captured by a deterministic browser harness.",
     "You are not driving the browser and you are not the source of mechanical pass/fail.",
@@ -1337,34 +1492,34 @@ function extractGeminiText(response) {
   return text;
 }
 
-function validateGeminiPlaytestReview(review) {
+function validateModelPlaytestReview(review, providerLabel) {
   const stringFields = ["goal_guess", "first_action_guess", "observed_feedback", "recommendation"];
   for (const field of stringFields) {
     if (typeof review[field] !== "string" || !review[field].trim()) {
-      throw new Error(`Gemini review field ${field} must be a non-empty string.`);
+      throw new Error(`${providerLabel} review field ${field} must be a non-empty string.`);
     }
   }
 
   for (const field of ["first_action_confidence", "interaction_confidence"]) {
     if (typeof review[field] !== "number" || review[field] < 0 || review[field] > 1) {
-      throw new Error(`Gemini review field ${field} must be a number from 0 to 1.`);
+      throw new Error(`${providerLabel} review field ${field} must be a number from 0 to 1.`);
     }
   }
 
   if (!Number.isInteger(review.clarity_score) || review.clarity_score < 1 || review.clarity_score > 5) {
-    throw new Error("Gemini review field clarity_score must be an integer from 1 to 5.");
+    throw new Error(`${providerLabel} review field clarity_score must be an integer from 1 to 5.`);
   }
 
   if (review.stuck_reason !== null && typeof review.stuck_reason !== "string") {
-    throw new Error("Gemini review field stuck_reason must be a string or null.");
+    throw new Error(`${providerLabel} review field stuck_reason must be a string or null.`);
   }
 
   if (!Array.isArray(review.known_gaps) || review.known_gaps.some((gap) => typeof gap !== "string")) {
-    throw new Error("Gemini review field known_gaps must be an array of strings.");
+    throw new Error(`${providerLabel} review field known_gaps must be an array of strings.`);
   }
 
   if (!["accept", "needs-human-review", "reject"].includes(review.recommendation)) {
-    throw new Error("Gemini review field recommendation has an unsupported value.");
+    throw new Error(`${providerLabel} review field recommendation has an unsupported value.`);
   }
 }
 
@@ -1380,9 +1535,23 @@ function sanitizeUsageMetadata(usageMetadata) {
   };
 }
 
+function sanitizeOpenAiUsageMetadata(usageMetadata) {
+  if (!usageMetadata || typeof usageMetadata !== "object") {
+    return null;
+  }
+
+  return {
+    prompt_tokens: usageMetadata.prompt_tokens ?? null,
+    completion_tokens: usageMetadata.completion_tokens ?? null,
+    total_tokens: usageMetadata.total_tokens ?? null
+  };
+}
+
 function redactEndpoint(endpoint) {
   try {
     const url = new URL(endpoint);
+    url.username = "";
+    url.password = "";
     url.search = "";
     return url.toString();
   } catch {
@@ -1391,6 +1560,16 @@ function redactEndpoint(endpoint) {
 }
 
 function requestJson(url, options = {}) {
+  return requestJsonResponse(url, options).then((response) => {
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw new Error(`HTTP ${response.statusCode}: ${response.raw.slice(0, 500)}`);
+    }
+
+    return response.body;
+  });
+}
+
+function requestJsonResponse(url, options = {}) {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
     const client = parsed.protocol === "https:" ? https : http;
@@ -1405,16 +1584,21 @@ function requestJson(url, options = {}) {
         data += chunk;
       });
       response.on("end", () => {
-        if (response.statusCode < 200 || response.statusCode >= 300) {
-          reject(new Error(`HTTP ${response.statusCode}: ${data.slice(0, 500)}`));
-          return;
+        let body = null;
+        try {
+          body = data.trim() ? JSON.parse(data) : null;
+        } catch (error) {
+          if (response.statusCode >= 200 && response.statusCode < 300) {
+            reject(new Error(`Response was not valid JSON: ${error.message}`));
+            return;
+          }
         }
 
-        try {
-          resolve(JSON.parse(data));
-        } catch (error) {
-          reject(new Error(`Response was not valid JSON: ${error.message}`));
-        }
+        resolve({
+          statusCode: response.statusCode,
+          body,
+          raw: data
+        });
       });
     });
 
@@ -1427,6 +1611,127 @@ function requestJson(url, options = {}) {
     }
     request.end();
   });
+}
+
+async function requestNvidiaChatCompletion(endpoint, apiKey, body) {
+  const chatEndpoint = nvidiaChatEndpoint(endpoint);
+  const headers = {
+    accept: "application/json",
+    "content-type": "application/json",
+    authorization: `Bearer ${apiKey}`
+  };
+  const response = await requestJsonResponse(chatEndpoint, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+    timeoutMs: 30000
+  });
+
+  if (response.statusCode === 202) {
+    return pollNvidiaPendingResponse(response.body, endpoint, headers);
+  }
+
+  if (response.statusCode < 200 || response.statusCode >= 300) {
+    throw new Error(nvidiaErrorMessage(response) ?? `HTTP ${response.statusCode}`);
+  }
+
+  return response.body;
+}
+
+async function pollNvidiaPendingResponse(initialBody, endpoint, headers) {
+  const requestId = typeof initialBody?.requestId === "string" ? initialBody.requestId : null;
+  if (!requestId) {
+    throw new Error("NVIDIA response returned HTTP 202 without a requestId to poll.");
+  }
+
+  for (let attempt = 0; attempt < nvidiaPendingPollAttempts; attempt += 1) {
+    if (attempt > 0) {
+      await delay(nvidiaPendingPollDelayMs);
+    }
+
+    const response = await requestJsonResponse(nvidiaStatusEndpoint(endpoint, requestId), {
+      method: "GET",
+      headers,
+      timeoutMs: 30000
+    });
+
+    if (response.statusCode === 202) {
+      continue;
+    }
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw new Error(nvidiaErrorMessage(response) ?? `HTTP ${response.statusCode}`);
+    }
+
+    return response.body;
+  }
+
+  throw new Error(`NVIDIA response remained pending for requestId ${requestId}.`);
+}
+
+function nvidiaChatEndpoint(endpoint) {
+  const trimmed = endpoint.replace(/\/+$/, "");
+  return trimmed.endsWith("/chat/completions") ? trimmed : `${trimmed}/chat/completions`;
+}
+
+function nvidiaStatusEndpoint(endpoint, requestId) {
+  const chatEndpoint = nvidiaChatEndpoint(endpoint);
+  const root = chatEndpoint.slice(0, -"/chat/completions".length);
+  return `${root}/status/${encodeURIComponent(requestId)}`;
+}
+
+function nvidiaErrorMessage(response) {
+  const body = response.body;
+  const error = body?.error;
+
+  if (typeof error === "string" && error.trim()) {
+    return `HTTP ${response.statusCode}: ${error}`;
+  }
+
+  if (error && typeof error === "object" && typeof error.message === "string" && error.message.trim()) {
+    return `HTTP ${response.statusCode}: ${error.message}`;
+  }
+
+  if (typeof body?.message === "string" && body.message.trim()) {
+    return `HTTP ${response.statusCode}: ${body.message}`;
+  }
+
+  if (response.raw.trim()) {
+    return `HTTP ${response.statusCode}: ${response.raw.slice(0, 500)}`;
+  }
+
+  return null;
+}
+
+function extractOpenAiCompatibleText(data) {
+  const nested = data?.response;
+  if (nested && typeof nested === "object") {
+    return extractOpenAiCompatibleText(nested);
+  }
+
+  const choices = Array.isArray(data?.choices) ? data.choices : [];
+  const texts = choices.flatMap((choice) => {
+    const message = choice?.message;
+    if (typeof message?.content === "string") {
+      return [message.content];
+    }
+    if (Array.isArray(message?.content)) {
+      return message.content
+        .map((part) => part?.text)
+        .filter((part) => typeof part === "string");
+    }
+    if (typeof choice?.text === "string") {
+      return [choice.text];
+    }
+    return [];
+  });
+  const text = texts.join("");
+
+  if (!text.trim()) {
+    throw new Error("NVIDIA response did not include text content.");
+  }
+
+  return text;
 }
 
 class DevToolsConnection {
@@ -1665,8 +1970,9 @@ function collectKnownGaps(scope, registration, screenshot, network, browserSmoke
     }
   }
 
-  if (modelPlaytestReview.status === "failed") {
-    gaps.push(`Gemini playtest review failed${modelPlaytestReview.reason ? `: ${modelPlaytestReview.reason}` : ""}`);
+  if (modelPlaytestReview?.status === "failed") {
+    const provider = modelPlaytestReview.provider ? ` (${modelPlaytestReview.provider})` : "";
+    gaps.push(`model playtest review failed${provider}${modelPlaytestReview.reason ? `: ${modelPlaytestReview.reason}` : ""}`);
   }
 
   return gaps;

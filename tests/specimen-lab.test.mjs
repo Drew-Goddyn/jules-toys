@@ -39,6 +39,7 @@ test("Specimen Lab updater upserts one specimen and appends rerun lineage", () =
     assert.equal(specimen.playtest.mechanical_status, "pass");
     assert.equal(specimen.playtest.state_changed, true);
     assert.equal(specimen.playtest.model_review_status, "skipped");
+    assert.equal(specimen.playtest.model_review_provider, "gemini");
     assert.equal(specimen.reruns[1].playtest.action_type, "control-click");
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
@@ -108,6 +109,7 @@ test("Evaluator lineage can read Specimen Lab history outside the PR worktree", 
     assert.equal(report.deterministic.playtest_trace.mechanical_status, "skipped");
     assert.equal(report.deterministic.playtest_trace.attempted_interactions[0].status, "skipped");
     assert.equal(report.model_playtest_review.status, "skipped");
+    assert.equal(report.model_playtest_review.provider, "gemini");
     assert.equal(report.recommendation.mechanical_pass, true);
     assert.ok(report.recommendation.known_gaps.some((gap) => gap.includes("browser playtest skipped")));
   } finally {
@@ -172,6 +174,7 @@ test("Evaluator records a mocked Gemini playtest review separately from determin
     const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
     assert.equal(report.recommendation.mechanical_pass, true);
     assert.equal(report.model_playtest_review.status, "completed");
+    assert.equal(report.model_playtest_review.provider, "gemini");
     assert.equal(report.model_playtest_review.response.recommendation, "needs-human-review");
     assert.equal(report.model_playtest_review.deterministic_authority, "deterministic.playtest_trace");
     assert.equal(report.model_playtest_review.usage_metadata.totalTokenCount, 30);
@@ -265,7 +268,187 @@ test("Evaluator records malformed Gemini playtest JSON without failing determini
     assert.equal(report.recommendation.mechanical_pass, true);
     assert.equal(report.model_playtest_review.status, "failed");
     assert.match(report.model_playtest_review.reason, /JSON/);
-    assert.ok(report.recommendation.known_gaps.some((gap) => gap.includes("Gemini playtest review failed")));
+    assert.ok(report.recommendation.known_gaps.some((gap) => gap.includes("model playtest review failed (gemini)")));
+  } finally {
+    await server.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("Evaluator skips NVIDIA playtest review without NVIDIA_API_KEY while deterministic acceptance remains authoritative", async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pullfrog-nvidia-missing-key-test-"));
+  try {
+    const metadataPath = writeEvaluatorMetadata(tempRoot);
+    const reportPath = path.join(tempRoot, "nvidia-missing-key-report.json");
+    const result = await runNode([
+      evaluatorPath,
+      "--pr-number", "87",
+      "--issue-number", "86",
+      "--metadata", metadataPath,
+      "--test-outcome", "success",
+      "--browser-smoke", "false",
+      "--model-playtest", "true",
+      "--model-playtest-provider", "nvidia",
+      "--model-playtest-model", "moonshotai/kimi-k2.6",
+      "--output-dir", path.join(tempRoot, "evaluation"),
+      "--report", reportPath
+    ], {
+      cwd: repoRoot,
+      env: withoutEnv(process.env, ["NVIDIA_API_KEY"])
+    });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+    assert.equal(report.recommendation.mechanical_pass, true);
+    assert.equal(report.model_playtest_review.status, "skipped");
+    assert.equal(report.model_playtest_review.provider, "nvidia");
+    assert.equal(report.model_playtest_review.model, "moonshotai/kimi-k2.6");
+    assert.match(report.model_playtest_review.reason, /NVIDIA_API_KEY/);
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("Evaluator records mocked NVIDIA review after polling a 202 pending response", async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pullfrog-nvidia-review-test-"));
+  const requests = [];
+  let statusPolls = 0;
+  const server = await startNvidiaMockServer((body, request) => {
+    if (request.url === "/v1/chat/completions") {
+      requests.push({ body, authorization: request.headers.authorization });
+      return { status: 202, body: { requestId: "pending-review-1" } };
+    }
+
+    assert.equal(request.url, "/v1/status/pending-review-1");
+    statusPolls += 1;
+    return nvidiaChatResponse(reviewPayload({
+      recommendation: "needs-human-review",
+      known_gaps: ["Trace skipped by test fixture."]
+    }), {
+      prompt_tokens: 11,
+      completion_tokens: 22,
+      total_tokens: 33
+    });
+  });
+
+  try {
+    const metadataPath = writeEvaluatorMetadata(tempRoot);
+    const reportPath = path.join(tempRoot, "nvidia-report.json");
+    const result = await runNode([
+      evaluatorPath,
+      "--pr-number", "87",
+      "--issue-number", "86",
+      "--metadata", metadataPath,
+      "--test-outcome", "success",
+      "--browser-smoke", "false",
+      "--model-playtest", "true",
+      "--model-playtest-provider", "nvidia",
+      "--model-playtest-model", "moonshotai/kimi-k2.6",
+      "--nvidia-api-key", "test-key",
+      "--nvidia-endpoint", server.url,
+      "--output-dir", path.join(tempRoot, "evaluation"),
+      "--report", reportPath
+    ], { cwd: repoRoot });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal(requests.length, 1);
+    assert.equal(statusPolls, 1);
+    assert.equal(requests[0].authorization, "Bearer test-key");
+    assert.equal(requests[0].body.model, "moonshotai/kimi-k2.6");
+    assert.equal(requests[0].body.stream, false);
+    assert.equal(requests[0].body.temperature, 0);
+    assert.ok(requests[0].body.messages.some((message) => String(message.content).includes("deterministic browser harness")));
+
+    const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+    assert.equal(report.recommendation.mechanical_pass, true);
+    assert.equal(report.model_playtest_review.status, "completed");
+    assert.equal(report.model_playtest_review.provider, "nvidia");
+    assert.equal(report.model_playtest_review.model, "moonshotai/kimi-k2.6");
+    assert.equal(report.model_playtest_review.deterministic_authority, "deterministic.playtest_trace");
+    assert.equal(report.model_playtest_review.response.recommendation, "needs-human-review");
+    assert.equal(report.model_playtest_review.usage_metadata.total_tokens, 33);
+  } finally {
+    await server.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("Evaluator keeps mechanical failure failed even when mocked NVIDIA recommends accept", async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pullfrog-nvidia-mechanical-fail-test-"));
+  const server = await startNvidiaMockServer(() => nvidiaChatResponse(reviewPayload({
+    recommendation: "accept",
+    clarity_score: 5,
+    interaction_confidence: 0.9
+  })));
+
+  try {
+    const metadataPath = writeEvaluatorMetadata(tempRoot);
+    const reportPath = path.join(tempRoot, "nvidia-mechanical-fail-report.json");
+    const result = await runNode([
+      evaluatorPath,
+      "--pr-number", "87",
+      "--issue-number", "86",
+      "--metadata", metadataPath,
+      "--test-outcome", "failure",
+      "--browser-smoke", "false",
+      "--model-playtest", "true",
+      "--model-playtest-provider", "nvidia",
+      "--model-playtest-model", "nvidia/nemotron-3-super-120b-a12b",
+      "--nvidia-api-key", "test-key",
+      "--nvidia-endpoint", server.url,
+      "--output-dir", path.join(tempRoot, "evaluation"),
+      "--report", reportPath
+    ], { cwd: repoRoot });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+    assert.equal(report.model_playtest_review.status, "completed");
+    assert.equal(report.model_playtest_review.provider, "nvidia");
+    assert.equal(report.model_playtest_review.model, "nvidia/nemotron-3-super-120b-a12b");
+    assert.equal(report.model_playtest_review.response.recommendation, "accept");
+    assert.equal(report.recommendation.mechanical_pass, false);
+    assert.equal(report.recommendation.deterministic_label, "experiment:failed");
+    assert.ok(report.recommendation.known_gaps.some((gap) => gap.includes("CI/test failed")));
+  } finally {
+    await server.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("Evaluator records malformed NVIDIA playtest JSON without failing deterministic evaluation", async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pullfrog-nvidia-malformed-test-"));
+  const server = await startNvidiaMockServer(() => ({
+    choices: [{
+      message: { content: "{not json" }
+    }]
+  }));
+
+  try {
+    const metadataPath = writeEvaluatorMetadata(tempRoot);
+    const reportPath = path.join(tempRoot, "malformed-nvidia-report.json");
+    const result = await runNode([
+      evaluatorPath,
+      "--pr-number", "87",
+      "--issue-number", "86",
+      "--metadata", metadataPath,
+      "--test-outcome", "success",
+      "--browser-smoke", "false",
+      "--model-playtest", "true",
+      "--model-playtest-provider", "nvidia",
+      "--model-playtest-model", "moonshotai/kimi-k2.6",
+      "--nvidia-api-key", "test-key",
+      "--nvidia-endpoint", server.url,
+      "--output-dir", path.join(tempRoot, "evaluation"),
+      "--report", reportPath
+    ], { cwd: repoRoot });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+    assert.equal(report.recommendation.mechanical_pass, true);
+    assert.equal(report.model_playtest_review.status, "failed");
+    assert.equal(report.model_playtest_review.provider, "nvidia");
+    assert.match(report.model_playtest_review.reason, /JSON/);
+    assert.ok(report.recommendation.known_gaps.some((gap) => gap.includes("model playtest review failed (nvidia)")));
   } finally {
     await server.close();
     fs.rmSync(tempRoot, { recursive: true, force: true });
@@ -392,6 +575,69 @@ async function startGeminiMockServer(handler) {
     url: `http://127.0.0.1:${port}/v1beta/models/gemini-3.5-flash:generateContent`,
     close: () => new Promise((resolve) => server.close(resolve))
   };
+}
+
+async function startNvidiaMockServer(handler) {
+  const server = http.createServer((request, response) => {
+    let raw = "";
+    request.setEncoding("utf8");
+    request.on("data", (chunk) => {
+      raw += chunk;
+    });
+    request.on("end", () => {
+      const body = raw ? JSON.parse(raw) : null;
+      const handled = handler(body, request);
+      const status = handled?.status ?? 200;
+      const payload = handled?.body ?? handled;
+      response.writeHead(status, { "content-type": "application/json" });
+      response.end(`${JSON.stringify(payload)}\n`);
+    });
+  });
+
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+
+  const port = server.address().port;
+  return {
+    url: `http://127.0.0.1:${port}/v1`,
+    close: () => new Promise((resolve) => server.close(resolve))
+  };
+}
+
+function reviewPayload(overrides = {}) {
+  return {
+    goal_guess: "Play the toy and inspect the first interaction.",
+    first_action_guess: "Click the first visible control.",
+    first_action_confidence: 0.7,
+    observed_feedback: "The trace fixture provides limited feedback evidence.",
+    stuck_reason: null,
+    clarity_score: 3,
+    interaction_confidence: 0.5,
+    known_gaps: [],
+    recommendation: "needs-human-review",
+    ...overrides
+  };
+}
+
+function nvidiaChatResponse(review, usage = {}) {
+  return {
+    choices: [{
+      message: {
+        content: JSON.stringify(review)
+      }
+    }],
+    usage
+  };
+}
+
+function withoutEnv(env, keys) {
+  const next = { ...env };
+  for (const key of keys) {
+    delete next[key];
+  }
+  return next;
 }
 
 function runNode(args, options) {
