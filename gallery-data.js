@@ -230,6 +230,16 @@ window.galleryItems = [
     oneLine: "Plays a grid-based salvage run with hull, energy, shields, scanning, moving hazards, and extraction objective."
   },
   {
+    tier: 8,
+    title: "Signal Path Lab: Blackout Protocol",
+    slug: "signal-blackout",
+    path: "tier8/signal-blackout/index.html",
+    screenshot: "tier8/signal-blackout/screenshot.png",
+    kind: "Turn-based signal routing puzzle",
+    tags: ["signal", "routing", "puzzle", "grid", "seed"],
+    oneLine: "Routes signal paths under budget constraints while containing spreading faults across a seeded grid."
+  },
+  {
     tier: 9,
     title: "Signal Drift Rally",
     slug: "signal-drift-rally",
