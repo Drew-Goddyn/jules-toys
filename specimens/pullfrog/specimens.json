@@ -1,7 +1,153 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-06-15T05:19:57.025Z",
+  "generated_at": "2026-06-15T05:20:50.888Z",
   "specimens": [
+    {
+      "id": "pullfrog-pr-105",
+      "title": "Signal Path Lab: Blackout Protocol",
+      "slug": "signal-path-lab",
+      "tier": 9,
+      "kind": "Pullfrog specimen",
+      "status": "accepted",
+      "score": 3,
+      "recommendation": "accept",
+      "issue": {
+        "number": 103,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/issues/103"
+      },
+      "pr": {
+        "number": 105,
+        "url": "https://github.com/Drew-Goddyn/jules-toys/pull/105",
+        "title": "[Pullfrog experiment] Signal Path Lab: Blackout Protocol (W2-FM-MD)",
+        "head_ref": "pullfrog/103-signal-path-lab",
+        "base_ref": "main",
+        "head_sha": "cc60e5a75ebaf9d90f100228248a09aaa15fad79"
+      },
+      "workflow": {
+        "run_id": 27525623959,
+        "run_attempt": 1,
+        "run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27525623959",
+        "workflow": "Evaluate Pullfrog Experiment",
+        "event_name": "workflow_dispatch",
+        "actor": "Drew-Goddyn",
+        "ref": "main",
+        "sha": "7c1b0c1ff076c6f942e35df7149ba959eee4700c",
+        "artifact_name": "pullfrog-experiment-evaluation-105"
+      },
+      "artifact": {
+        "name": "pullfrog-experiment-evaluation-105",
+        "workflow_run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27525623959",
+        "contains": [
+          "report.json",
+          "browser-smoke.png",
+          "playtest-initial.png",
+          "playtest-after-interaction.png"
+        ]
+      },
+      "scorecard": {
+        "marker": "<!-- pullfrog-experiment-evaluator:v2 pr=105 issue=103 -->",
+        "pr_comment_url": "https://github.com/Drew-Goddyn/jules-toys/pull/105#issuecomment-4704809511",
+        "issue_comment_url": "https://github.com/Drew-Goddyn/jules-toys/issues/103#issuecomment-4704809563",
+        "updated_at": "2026-06-15T05:20:50.888Z"
+      },
+      "screenshot": {
+        "path": "specimen-lab/pullfrog/pr-105/browser-smoke.png",
+        "source": "evaluator-browser-smoke",
+        "artifact_file": "browser-smoke.png"
+      },
+      "playtest": {
+        "trace_status": "completed",
+        "mechanical_status": "pass",
+        "load_status": "pass",
+        "action_status": "attempted",
+        "action_type": "control-click",
+        "state_changed": true,
+        "state_change_reasons": [
+          "pixels_changed"
+        ],
+        "feedback_observed": false,
+        "candidate_control_count": 4,
+        "initial_screenshot": "pullfrog-evaluation/playtest-initial.png",
+        "after_screenshot": "pullfrog-evaluation/playtest-after-interaction.png",
+        "model_review_status": "failed",
+        "model_review_provider": "nvidia",
+        "model_review_model": "moonshotai/kimi-k2.6",
+        "model_review_recommendation": null
+      },
+      "known_gaps": [
+        "model playtest review failed (nvidia): Unexpected token '`', \" ```json\n{\n\"... is not valid JSON",
+        "Model playtest review failed due to JSON parse error in evaluator (nvidia/moonshotai/kimi-k2.6 returned markdown-wrapped JSON) — not a toy defect",
+        "No T-junction or cross wire types — only H, V, 4 corner orientations",
+        "Game balance is rough: heat/instability rates need parameter tuning",
+        "No keyboard accessibility or screen reader support",
+        "No mobile touch optimization beyond viewport meta",
+        "Visual presentation is utilitarian dark theme with minimal polish"
+      ],
+      "comparison": {
+        "run_count": 1,
+        "previous_score": null,
+        "score_delta": null,
+        "mechanical_pass": true,
+        "latest_label": "experiment:accepted",
+        "previous_run_id": null,
+        "summary": "First v2 evaluator run recorded for this specimen."
+      },
+      "provenance": {
+        "source": "pullfrog-evaluator-v2",
+        "repository": "Drew-Goddyn/jules-toys",
+        "free_model": "opencode/big-pickle",
+        "report_version": 2,
+        "report_generated_at": "2026-06-15T05:17:42.049Z",
+        "persisted_at": "2026-06-15T05:20:50.888Z",
+        "generated_from": "GitHub Actions evaluator artifact and Pullfrog judge output"
+      },
+      "reruns": [
+        {
+          "run_id": 27525623959,
+          "run_attempt": 1,
+          "run_url": "https://github.com/Drew-Goddyn/jules-toys/actions/runs/27525623959",
+          "event_name": "workflow_dispatch",
+          "head_sha": "cc60e5a75ebaf9d90f100228248a09aaa15fad79",
+          "generated_at": "2026-06-15T05:17:42.049Z",
+          "mechanical_pass": true,
+          "score": 3,
+          "recommendation": "accept",
+          "label": "experiment:accepted",
+          "status": "accepted",
+          "artifact_name": "pullfrog-experiment-evaluation-105",
+          "pr_comment_url": "https://github.com/Drew-Goddyn/jules-toys/pull/105#issuecomment-4704809511",
+          "issue_comment_url": "https://github.com/Drew-Goddyn/jules-toys/issues/103#issuecomment-4704809563",
+          "known_gaps": [
+            "model playtest review failed (nvidia): Unexpected token '`', \" ```json\n{\n\"... is not valid JSON",
+            "Model playtest review failed due to JSON parse error in evaluator (nvidia/moonshotai/kimi-k2.6 returned markdown-wrapped JSON) — not a toy defect",
+            "No T-junction or cross wire types — only H, V, 4 corner orientations",
+            "Game balance is rough: heat/instability rates need parameter tuning",
+            "No keyboard accessibility or screen reader support",
+            "No mobile touch optimization beyond viewport meta",
+            "Visual presentation is utilitarian dark theme with minimal polish"
+          ],
+          "playtest": {
+            "trace_status": "completed",
+            "mechanical_status": "pass",
+            "load_status": "pass",
+            "action_status": "attempted",
+            "action_type": "control-click",
+            "state_changed": true,
+            "state_change_reasons": [
+              "pixels_changed"
+            ],
+            "feedback_observed": false,
+            "candidate_control_count": 4,
+            "initial_screenshot": "pullfrog-evaluation/playtest-initial.png",
+            "after_screenshot": "pullfrog-evaluation/playtest-after-interaction.png",
+            "model_review_status": "failed",
+            "model_review_provider": "nvidia",
+            "model_review_model": "moonshotai/kimi-k2.6",
+            "model_review_recommendation": null
+          }
+        }
+      ]
+    },
     {
       "id": "pullfrog-pr-104",
       "title": "Signal Path Lab: Blackout Protocol",
