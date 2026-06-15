@@ -359,6 +359,7 @@ test("Evaluator records mocked NVIDIA review after polling a 202 pending respons
     assert.equal(requests[0].body.temperature, 0);
     assert.ok(requests[0].body.messages.some((message) => String(message.content).includes("deterministic browser harness")));
     assert.ok(requests[0].body.messages.some((message) => String(message.content).includes("raw JSON object only")));
+    assert.ok(requests[0].body.messages.some((message) => String(message.content).includes("\"goal_guess\"")));
 
     const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
     assert.equal(report.recommendation.mechanical_pass, true);

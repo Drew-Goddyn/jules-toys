@@ -1442,6 +1442,9 @@ function buildModelPlaytestPrompt(playtestTrace) {
     "Return one raw JSON object only. Do not wrap it in Markdown fences or add prose before or after it.",
     "The raw JSON object must match the supplied schema.",
     "",
+    "Required JSON schema:",
+    JSON.stringify(modelPlaytestReviewSchema, null, 2),
+    "",
     "Trace:",
     JSON.stringify(compactTraceForModel(playtestTrace), null, 2)
   ].join("\n");
