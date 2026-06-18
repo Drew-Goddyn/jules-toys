@@ -270,6 +270,16 @@ window.galleryItems = [
     oneLine: "GPT-5 comparison: changes modes, palettes, title, seed, layers, live motion, history, and exports local PNG/JSON presets."
   },
   {
+    tier: 9,
+    title: "Clockwork Canal Locks",
+    slug: "canal-locks",
+    path: "tier9/canal-locks/index.html",
+    screenshot: "tier9/canal-locks/screenshot.png",
+    kind: "Lock-and-dam puzzle",
+    tags: ["canal", "locks", "puzzle", "routing"],
+    oneLine: "Routes boats through a canal lock network by opening gates and adjusting water levels to reach destination docks."
+  },
+  {
     tier: 10,
     title: "Starship Rogue Circuit",
     slug: "starship-rogue-circuit",
