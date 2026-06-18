@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signal Cabinet Relay</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0b0e;color:#c5c6c7;font-family:'Courier New',Courier,monospace;display:flex;justify-content:center;align-items:center;min-height:100vh;padding:20px}
+#cabinet{background:linear-gradient(145deg,#12141a,#1a1d24);border:3px solid #3a3d48;border-radius:12px;padding:30px;position:relative;max-width:740px;width:100%;box-shadow:0 0 40px rgba(0,0,0,.6),inset 0 0 60px rgba(0,0,0,.4)}
+#cabinet::before{content:"";position:absolute;top:-2px;left:-2px;right:-2px;bottom:-2px;border:2px solid #2a2d35;border-radius:14px;pointer-events:none}
+.corner{position:absolute;width:14px;height:14px;border:2px solid #5a5d68;border-radius:2px}
+.corner-tl{top:-4px;left:-4px;border-right:none;border-bottom:none}
+.corner-tr{top:-4px;right:-4px;border-left:none;border-bottom:none}
+.corner-bl{bottom:-4px;left:-4px;border-right:none;border-top:none}
+.corner-br{bottom:-4px;right:-4px;border-left:none;border-top:none}
+#cabinet h1{text-align:center;font-size:14px;letter-spacing:4px;color:#66fcf1;text-transform:uppercase;margin-bottom:16px;font-weight:400}
+canvas{display:block;width:100%;aspect-ratio:1;background:radial-gradient(circle at 50% 50%,#14171e,#0e1016);border:1px solid #2a2d35;border-radius:6px;cursor:pointer;image-rendering:auto}
+#panel{border-top:1px solid #2a2d35;margin-top:14px;padding-top:14px;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start}
+#readout{font-size:12px;line-height:1.7;color:#8a8d96;min-height:60px}
+#readout span{color:#66fcf1}
+#controls{display:flex;gap:8px;align-items:center}
+#controls button{background:#1a1d24;border:1px solid #3a3d48;color:#c5c6c7;font-family:inherit;font-size:11px;padding:6px 14px;border-radius:4px;cursor:pointer;letter-spacing:1px;text-transform:uppercase;transition:all .15s}
+#controls button:hover{background:#252933;border-color:#66fcf1;color:#66fcf1}
+</style>
+</head>
+<body>
+<div id="cabinet">
+  <div class="corner corner-tl"></div><div class="corner corner-tr"></div>
+  <div class="corner corner-bl"></div><div class="corner corner-br"></div>
+  <h1>Signal Cabinet Relay</h1>
+  <canvas id="c" width="680" height="680"></canvas>
+  <div id="panel">
+    <div id="readout">pulses: <span id="v-pulses">0</span><br>active relays: <span id="v-active">0</span><br>open: <span id="v-open">—</span></div>
+    <div id="controls">
+      <button id="btn-reset">Reset</button>
+      <button id="btn-random">Randomize</button>
+    </div>
+  </div>
+</div>
+<script>
+const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+const W=680,H=680,cx=340,cy=340,radius=230;
+const N=8,labels=['R1','R2','R3','R4','R5','R6','R7','R8'];
+const relay=Array(N).fill(true); // true=open
+const nodes=[];
+
+for(let i=0;i<N;i++){
+  const a=Math.PI/2-Math.PI*2*i/N;
+  nodes.push({x:cx+radius*Math.cos(a),y:cy-radius*Math.sin(a)});
+}
+
+let pulses=[];
+let pulseCount=0;
+let nextEmit=0;
+
+function emitPulse(){
+  const startEdgeCW={from:0,to:1,progress:0,dir:1,alive:true,id:++pulseCount};
+  const startEdgeCCW={from:0,to:7,progress:0,dir:-1,alive:true,id:++pulseCount};
+  pulses.push(startEdgeCW,startEdgeCCW);
+}
+
+function resetAll(){for(let i=0;i<N;i++)relay[i]=true;pulses=[];nextEmit=0}
+function randomize(){for(let i=0;i<N;i++)relay[i]=Math.random()<.5}
+
+function stepPulses(){
+  const speed=.006;
+  for(const p of pulses){
+    if(!p.alive)continue;
+    p.progress+=speed;
+    if(p.progress>=1){
+      const dst=p.dir===1?p.to:p.from;
+      if(relay[dst]){
+        const next=(dst+p.dir+N)%N;
+        p.from=dst;
+        p.to=next;
+        p.progress=0;
+      }else{
+        p.alive=false;
+      }
+    }
+  }
+  pulses=pulses.filter(p=>p.alive||p.progress<1);
+  if(pulses.length>200)pulses=[];
+
+  nextEmit--;
+  if(nextEmit<=0){
+    emitPulse();
+    nextEmit=120+Math.floor(Math.random()*60);
+  }
+}
+
+function isEdgeBlocked(a,b){
+  const nodeA=Math.min(a,b),nodeB=Math.max(a,b);
+  if(nodeA+1===nodeB||(nodeA===0&&nodeB===N-1)){
+    // direct connection: open only if both relays are open
+    return !relay[a]||!relay[b];
+  }
+  return true; // not a direct edge
+}
+
+function edgeKey(a,b){return Math.min(a,b)+'-'+Math.max(a,b)}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+
+  // Background grid
+  ctx.strokeStyle='rgba(42,45,53,.3)';
+  ctx.lineWidth=1;
+  for(let i=0;i<W;i+=30){
+    ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,H);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(W,i);ctx.stroke();
+  }
+
+  // Draw connections
+  for(let i=0;i<N;i++){
+    const j=(i+1)%N;
+    const a=nodes[i],b=nodes[j];
+    const blocked=!relay[i]||!relay[j];
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
+    if(blocked){
+      ctx.strokeStyle='rgba(58,61,72,.5)';
+      ctx.lineWidth=1;
+      ctx.setLineDash([4,4]);
+    }else{
+      const glow=ctx.createLinearGradient(a.x,a.y,b.x,b.y);
+      glow.addColorStop(0,'rgba(102,252,241,.15)');
+      glow.addColorStop(.5,'rgba(102,252,241,.3)');
+      glow.addColorStop(1,'rgba(102,252,241,.15)');
+      ctx.strokeStyle=glow;
+      ctx.lineWidth=3;
+      ctx.setLineDash([]);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Draw pulses
+  for(const p of pulses){
+    if(!p.alive)continue;
+    const a=nodes[p.from],b=nodes[p.to];
+    const t=p.progress;
+    const px=a.x+(b.x-a.x)*t,py=a.y+(b.y-a.y)*t;
+    const r=5+3*Math.sin(t*Math.PI);
+    const grad=ctx.createRadialGradient(px,py,0,px,py,r*2);
+    grad.addColorStop(0,'rgba(255,255,255,.95)');
+    grad.addColorStop(.3,'rgba(102,252,241,.8)');
+    grad.addColorStop(1,'rgba(102,252,241,0)');
+    ctx.beginPath();ctx.arc(px,py,r*2,0,Math.PI*2);
+    ctx.fillStyle=grad;ctx.fill();
+    // trail
+    const trail=8;
+    for(let k=1;k<=trail;k++){
+      const tt=Math.max(0,t-k*.03);
+      const tx=a.x+(b.x-a.x)*tt,ty=a.y+(b.y-a.y)*tt;
+      const tr=3*(1-k/trail);
+      ctx.beginPath();ctx.arc(tx,ty,tr,0,Math.PI*2);
+      ctx.fillStyle=`rgba(102,252,241,${.2*(1-k/trail)})`;
+      ctx.fill();
+    }
+  }
+
+  // Draw nodes
+  for(let i=0;i<N;i++){
+    const n=nodes[i];
+    const open=relay[i];
+
+    // Node glow if open and R1
+    if(open&&i===0){
+      const g=ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,22);
+      g.addColorStop(0,'rgba(102,252,241,.15)');
+      g.addColorStop(1,'rgba(102,252,241,0)');
+      ctx.beginPath();ctx.arc(n.x,n.y,22,0,Math.PI*2);
+      ctx.fillStyle=g;ctx.fill();
+    }
+
+    // Outer ring
+    ctx.beginPath();ctx.arc(n.x,n.y,16,0,Math.PI*2);
+    ctx.fillStyle=open?'#1a2e2e':'#2a1a1a';
+    ctx.fill();
+    ctx.strokeStyle=open?'#66fcf1':'#ff4c4c';
+    ctx.lineWidth=2;
+    ctx.stroke();
+    // 3D bevel
+    ctx.beginPath();ctx.arc(n.x-2,n.y-2,16,0,Math.PI*2);
+    ctx.fillStyle=open?'rgba(102,252,241,.08)':'rgba(255,76,76,.08)';
+    ctx.fill();
+
+    // Indicator
+    ctx.beginPath();ctx.arc(n.x,n.y,6,0,Math.PI*2);
+    ctx.fillStyle=open?'#66fcf1':'#ff4c4c';
+    ctx.fill();
+    const glow2=ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,10);
+    glow2.addColorStop(0,open?'rgba(102,252,241,.3)':'rgba(255,76,76,.3)');
+    glow2.addColorStop(1,'transparent');
+    ctx.beginPath();ctx.arc(n.x,n.y,10,0,Math.PI*2);
+    ctx.fillStyle=glow2;ctx.fill();
+
+    // Label
+    ctx.fillStyle='#c5c6c7';
+    ctx.font='11px Courier New,Courier,monospace';
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    ctx.fillText(labels[i],n.x,n.y+30);
+  }
+
+  // Source indicator
+  ctx.fillStyle='rgba(102,252,241,.3)';
+  ctx.font='9px Courier New,Courier,monospace';
+  ctx.textAlign='center';
+  ctx.fillText('SOURCE',nodes[0].x,nodes[0].y-28);
+
+  // Update readout
+  const activeCount=relay.filter(r=>r).length;
+  const openList=relay.map((r,i)=>r?labels[i]:null).filter(Boolean).join(', ');
+  document.getElementById('v-pulses').textContent=pulses.filter(p=>p.alive).length;
+  document.getElementById('v-active').textContent=activeCount;
+  document.getElementById('v-open').textContent=openList||'—';
+}
+
+let animId;
+function loop(){
+  stepPulses();
+  draw();
+  animId=requestAnimationFrame(loop);
+}
+
+// Interactions
+canvas.addEventListener('click',e=>{
+  const rect=canvas.getBoundingClientRect();
+  const scaleX=W/rect.width,scaleY=H/rect.height;
+  const mx=(e.clientX-rect.left)*scaleX,my=(e.clientY-rect.top)*scaleY;
+  for(let i=0;i<N;i++){
+    const dx=mx-nodes[i].x,dy=my-nodes[i].y;
+    if(dx*dx+dy*dy<400){
+      relay[i]=!relay[i];
+      break;
+    }
+  }
+});
+
+document.getElementById('btn-reset').addEventListener('click',()=>{resetAll()});
+document.getElementById('btn-random').addEventListener('click',()=>{randomize()});
+
+window.addEventListener('resize',()=>{});
+loop();
+</script>
+</body>
+</html>

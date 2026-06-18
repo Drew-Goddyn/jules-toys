@@ -270,6 +270,16 @@ window.galleryItems = [
     oneLine: "GPT-5 comparison: changes modes, palettes, title, seed, layers, live motion, history, and exports local PNG/JSON presets."
   },
   {
+    tier: 9,
+    title: "Signal Cabinet Relay",
+    slug: "signal-cabinet-relay",
+    path: "tier9/signal-cabinet-relay/index.html",
+    screenshot: "tier9/signal-cabinet-relay/screenshot.png",
+    kind: "Interactive signal router",
+    tags: ["signals", "relay", "switches", "routing", "pulse"],
+    oneLine: "Toggles relay switches to route animated signal pulses through a circular cabinet of 8 interconnected nodes."
+  },
+  {
     tier: 10,
     title: "Starship Rogue Circuit",
     slug: "starship-rogue-circuit",
