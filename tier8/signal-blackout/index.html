@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signal Path Lab: Blackout Protocol</title>
+    <style>
+        :root {
+            --bg: #0a0e14;
+            --panel: #111622;
+            --border: #1e2a3a;
+            --text: #c8d6e0;
+            --text-dim: #6b7d8f;
+            --accent: #00d4aa;
+            --accent-dim: #008f7a;
+            --danger: #ff3355;
+            --danger-dim: #992233;
+            --warn: #ffaa33;
+            --success: #33ff88;
+            --source: #ff4488;
+            --target: #44aaff;
+            --grid-line: #162033;
+            --wire-v: #00d4aa;
+            --wire-h: #00b894;
+            --wire-c: #00a884;
+            --fault: #ff3355;
+            --fault-glow: rgba(255,51,85,0.3);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Courier New', Courier, monospace;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: auto 240px;
+            gap: 24px;
+            align-items: start;
+        }
+        .board-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .board-area h1 {
+            font-size: 1.1rem;
+            color: var(--accent);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+        .board-wrapper {
+            position: relative;
+            background: #000;
+            border: 2px solid var(--border);
+            border-radius: 4px;
+            box-shadow: 0 0 20px rgba(0,212,170,0.08);
+        }
+        #gameCanvas {
+            display: block;
+            cursor: pointer;
+        }
+        .legend {
+            display: flex;
+            gap: 16px;
+            margin-top: 10px;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+        .legend span { display: flex; align-items: center; gap: 4px; }
+        .legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 12px;
+        }
+        .panel h2 {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 6px;
+        }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            margin-bottom: 5px;
+        }
+        .stat-row .label { color: var(--text-dim); }
+        .stat-row .value { color: var(--text); font-weight: bold; }
+        .stat-row .value.danger { color: var(--danger); }
+        .stat-row .value.success { color: var(--success); }
+        .stat-row .value.accent { color: var(--accent); }
+        .bar-container {
+            width: 100%;
+            height: 10px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        .bar-fill {
+            height: 100%;
+            transition: width 0.3s, background-color 0.3s;
+            border-radius: 1px;
+        }
+        .bar-fill.energy { background: var(--accent); }
+        .bar-fill.energy.low { background: var(--danger); }
+        .pair-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            padding: 3px 0;
+        }
+        .pair-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .pair-dot.connected { box-shadow: 0 0 6px currentColor; }
+        .pair-status { margin-left: auto; font-size: 0.7rem; }
+        .pair-status.connected { color: var(--success); }
+        .pair-status.pending { color: var(--text-dim); }
+        button {
+            background: transparent;
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            padding: 6px 12px;
+            font-family: inherit;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        button:hover:not(:disabled) {
+            background: var(--accent);
+            color: var(--bg);
+            border-color: var(--accent);
+        }
+        button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        .btn-group { display: flex; gap: 6px; flex-wrap: wrap; }
+        .btn-group button { flex: 1; min-width: 60px; text-align: center; }
+        .help-text {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            line-height: 1.5;
+        }
+        .help-text kbd {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            padding: 1px 4px;
+            font-size: 0.65rem;
+        }
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            border-radius: 2px;
+        }
+        .overlay.hidden { display: none; }
+        .overlay h2 {
+            font-size: 1.5rem;
+            margin-bottom: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        .overlay h2.win { color: var(--success); }
+        .overlay h2.lose { color: var(--danger); }
+        .overlay p {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            margin-bottom: 16px;
+            text-align: center;
+            max-width: 280px;
+            line-height: 1.5;
+        }
+        .overlay .btn-group { gap: 10px; }
+        .overlay .btn-group button {
+            padding: 10px 20px;
+            font-size: 0.9rem;
+        }
+        .tutorial-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.92);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            border-radius: 2px;
+            padding: 30px;
+        }
+        .tutorial-overlay.hidden { display: none; }
+        .tutorial-overlay h2 {
+            color: var(--accent);
+            font-size: 1.3rem;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .tutorial-overlay ol {
+            text-align: left;
+            font-size: 0.85rem;
+            line-height: 2;
+            color: var(--text);
+            margin-bottom: 20px;
+            max-width: 320px;
+        }
+        .tutorial-overlay ol li span.hl { color: var(--accent); }
+        .tutorial-overlay ol li span.r { color: var(--danger); }
+        .tutorial-overlay ol li span.g { color: var(--success); }
+        .tutorial-overlay .btn-dismiss {
+            padding: 12px 30px;
+            font-size: 1rem;
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            letter-spacing: 1px;
+        }
+        .tutorial-overlay .btn-dismiss:hover { background: var(--accent-dim); }
+        @media (max-width: 700px) {
+            .container { grid-template-columns: 1fr; gap: 16px; }
+            .sidebar { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="board-area">
+        <h1>Signal Path Lab: Blackout Protocol</h1>
+        <div class="board-wrapper">
+            <canvas id="gameCanvas" width="400" height="400"></canvas>
+            <div id="tutorialOverlay" class="tutorial-overlay">
+                <h2>Blackout Protocol</h2>
+                <ol>
+                    <li>Click a <span class="hl">source</span> (top) and <span class="hl">target</span> (bottom) are color-coded pairs</li>
+                    <li>Click <span class="hl">empty cells</span> to place wires — route a path from each source to its target</li>
+                    <li>Each action costs <span class="hl">energy</span>. Budget is tight.</li>
+                    <li><span class="r">Fault cells</span> spread each turn, breaking wires they cover</li>
+                    <li>Click a <span class="r">fault</span> to repair it (costs extra energy)</li>
+                    <li>Connect <span class="g">all pairs</span> before energy runs out</li>
+                </ol>
+                <button class="btn-dismiss" id="dismissTut">BEGIN OPERATION</button>
+            </div>
+            <div id="winOverlay" class="overlay hidden">
+                <h2 class="win">Circuit Restored</h2>
+                <p id="winText">All signal paths connected.</p>
+                <div class="btn-group">
+                    <button id="winNext">Next Level</button>
+                    <button id="winRestart">Restart Level</button>
+                </div>
+            </div>
+            <div id="loseOverlay" class="overlay hidden">
+                <h2 class="lose">Blackout Critical</h2>
+                <p id="loseText">Energy depleted. Signal paths lost.</p>
+                <div class="btn-group">
+                    <button id="loseRetry">Retry Level</button>
+                </div>
+            </div>
+        </div>
+        <div class="legend">
+            <span><span class="dot" style="background:var(--source)"></span> Source</span>
+            <span><span class="dot" style="background:var(--target)"></span> Target</span>
+            <span><span class="dot" style="background:var(--wire-v)"></span> Wire</span>
+            <span><span class="dot" style="background:var(--fault)"></span> Fault</span>
+            <span><span class="dot" style="background:var(--accent)"></span> Active</span>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <div class="panel">
+            <h2>Mission Status</h2>
+            <div class="stat-row"><span class="label">Level</span><span class="value accent" id="levelDisplay">1/5</span></div>
+            <div class="stat-row"><span class="label">Turn</span><span class="value" id="turnDisplay">0</span></div>
+            <div class="stat-row"><span class="label">Run Code</span><span class="value" id="seedDisplay" style="font-size:0.7rem;color:var(--text-dim)">—</span></div>
+        </div>
+
+        <div class="panel">
+            <h2>Energy Budget</h2>
+            <div class="bar-container"><div class="bar-fill energy" id="energyBar" style="width:100%"></div></div>
+            <div class="stat-row"><span class="label">Remaining</span><span class="value" id="energyDisplay">—</span></div>
+        </div>
+
+        <div class="panel">
+            <h2>Signal Pairs</h2>
+            <div id="pairList"></div>
+        </div>
+
+        <div class="panel">
+            <h2>Controls</h2>
+            <div class="btn-group">
+                <button id="btnRestart">Restart</button>
+                <button id="btnUndo">Undo</button>
+            </div>
+            <div class="help-text" style="margin-top:8px">
+                Click cell: <kbd>empty→wire</kbd> <kbd>wire→remove</kbd><br>
+                Click <span style="color:var(--fault)">fault</span>: repair it (costs 2 energy)
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ── seeded RNG ──
+function mulberry32(a) {
+    return function() {
+        let t = a += 0x6D2B79F5;
+        t = Math.imul(t ^ t >>> 15, t | 1);
+        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+}
+
+// ── constants ──
+const GRID = 8;
+const CELL = 50; // 400/8
+const DIRS = [
+    [-1, 0], [1, 0], [0, -1], [0, 1]
+];
+
+const COLORS = ['#ff4488', '#44aaff', '#44ff88', '#ffaa33', '#cc66ff'];
+const LEVELS = [
+    { pairs: 1, budget: 22, faults: 3, spread: 0.12, label: 'Tutorial' },
+    { pairs: 2, budget: 26, faults: 4, spread: 0.16, label: 'Routine' },
+    { pairs: 2, budget: 22, faults: 5, spread: 0.20, label: 'Unstable' },
+    { pairs: 3, budget: 24, faults: 6, spread: 0.25, label: 'Critical' },
+    { pairs: 3, budget: 20, faults: 7, spread: 0.30, label: 'Blackout' },
+];
+
+// ── DOM refs ──
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+function $(id) { return document.getElementById(id); }
+
+// ── state ──
+let S = {};
+let undos = [];
+
+function initState(seed, level) {
+    const lv = LEVELS[level - 1];
+    const rng = mulberry32(seed);
+    const pairs = [];
+    const usedCols = new Set();
+    for (let i = 0; i < lv.pairs; i++) {
+        let sc, tc;
+        do { sc = Math.floor(rng() * GRID); } while (usedCols.has('s' + sc));
+        usedCols.add('s' + sc);
+        do { tc = Math.floor(rng() * GRID); } while (usedCols.has('t' + tc));
+        usedCols.add('t' + tc);
+        pairs.push({
+            sourceCol: sc,
+            targetCol: tc,
+            color: COLORS[i],
+            connected: false
+        });
+    }
+    const grid = new Uint8Array(GRID * GRID);
+    const faults = [];
+    for (let i = 0; i < lv.faults; i++) {
+        let r, c;
+        let tries = 0;
+        do {
+            r = Math.floor(rng() * (GRID - 2)) + 1;
+            c = Math.floor(rng() * GRID);
+            tries++;
+        } while (grid[r * GRID + c] !== 0 && tries < 100);
+        if (tries < 100) {
+            grid[r * GRID + c] = 2;
+            faults.push({ r, c });
+        }
+    }
+
+    S = {
+        seed,
+        level,
+        grid,
+        pairs,
+        faults: faults.slice(),
+        budget: lv.budget,
+        maxBudget: lv.budget,
+        turn: 0,
+        status: 'playing',
+        spreadChance: lv.spread,
+        totalPairs: lv.pairs,
+    };
+    undos = [];
+    checkConnections();
+}
+
+function cloneGrid() {
+    return new Uint8Array(S.grid);
+}
+
+function pushUndo() {
+    undos.push({
+        grid: cloneGrid(),
+        budget: S.budget,
+        turn: S.turn,
+        faults: S.faults.map(f => ({ ...f })),
+    });
+    if (undos.length > 20) undos.shift();
+}
+
+function undo() {
+    if (undos.length === 0) return;
+    const u = undos.pop();
+    S.grid = u.grid;
+    S.budget = u.budget;
+    S.turn = u.turn;
+    S.faults = u.faults;
+    checkConnections();
+    render();
+}
+
+// ── BFS connection check ──
+function checkConnections() {
+    for (const pair of S.pairs) {
+        const sc = pair.sourceCol;
+        const tc = pair.targetCol;
+
+        // Source and target connectors must be wire cells
+        if (S.grid[1 * GRID + sc] !== 1 || S.grid[6 * GRID + tc] !== 1) {
+            pair.connected = false;
+            continue;
+        }
+
+        const visited = new Uint8Array(GRID * GRID);
+        const queue = [{ r: 1, c: sc }];
+        visited[1 * GRID + sc] = 1;
+        let found = false;
+
+        while (queue.length > 0 && !found) {
+            const { r, c } = queue.shift();
+            if (r === 6 && c === tc) {
+                found = true;
+                break;
+            }
+            for (const [dr, dc] of DIRS) {
+                const nr = r + dr;
+                const nc = c + dc;
+                if (nr < 1 || nr > 6 || nc < 0 || nc >= GRID) continue;
+                if (visited[nr * GRID + nc]) continue;
+                if (S.grid[nr * GRID + nc] !== 1) continue;
+                visited[nr * GRID + nc] = 1;
+                queue.push({ r: nr, c: nc });
+            }
+        }
+
+        pair.connected = found;
+    }
+}
+
+// ── fault spread ──
+function spreadFaults() {
+    const newFaults = [];
+    const added = new Set();
+
+    for (const f of S.faults) {
+        const idx = f.r * GRID + f.c;
+        if (S.grid[idx] !== 2) continue;
+        for (const [dr, dc] of DIRS) {
+            const nr = f.r + dr;
+            const nc = f.c + dc;
+            if (nr < 1 || nr > 6 || nc < 0 || nc >= GRID) continue;
+            const nidx = nr * GRID + nc;
+            if (S.grid[nidx] === 0 || S.grid[nidx] === 1) {
+                if (added.has(nidx)) continue;
+                if (Math.random() < S.spreadChance) {
+                    S.grid[nidx] = 2;
+                    added.add(nidx);
+                    newFaults.push({ r: nr, c: nc });
+                }
+            }
+        }
+    }
+
+    for (const f of newFaults) {
+        S.faults.push(f);
+    }
+}
+
+// ── actions ──
+function placeWire(r, c) {
+    if (S.status !== 'playing') return false;
+    if (r < 1 || r > 6 || c < 0 || c >= GRID) return false;
+    const idx = r * GRID + c;
+    if (S.grid[idx] === 2) return false; // fault - must repair instead
+
+    pushUndo();
+
+    if (S.grid[idx] === 0) {
+        if (S.budget < 1) return false;
+        S.grid[idx] = 1;
+        S.budget--;
+    } else if (S.grid[idx] === 1) {
+        S.grid[idx] = 0;
+        S.budget++;
+    }
+
+    advanceTurn();
+    return true;
+}
+
+function repairFault(r, c) {
+    if (S.status !== 'playing') return false;
+    if (r < 1 || r > 6 || c < 0 || c >= GRID) return false;
+    const idx = r * GRID + c;
+    if (S.grid[idx] !== 2) return false;
+    if (S.budget < 2) return false;
+
+    pushUndo();
+
+    S.grid[idx] = 0;
+    S.budget -= 2;
+    S.faults = S.faults.filter(f => !(f.r === r && f.c === c));
+
+    advanceTurn();
+    return true;
+}
+
+function advanceTurn() {
+    S.turn++;
+    checkConnections();
+
+    // Check win
+    const allConnected = S.pairs.every(p => p.connected);
+    if (allConnected) {
+        S.status = 'won';
+        render();
+        showWin();
+        return;
+    }
+
+    // Spread faults
+    spreadFaults();
+    checkConnections(); // re-check after spread
+
+    // Check loss
+    if (S.budget <= 0) {
+        S.status = 'lost';
+        render();
+        showLose('Energy budget fully depleted. Blackout protocol engaged.');
+        return;
+    }
+
+    // Re-check win after fault spread (faults don't break wires but block routing)
+    const allConnectedAfter = S.pairs.every(p => p.connected);
+    if (allConnectedAfter) {
+        S.status = 'won';
+        render();
+        showWin();
+        return;
+    }
+
+    render();
+}
+
+// ── rendering ──
+function render() {
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    // Background
+    ctx.fillStyle = '#05080d';
+    ctx.fillRect(0, 0, W, H);
+
+    // Grid lines
+    ctx.strokeStyle = '#0d1a2a';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= GRID; i++) {
+        ctx.beginPath(); ctx.moveTo(i * CELL, 0); ctx.lineTo(i * CELL, H); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, i * CELL); ctx.lineTo(W, i * CELL); ctx.stroke();
+    }
+
+    // Wires
+    for (let r = 1; r <= 6; r++) {
+        for (let c = 0; c < GRID; c++) {
+            const idx = r * GRID + c;
+            if (S.grid[idx] === 1) {
+                const x = c * CELL, y = r * CELL;
+                ctx.fillStyle = '#0d2a20';
+                ctx.fillRect(x + 2, y + 2, CELL - 4, CELL - 4);
+                ctx.strokeStyle = '#00d4aa';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(x + 4, y + 4, CELL - 8, CELL - 8);
+                // cross lines to show connectivity
+                ctx.beginPath();
+                ctx.moveTo(x + CELL / 2, y + 4);
+                ctx.lineTo(x + CELL / 2, y + CELL - 4);
+                ctx.moveTo(x + 4, y + CELL / 2);
+                ctx.lineTo(x + CELL - 4, y + CELL / 2);
+                ctx.stroke();
+            }
+        }
+    }
+
+    // Faults
+    for (const f of S.faults) {
+        const x = f.c * CELL, y = f.r * CELL;
+        ctx.fillStyle = '#331122';
+        ctx.fillRect(x + 2, y + 2, CELL - 4, CELL - 4);
+        ctx.fillStyle = '#ff3355';
+        ctx.font = '24px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('!', x + CELL / 2, y + CELL / 2 + 1);
+        // Glow
+        ctx.shadowColor = 'rgba(255,51,85,0.3)';
+        ctx.shadowBlur = 8;
+        ctx.fillText('!', x + CELL / 2, y + CELL / 2 + 1);
+        ctx.shadowBlur = 0;
+    }
+
+    // Sources (row 0)
+    for (const pair of S.pairs) {
+        const x = pair.sourceCol * CELL;
+        ctx.fillStyle = pair.color;
+        ctx.globalAlpha = pair.connected ? 0.4 : 1;
+        ctx.fillRect(x + 8, 4, CELL - 16, CELL - 8);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 10px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('SRC', x + CELL / 2, CELL / 2);
+    }
+
+    // Targets (row 7)
+    for (const pair of S.pairs) {
+        const x = pair.targetCol * CELL;
+        ctx.fillStyle = pair.color;
+        ctx.globalAlpha = pair.connected ? 0.4 : 1;
+        ctx.fillRect(x + 8, 7 * CELL + 4, CELL - 16, CELL - 8);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 10px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('TGT', x + CELL / 2, 7 * CELL + CELL / 2);
+    }
+
+    // Connection lines from sources to wire start
+    for (const pair of S.pairs) {
+        const x = pair.sourceCol * CELL + CELL / 2;
+        const y = 0;
+        ctx.strokeStyle = pair.connected ? pair.color : '#ffffff22';
+        ctx.globalAlpha = pair.connected ? 0.6 : 0.2;
+        ctx.lineWidth = pair.connected ? 3 : 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(x, y + CELL);
+        ctx.lineTo(x, y + CELL * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
+    }
+
+    // Connection lines from wire end to targets
+    for (const pair of S.pairs) {
+        const x = pair.targetCol * CELL + CELL / 2;
+        const y = 7 * CELL;
+        ctx.strokeStyle = pair.connected ? pair.color : '#ffffff22';
+        ctx.globalAlpha = pair.connected ? 0.6 : 0.2;
+        ctx.lineWidth = pair.connected ? 3 : 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x, y - CELL);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
+    }
+
+    // Path highlight for connected pairs
+    for (const pair of S.pairs) {
+        if (!pair.connected) continue;
+        // Compute path via BFS
+        const path = findPath(pair.sourceCol, pair.targetCol);
+        if (path) {
+            ctx.strokeStyle = pair.color;
+            ctx.globalAlpha = 0.5;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(pair.sourceCol * CELL + CELL / 2, CELL + CELL / 2);
+            for (const p of path) {
+                ctx.lineTo(p.c * CELL + CELL / 2, p.r * CELL + CELL / 2);
+            }
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+        }
+    }
+
+    // Cell hover
+    if (S._hover && S.status === 'playing') {
+        const { r, c } = S._hover;
+        if (r >= 1 && r <= 6 && c >= 0 && c < GRID) {
+            ctx.fillStyle = 'rgba(0,212,170,0.08)';
+            ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
+            ctx.strokeStyle = 'rgba(0,212,170,0.3)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(c * CELL, r * CELL, CELL, CELL);
+        }
+    }
+
+    // Update UI
+    updateUI();
+}
+
+function findPath(sourceCol, targetCol) {
+    if (S.grid[1 * GRID + sourceCol] !== 1 || S.grid[6 * GRID + targetCol] !== 1) return null;
+    const visited = new Uint8Array(GRID * GRID);
+    const parent = new Int16Array(GRID * GRID * 2).fill(-1);
+    const queue = [{ r: 1, c: sourceCol }];
+    visited[1 * GRID + sourceCol] = 1;
+
+    while (queue.length > 0) {
+        const { r, c } = queue.shift();
+        if (r === 6 && c === targetCol) {
+            const path = [];
+            let cr = r, cc = c;
+            while (!(cr === 1 && cc === sourceCol)) {
+                path.unshift({ r: cr, c: cc });
+                const pi = cr * GRID + cc;
+                const pr = parent[pi * 2], pc = parent[pi * 2 + 1];
+                if (pr === -1) break;
+                cr = pr; cc = pc;
+            }
+            return path;
+        }
+        for (const [dr, dc] of DIRS) {
+            const nr = r + dr, nc = c + dc;
+            if (nr < 1 || nr > 6 || nc < 0 || nc >= GRID) continue;
+            if (visited[nr * GRID + nc]) continue;
+            if (S.grid[nr * GRID + nc] !== 1) continue;
+            visited[nr * GRID + nc] = 1;
+            parent[(nr * GRID + nc) * 2] = r;
+            parent[(nr * GRID + nc) * 2 + 1] = c;
+            queue.push({ r: nr, c: nc });
+        }
+    }
+    return null;
+}
+
+function updateUI() {
+    $('levelDisplay').textContent = `${S.level}/5`;
+    $('turnDisplay').textContent = S.turn;
+    $('seedDisplay').textContent = `#${S.seed}`;
+
+    const pct = S.maxBudget > 0 ? (S.budget / S.maxBudget * 100) : 0;
+    $('energyBar').style.width = Math.max(0, pct) + '%';
+    $('energyBar').className = 'bar-fill energy' + (pct <= 25 ? ' low' : '');
+    $('energyDisplay').textContent = `${S.budget}/${S.maxBudget}`;
+    if (S.budget <= 0) $('energyDisplay').className = 'value danger';
+    else if (S.budget <= 5) $('energyDisplay').className = 'value accent';
+    else $('energyDisplay').className = 'value';
+
+    const list = $('pairList');
+    list.innerHTML = '';
+    for (const pair of S.pairs) {
+        const div = document.createElement('div');
+        div.className = 'pair-indicator';
+        const dot = document.createElement('span');
+        dot.className = 'pair-dot' + (pair.connected ? ' connected' : '');
+        dot.style.color = pair.color;
+        dot.style.background = pair.color;
+        const label = document.createElement('span');
+        label.textContent = `C${pair.sourceCol+1}→C${pair.targetCol+1}`;
+        const status = document.createElement('span');
+        status.className = 'pair-status ' + (pair.connected ? 'connected' : 'pending');
+        status.textContent = pair.connected ? 'ONLINE' : 'OFFLINE';
+        div.appendChild(dot);
+        div.appendChild(label);
+        div.appendChild(status);
+        list.appendChild(div);
+    }
+}
+
+// ── overlays ──
+function showWin() {
+    const lv = LEVELS[S.level - 1];
+    if (S.level >= 5) {
+        $('winText').textContent = 'All signal paths restored. Blackout protocol neutralized.';
+        $('winNext').textContent = 'Victory';
+        $('winNext').disabled = true;
+    } else {
+        $('winText').textContent = `Level ${S.level} complete. ${lv.pairs} signal path${lv.pairs > 1 ? 's' : ''} restored in ${S.turn} turns.`;
+        $('winNext').textContent = 'Next Level';
+        $('winNext').disabled = false;
+    }
+    $('winOverlay').classList.remove('hidden');
+}
+
+function showLose(msg) {
+    $('loseText').textContent = msg;
+    $('loseOverlay').classList.remove('hidden');
+}
+
+function hideAllOverlays() {
+    $('winOverlay').classList.add('hidden');
+    $('loseOverlay').classList.add('hidden');
+}
+
+// ── controls ──
+function restart(seed, level) {
+    hideAllOverlays();
+    initState(seed || S.seed, level || S.level);
+    render();
+}
+
+function nextLevel() {
+    if (S.level >= 5) return;
+    const newSeed = S.seed + 1;
+    hideAllOverlays();
+    initState(newSeed, S.level + 1);
+    render();
+}
+
+// ── canvas interaction ──
+canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const c = Math.floor((e.clientX - rect.left) * scaleX / CELL);
+    const r = Math.floor((e.clientY - rect.top) * scaleY / CELL);
+    const prev = S._hover;
+    if (!prev || prev.r !== r || prev.c !== c) {
+        S._hover = { r, c };
+        render();
+    }
+});
+
+canvas.addEventListener('mouseleave', () => {
+    S._hover = null;
+    render();
+});
+
+canvas.addEventListener('click', (e) => {
+    if (S.status !== 'playing') return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const c = Math.floor((e.clientX - rect.left) * scaleX / CELL);
+    const r = Math.floor((e.clientY - rect.top) * scaleY / CELL);
+    if (r < 0 || r >= GRID || c < 0 || c >= GRID) return;
+    if (r < 1 || r > 6) return;
+
+    const idx = r * GRID + c;
+    if (S.grid[idx] === 2) {
+        repairFault(r, c);
+    } else {
+        placeWire(r, c);
+    }
+    render();
+});
+
+// ── keyboard ──
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'r' || e.key === 'R') restart(S.seed, S.level);
+    if (e.key === 'z' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); undo(); }
+});
+
+// ── button wiring ──
+$('dismissTut').addEventListener('click', () => {
+    $('tutorialOverlay').classList.add('hidden');
+    localStorage.setItem('signalBlackoutTut', '1');
+});
+
+$('winNext').addEventListener('click', nextLevel);
+$('winRestart').addEventListener('click', () => restart(S.seed, S.level));
+$('loseRetry').addEventListener('click', () => restart(S.seed, S.level));
+$('btnRestart').addEventListener('click', () => restart(S.seed, S.level));
+$('btnUndo').addEventListener('click', undo);
+
+// ── tutorial visibility ──
+function showTutorialIfNeeded() {
+    if (!localStorage.getItem('signalBlackoutTut')) {
+        $('tutorialOverlay').classList.remove('hidden');
+    } else {
+        $('tutorialOverlay').classList.add('hidden');
+    }
+}
+
+// ── init ──
+function getSeedFromURL() {
+    const m = window.location.search.match(/[?&]seed=(\d+)/);
+    return m ? parseInt(m[1], 10) : null;
+}
+
+function startGame() {
+    const urlSeed = getSeedFromURL();
+    const seed = urlSeed !== null ? urlSeed : Math.floor(Math.random() * 1000000);
+    initState(seed, 1);
+    showTutorialIfNeeded();
+    render();
+}
+
+startGame();
+</script>
+</body>
+</html>
