@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pulse Grid</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0e17;--panel:#111827;--border:#374151;--text:#f3f4f6;--dim:#9ca3af;--accent:#3b82f6;--danger:#ef4444;--success:#10b981;--warn:#f59e0b;--wire:#22d3ee}
+body{background:var(--bg);color:var(--text);font-family:'Courier New',Courier,monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px}
+h1{color:var(--accent);text-transform:uppercase;letter-spacing:2px;font-size:1.4rem;margin-bottom:8px}
+#game-container{background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:16px;position:relative}
+canvas{display:block;background:#000;border:1px solid var(--accent);cursor:pointer;image-rendering:pixelated}
+#controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center}
+button{background:var(--bg);color:var(--text);border:1px solid var(--accent);border-radius:4px;padding:8px 16px;cursor:pointer;font-family:inherit;font-weight:bold;font-size:0.9rem;transition:all 0.2s}
+button:hover:not(:disabled){background:var(--accent);color:#fff}
+button:disabled{border-color:var(--border);color:var(--dim);cursor:not-allowed}
+#btn-test.glow{animation:pulseGlow 0.8s ease-in-out infinite alternate;border-color:var(--success);box-shadow:0 0 12px var(--success)}
+@keyframes pulseGlow{from{box-shadow:0 0 4px var(--success)}to{box-shadow:0 0 16px var(--success)}}
+#progress-dots{display:flex;gap:8px;align-items:center}
+.dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--border);transition:all 0.3s}
+.dot.completed{background:var(--success);border-color:var(--success)}
+.dot.active{background:var(--accent);border-color:var(--accent);animation:dotPulse 1s infinite}
+@keyframes dotPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.3)}}
+#level-label{color:var(--dim);font-size:0.85rem}
+#message{min-height:1.4em;font-size:0.9rem;text-align:center;color:var(--dim);transition:all 0.3s}
+#message.success{color:var(--success)}
+#message.failure{color:var(--danger)}
+#message.hint{color:var(--warn)}
+#tutorial-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:none;align-items:center;justify-content:center;z-index:100}
+#tutorial-overlay.show{display:flex}
+#tutorial-box{background:var(--panel);border:1px solid var(--accent);border-radius:4px;padding:30px;max-width:420px;text-align:center}
+#tutorial-box h2{color:var(--accent);margin-bottom:12px}
+#tutorial-box p{color:var(--dim);margin-bottom:8px;line-height:1.5;font-size:0.9rem}
+#tutorial-box button{margin-top:16px}
+.hidden{display:none!important}
+#success-flash{position:absolute;top:0;left:0;width:100%;height:100%;background:var(--success);opacity:0;pointer-events:none;transition:opacity 0.3s;border-radius:4px}
+#failure-flash{position:absolute;top:0;left:0;width:100%;height:100%;background:var(--danger);opacity:0;pointer-events:none;transition:opacity 0.3s;border-radius:4px}
+.flash-active{opacity:0.2!important}
+</style>
+</head>
+<body>
+
+<h1>Pulse Grid</h1>
+
+<div id="game-container">
+  <div id="success-flash"></div>
+  <div id="failure-flash"></div>
+
+  <div id="progress-dots"></div>
+  <div id="level-label">Level 1 / 3</div>
+
+  <canvas id="grid-canvas"></canvas>
+
+  <div id="message">Click a dim cell to place a wire, then press Test Pulse</div>
+
+  <div id="controls">
+    <button id="btn-test" disabled>Test Pulse</button>
+    <button id="btn-next" class="hidden">Next Level</button>
+    <button id="btn-reset">Reset Level</button>
+  </div>
+</div>
+
+<div id="tutorial-overlay">
+  <div id="tutorial-box">
+    <h2>Pulse Grid</h2>
+    <p>Build a wire path from the green <strong>IN</strong> source to the red <strong>OUT</strong> target by clicking cells.</p>
+    <p>Click a dim cell to make it active (wire). Click it again to remove it.</p>
+    <p>Press <strong>Test Pulse</strong> to send a signal along your wire. If the path connects, you win!</p>
+    <button id="btn-tut-gotit">Got it!</button>
+  </div>
+</div>
+
+<script>
+const LEVELS = [
+  { size: 4, missing: 1, label: '4×4' },
+  { size: 5, missing: 2, label: '5×5' },
+  { size: 6, missing: 3, label: '6×6' }
+];
+
+let currentLevel = 0;
+let grid = [];
+let selected = [];
+let completed = [];
+let pulsing = false;
+let animFrame = null;
+
+const canvas = document.getElementById('grid-canvas');
+const ctx = canvas.getContext('2d');
+const msgEl = document.getElementById('message');
+const btnTest = document.getElementById('btn-test');
+const btnNext = document.getElementById('btn-next');
+const btnReset = document.getElementById('btn-reset');
+const dotsEl = document.getElementById('progress-dots');
+const levelLabel = document.getElementById('level-label');
+const successFlash = document.getElementById('success-flash');
+const failureFlash = document.getElementById('failure-flash');
+
+// Tutorial
+if (!localStorage.getItem('pulseGridTut')) {
+  document.getElementById('tutorial-overlay').classList.add('show');
+}
+document.getElementById('btn-tut-gotit').addEventListener('click', () => {
+  document.getElementById('tutorial-overlay').classList.remove('show');
+  localStorage.setItem('pulseGridTut', '1');
+});
+
+// Canvas dimensions
+function getCellSize(size) {
+  return Math.floor(360 / size);
+}
+
+function initLevel(level) {
+  currentLevel = level;
+  const cfg = LEVELS[level];
+  const cellSize = getCellSize(cfg.size);
+  canvas.width = cfg.size * cellSize;
+  canvas.height = cfg.size * cellSize;
+  canvas.dataset.cellSize = cellSize;
+
+  completed = completed.slice(0, level);
+
+  selected = [];
+  for (let r = 0; r < cfg.size; r++) {
+    selected[r] = [];
+    for (let c = 0; c < cfg.size; c++) {
+      selected[r][c] = false;
+    }
+  }
+
+  // Source is top-left, target is bottom-right
+  // Mark them as always active
+  selected[0][0] = true;
+  selected[cfg.size - 1][cfg.size - 1] = true;
+
+  levelLabel.textContent = `Level ${level + 1} / 3 (${cfg.label})`;
+  updateDots();
+  btnNext.classList.add('hidden');
+  btnTest.disabled = true;
+  btnTest.classList.remove('glow');
+  msgEl.textContent = 'Click a dim cell to place a wire, then press Test Pulse';
+  msgEl.className = '';
+  successFlash.classList.remove('flash-active');
+  failureFlash.classList.remove('flash-active');
+  pulsing = false;
+  if (animFrame) cancelAnimationFrame(animFrame);
+
+  draw();
+  checkPathable();
+}
+
+function updateDots() {
+  dotsEl.innerHTML = '';
+  for (let i = 0; i < LEVELS.length; i++) {
+    const dot = document.createElement('span');
+    dot.className = 'dot';
+    if (completed.includes(i)) dot.classList.add('completed');
+    if (i === currentLevel) dot.classList.add('active');
+    dotsEl.appendChild(dot);
+  }
+}
+
+function draw() {
+  const cfg = LEVELS[currentLevel];
+  const cellSize = getCellSize(cfg.size);
+  const w = canvas.width;
+  const h = canvas.height;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Background grid
+  ctx.fillStyle = '#0a0e17';
+  ctx.fillRect(0, 0, w, h);
+
+  // Draw cells
+  for (let r = 0; r < cfg.size; r++) {
+    for (let c = 0; c < cfg.size; c++) {
+      const x = c * cellSize;
+      const y = r * cellSize;
+      const isSel = selected[r] && selected[r][c];
+
+      if (isSel) {
+        // Wire cell
+        ctx.fillStyle = '#1a2a3a';
+        ctx.fillRect(x + 1, y + 1, cellSize - 2, cellSize - 2);
+        ctx.fillStyle = '#22d3ee';
+        ctx.fillRect(x + 3, y + 3, cellSize - 6, cellSize - 6);
+      } else {
+        // Empty cell - dim
+        ctx.fillStyle = '#111827';
+        ctx.fillRect(x + 1, y + 1, cellSize - 2, cellSize - 2);
+      }
+
+      // Grid lines
+      ctx.strokeStyle = '#1f2937';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, cellSize, cellSize);
+
+      // Source label (top-left)
+      if (r === 0 && c === 0) {
+        ctx.fillStyle = '#10b981';
+        ctx.font = `bold ${Math.max(10, cellSize * 0.28)}px Courier`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('IN', x + cellSize / 2, y + cellSize / 2);
+      }
+
+      // Target label (bottom-right)
+      if (r === cfg.size - 1 && c === cfg.size - 1) {
+        ctx.fillStyle = '#ef4444';
+        ctx.font = `bold ${Math.max(10, cellSize * 0.28)}px Courier`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('OUT', x + cellSize / 2, y + cellSize / 2);
+      }
+    }
+  }
+
+  // Level 1: highlight the missing cell (not selected, but needed for path)
+  if (currentLevel === 0) {
+    const missing = getMissingCells();
+    if (missing.length > 0) {
+      const m = missing[0];
+      if (!selected[m.r] || !selected[m.r][m.c]) {
+        const x = m.c * cellSize;
+        const y = m.r * cellSize;
+        ctx.fillStyle = `rgba(34, 211, 238, ${0.15 + 0.12 * Math.sin(Date.now() / 400)})`;
+        ctx.fillRect(x + 2, y + 2, cellSize - 4, cellSize - 4);
+        ctx.strokeStyle = '#22d3ee';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.strokeRect(x + 2, y + 2, cellSize - 4, cellSize - 4);
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = '#22d3ee';
+        ctx.font = `${Math.max(9, cellSize * 0.22)}px Courier`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('Click here', x + cellSize / 2, y - 2);
+      }
+    }
+  }
+
+  // Pulse animation overlay
+  if (pulsing) {
+    // Handled in pulseAnimation draw callback
+  }
+}
+
+function getMissingCells() {
+  const cfg = LEVELS[currentLevel];
+  // Simple pre-determined missing cells based on level
+  // The path goes from (0,0) to (size-1, size-1) along a simple diagonal-ish route
+  // Missing cells are strategically placed
+  const missing = [];
+  if (currentLevel === 0) {
+    missing.push({ r: 1, c: 1 });
+  } else if (currentLevel === 1) {
+    missing.push({ r: 2, c: 1 });
+    missing.push({ r: 1, c: 3 });
+  } else {
+    missing.push({ r: 2, c: 1 });
+    missing.push({ r: 3, c: 3 });
+    missing.push({ r: 1, c: 4 });
+  }
+  return missing;
+}
+
+function checkPathable() {
+  // Check if there's at least one wire cell beyond source+target that's selected
+  const cfg = LEVELS[currentLevel];
+  let hasWire = false;
+  for (let r = 0; r < cfg.size; r++) {
+    for (let c = 0; c < cfg.size; c++) {
+      if ((r === 0 && c === 0) || (r === cfg.size - 1 && c === cfg.size - 1)) continue;
+      if (selected[r] && selected[r][c]) { hasWire = true; break; }
+    }
+    if (hasWire) break;
+  }
+  if (hasWire) {
+    btnTest.disabled = false;
+    btnTest.classList.add('glow');
+  } else {
+    btnTest.disabled = true;
+    btnTest.classList.remove('glow');
+  }
+}
+
+// BFS to find if path exists from source to target
+function findPath() {
+  const cfg = LEVELS[currentLevel];
+  const size = cfg.size;
+  const visited = Array(size).fill().map(() => Array(size).fill(false));
+  const queue = [{ r: 0, c: 0 }];
+  visited[0][0] = true;
+
+  const dr = [-1, 1, 0, 0];
+  const dc = [0, 0, -1, 1];
+
+  while (queue.length > 0) {
+    const { r, c } = queue.shift();
+    if (r === size - 1 && c === size - 1) return true;
+    for (let d = 0; d < 4; d++) {
+      const nr = r + dr[d];
+      const nc = c + dc[d];
+      if (nr >= 0 && nr < size && nc >= 0 && nc < size && !visited[nr][nc] && selected[nr][nc]) {
+        visited[nr][nc] = true;
+        queue.push({ r: nr, c: nc });
+      }
+    }
+  }
+  return false;
+}
+
+// BFS path for animation
+function findPathSteps() {
+  const cfg = LEVELS[currentLevel];
+  const size = cfg.size;
+  const visited = Array(size).fill().map(() => Array(size).fill(false));
+  const prev = Array(size).fill().map(() => Array(size).fill(null));
+  const queue = [{ r: 0, c: 0 }];
+  visited[0][0] = true;
+
+  const dr = [-1, 1, 0, 0];
+  const dc = [0, 0, -1, 1];
+
+  while (queue.length > 0) {
+    const { r, c } = queue.shift();
+    if (r === size - 1 && c === size - 1) {
+      // Reconstruct path
+      const path = [];
+      let cur = { r, c };
+      while (cur) {
+        path.unshift(cur);
+        cur = prev[cur.r][cur.c];
+      }
+      return path;
+    }
+    for (let d = 0; d < 4; d++) {
+      const nr = r + dr[d];
+      const nc = c + dc[d];
+      if (nr >= 0 && nr < size && nc >= 0 && nc < size && !visited[nr][nc] && selected[nr][nc]) {
+        visited[nr][nc] = true;
+        prev[nr][nc] = { r, c };
+        queue.push({ r: nr, c: nc });
+      }
+    }
+  }
+  return [];
+}
+
+function animatePulse(path) {
+  if (path.length === 0) return;
+  pulsing = true;
+  let step = 0;
+  const cellSize = getCellSize(LEVELS[currentLevel].size);
+
+  function drawStep() {
+    draw();
+    const cfg = LEVELS[currentLevel];
+
+    // Draw pulse up to current step
+    for (let i = 0; i <= step && i < path.length; i++) {
+      const p = path[i];
+      const x = p.c * cellSize;
+      const y = p.r * cellSize;
+
+      if (i < path.length - 1 || (step < path.length && i === step)) {
+        // Active pulse position
+        const progress = (step % 1);
+        const isHead = (i === step);
+        if (isHead) {
+          ctx.fillStyle = '#fbbf24';
+          ctx.shadowColor = '#fbbf24';
+          ctx.shadowBlur = 10;
+          ctx.beginPath();
+          ctx.arc(x + cellSize / 2, y + cellSize / 2, cellSize * 0.3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        } else {
+          ctx.fillStyle = '#22d3ee';
+          ctx.globalAlpha = 0.6;
+          ctx.fillRect(x + 4, y + 4, cellSize - 8, cellSize - 8);
+          ctx.globalAlpha = 1;
+        }
+      }
+    }
+
+    // Check green flash on last cell
+    if (step === path.length - 1) {
+      // Pulse reached target
+      successFlash.classList.add('flash-active');
+      msgEl.textContent = 'Pulse connected! ✓';
+      msgEl.className = 'success';
+      completed.push(currentLevel);
+      updateDots();
+
+      if (currentLevel < LEVELS.length - 1) {
+        btnNext.classList.remove('hidden');
+      } else {
+        msgEl.textContent = 'All levels complete! Pulse Grid mastered.';
+      }
+      btnTest.disabled = true;
+      btnTest.classList.remove('glow');
+      pulsing = false;
+      return;
+    }
+
+    // Check if next cell is connected — if not, pulse breaks here
+    if (step + 1 < path.length) {
+      const next = path[step + 1];
+      if (!selected[next.r] || !selected[next.r][next.c]) {
+        // Path broken
+        failureFlash.classList.add('flash-active');
+        const nx = next.c * cellSize;
+        const ny = next.r * cellSize;
+        ctx.fillStyle = '#ef4444';
+        ctx.shadowColor = '#ef4444';
+        ctx.shadowBlur = 12;
+        ctx.fillRect(nx + 2, ny + 2, cellSize - 4, cellSize - 4);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#fff';
+        ctx.font = `${Math.max(9, cellSize * 0.2)}px Courier`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('Path broken — click to connect', nx + cellSize / 2, ny - 2);
+        msgEl.textContent = 'Path broken here — click to connect';
+        msgEl.className = 'failure';
+        pulsing = false;
+        setTimeout(() => failureFlash.classList.remove('flash-active'), 600);
+        return;
+      }
+    }
+
+    step++;
+    if (step < path.length) {
+      animFrame = requestAnimationFrame(drawStep);
+    }
+  }
+
+  drawStep();
+}
+
+// --- Event handlers ---
+canvas.addEventListener('click', (e) => {
+  if (pulsing) return;
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const mx = (e.clientX - rect.left) * scaleX;
+  const my = (e.clientY - rect.top) * scaleY;
+  const cellSize = getCellSize(LEVELS[currentLevel].size);
+  const c = Math.floor(mx / cellSize);
+  const r = Math.floor(my / cellSize);
+  const cfg = LEVELS[currentLevel];
+
+  if (r < 0 || r >= cfg.size || c < 0 || c >= cfg.size) return;
+  if (r === 0 && c === 0) return; // Source
+  if (r === cfg.size - 1 && c === cfg.size - 1) return; // Target
+
+  selected[r][c] = !selected[r][c];
+  msgEl.className = '';
+  successFlash.classList.remove('flash-active');
+  failureFlash.classList.remove('flash-active');
+  btnNext.classList.add('hidden');
+  draw();
+  checkPathable();
+});
+
+btnTest.addEventListener('click', () => {
+  if (pulsing) return;
+  successFlash.classList.remove('flash-active');
+  failureFlash.classList.remove('flash-active');
+  msgEl.className = '';
+
+  if (findPath()) {
+    const path = findPathSteps();
+    animatePulse(path);
+  } else {
+    // No complete path — still try to animate partial
+    const path = findPathSteps();
+    if (path.length > 0) {
+      animatePulse(path);
+    } else {
+      msgEl.textContent = 'No path from source — place some wire cells first';
+      msgEl.className = 'hint';
+    }
+  }
+});
+
+btnNext.addEventListener('click', () => {
+  if (currentLevel < LEVELS.length - 1) {
+    initLevel(currentLevel + 1);
+  }
+});
+
+btnReset.addEventListener('click', () => {
+  initLevel(currentLevel);
+});
+
+// Start at level 1
+initLevel(0);
+
+// Continuous draw for level 1 pulsing highlight
+function animLoop() {
+  if (!pulsing) draw();
+  requestAnimationFrame(animLoop);
+}
+animLoop();
+</script>
+</body>
+</html>
