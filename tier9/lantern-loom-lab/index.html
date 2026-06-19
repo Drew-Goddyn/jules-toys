@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lantern Loom Lab</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d0d12;color:#ccc;font-family:system-ui,-apple-system,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh}
+#app{display:flex;flex-direction:column;align-items:center;gap:14px;padding:20px}
+h1{font-size:1.3rem;color:#ddd;letter-spacing:.04em;text-shadow:0 0 20px rgba(255,200,100,.08)}
+#board-wrap{position:relative;background:#12121a;border-radius:12px;padding:10px;box-shadow:0 0 40px rgba(0,0,0,.5)}
+canvas{display:block;cursor:pointer;border-radius:4px}
+#palette{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.palette-tile{width:86px;height:68px;border-radius:8px;border:2px solid #333;background:#1a1a24;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;transition:transform .12s,border-color .12s,background .12s;user-select:none;font-size:.65rem;color:#888}
+.palette-tile:hover{transform:scale(1.06);border-color:#666;background:#222236}
+.palette-tile.active{border-color:#88f;background:#1e1e3a}
+.palette-tile canvas{pointer-events:none;border-radius:3px}
+#info-bar{display:flex;gap:20px;font-size:.85rem;color:#888;align-items:center;flex-wrap:wrap;justify-content:center}
+#info-bar .hl{color:#aaf;font-weight:bold}
+button{background:#2a2a3a;color:#ccc;border:1px solid #444;padding:5px 14px;border-radius:6px;cursor:pointer;font-size:.85rem;transition:background .12s,border-color .12s}
+button:hover{background:#3a3a4a;border-color:#666}
+#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:100;justify-content:center;align-items:center}
+#overlay.show{display:flex}
+#overlay-box{background:#16161e;border:1px solid #444;border-radius:16px;padding:28px;max-width:400px;width:90%;text-align:center;box-shadow:0 0 60px rgba(0,0,0,.7)}
+#overlay-box h2{font-size:1.4rem;margin-bottom:10px}
+#overlay-box p{color:#aaa;margin-bottom:14px;line-height:1.5;font-size:.9rem}
+#overlay-box button{font-size:1rem;padding:10px 28px}
+.tut-step{text-align:left;margin-bottom:10px;padding:10px;background:#1e1e2a;border-radius:8px;border-left:3px solid #88f}
+.tut-step b{color:#aaf}
+.tut-step p{margin-top:4px;font-size:.85rem;color:#999}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>Lantern Loom Lab</h1>
+  <div id="board-wrap"><canvas id="c" width="504" height="504"></canvas></div>
+  <div id="info-bar">
+    <span>Steps: <span id="stepCount" class="hl">0</span></span>
+    <span>Score: <span id="scoreDisplay">0/3</span></span>
+    <button id="hintBtn">Hint</button>
+    <button id="resetBtn">Reset</button>
+  </div>
+  <div id="palette"></div>
+</div>
+<div id="overlay"><div id="overlay-box"></div></div>
+<script>
+const C=6,R=6,SZ=84;
+const cv=document.getElementById('c'),cx=cv.getContext('2d');
+const pel=document.getElementById('palette'),scEl=document.getElementById('stepCount'),sdEl=document.getElementById('scoreDisplay');
+const ol=document.getElementById('overlay'),ob=document.getElementById('overlay-box');
+
+const E=0,L=1,T=2,B=3,M=4,M45=5,P=6;
+const SC=[0,2,4],DC=[0,2,4],COLS=['#ff4444','#44ff88','#4488ff'];
+// Mirror reflection lookup: / and \ types
+// / mirror: [dr,dc]->[dr',dc']
+const SLASH={ '1,0':[0,-1], '0,-1':[-1,0], '-1,0':[0,1], '0,1':[1,0] };
+// \ mirror: [dr,dc]->[dr',dc']
+const BACK={ '1,0':[0,1], '0,-1':[1,0], '-1,0':[0,-1], '0,1':[-1,0] };
+// Mirror type map by rotation: even->SLASH, odd->BACK
+const MIRROR_TYPES={ M:SLASH, M45:BACK };
+
+let gr=[],td=[],pl=[],rot=[],steps=0,score=0,sel=0,won=false,hint=null,tut=false,tutIdx=0,beams=[];
+
+function init(){
+  gr=Array.from({length:R},()=>Array(C).fill(0));
+  td=Array.from({length:R},()=>Array(C).fill(0));
+  pl=Array.from({length:R},()=>Array(C).fill(false));
+  rot=Array.from({length:R},()=>Array(C).fill(0));
+  steps=0;score=0;won=false;hint=null;beams=[];
+  for(let i=0;i<3;i++){gr[0][SC[i]]=L;td[0][SC[i]]=i;}
+  for(let i=0;i<3;i++){gr[5][DC[i]]=T;td[5][DC[i]]=i;}
+  // Block cells to force routing
+  gr[3][0]=B; gr[2][2]=B; gr[3][4]=B;
+  calc();draw();ui();
+}
+
+const TOOLS=[
+  {label:'Mirror',draw:(c,w,h)=>{
+    c.fillStyle='#b0b0c0';c.beginPath();c.moveTo(w/2,4);c.lineTo(w-4,h/2);c.lineTo(w/2,h-4);c.lineTo(4,h/2);c.closePath();c.fill();
+    c.fillStyle='rgba(255,255,255,.2)';c.beginPath();c.moveTo(w/2,4);c.lineTo(w-4,h/2);c.lineTo(w/2,h/2);c.closePath();c.fill();
+  }},
+  {label:'45\u00b0 Mirror',draw:(c,w,h)=>{
+    c.fillStyle='#c0c0d0';c.beginPath();c.moveTo(4,h/2);c.lineTo(w/2,4);c.lineTo(w-4,h/2);c.lineTo(w/2,h-4);c.closePath();c.fill();
+    c.fillStyle='rgba(255,255,255,.18)';c.beginPath();c.moveTo(4,h/2);c.lineTo(w/2,4);c.lineTo(w/2,h/2);c.closePath();c.fill();
+  }},
+  {label:'Prism',draw:(c,w,h)=>{
+    c.fillStyle='rgba(255,255,255,.25)';c.strokeStyle='#ccc';c.lineWidth=1;
+    c.beginPath();c.moveTo(w/4,h/2);c.lineTo(w/2,6);c.lineTo(w*3/4,h/2);c.lineTo(w/2,h-6);c.closePath();c.fill();c.stroke();
+    c.fillStyle='rgba(255,255,255,.07)';c.beginPath();c.moveTo(w/4,h/2);c.lineTo(w/2,6);c.lineTo(w/2,h/2);c.closePath();c.fill();
+  }}
+];
+
+function buildPalette(){
+  pel.innerHTML='';
+  TOOLS.forEach((t,i)=>{
+    let d=document.createElement('div');
+    d.className='palette-tile'+(i===0?' active':'');
+    let cv2=document.createElement('canvas');cv2.width=50;cv2.height=34;
+    t.draw(cv2.getContext('2d'),50,34);
+    d.appendChild(cv2);
+    let s=document.createElement('span');s.textContent=t.label;d.appendChild(s);
+    d.addEventListener('click',()=>selct(i));
+    pel.appendChild(d);
+  });
+}
+function selct(i){sel=i;document.querySelectorAll('.palette-tile').forEach((e,j)=>e.classList.toggle('active',j===i));}
+
+function clickCell(r,c){
+  if(won||r<0||r>=R||c<0||c>=C)return;
+  if(pl[r][c]){rot8(r,c);return;}
+  if(gr[r][c]!==E)return;
+  let tp=[M,M45,P][sel];
+  gr[r][c]=tp;pl[r][c]=true;rot[r][c]=0;steps++;
+  if(tut){if(tutIdx===0&&steps>=1)nxtTut();else if(tutIdx===1&&steps>=2)nxtTut();}
+  hint=null;calc();draw();ui();
+}
+
+function rot8(r,c){
+  if(won||!pl[r][c])return;
+  let t=gr[r][c];
+  if(t!==M&&t!==M45&&t!==P)return;
+  rot[r][c]=(rot[r][c]+1)%4;steps++;
+  hint=null;calc();draw();ui();
+}
+
+function calc(){
+  beams=[];if(won)return;
+  let seen=new Set();
+  for(let i=0;i<3;i++)trace(0,SC[i],1,0,i,seen);
+  score=0;
+  for(let i=0;i<3;i++){let tc=DC[i];if(beams.some(b=>b.ci===i&&b.path.some(p=>p.rt&&p.rr===5&&p.cc===tc)))score++;}
+  if(score===3&&!won){won=true;setTimeout(celebrate,400);}
+}
+
+function trace(sr,sc,dr,dc,ci,seen){
+  let r=sr,c=sc,path=[{rr:r,cc:c}],iter=0;
+  while(iter++<40){
+    let nr=r+dr,nc=c+dc;
+    if(nr<0||nr>=R||nc<0||nc>=C)break;
+    path.push({rr:nr,cc:nc});r=nr;c=nc;
+    let k=r+','+c+','+dr+','+dc;
+    if(seen.has(k))break;seen.add(k);
+    let g=gr[r][c];
+    if(g===B||g===L)break;
+    if(g===T){if(td[r][c]===ci)path[path.length-1].rt=true;break;}
+    if(g===M||g===M45){
+      let base=g===M?SLASH:BACK;
+      let isEven=rot[r][c]%2===0;
+      let mt=isEven?base:(base===SLASH?BACK:SLASH);
+      let key=dr+','+dc;
+      let nd=mt[key];
+      if(!nd)break;
+      dr=nd[0];dc=nd[1];
+      path.push({rr:r,cc:c,m:true});continue;
+    }
+    if(g===P){
+      let isHV=rot[r][c]%2===0;
+      let s1r=isHV?dc:-dc,s1c=isHV?-dr:dr;
+      let s2r=isHV?-dc:dc,s2c=isHV?dr:-dr;
+      path.push({rr:r,cc:c,p:true});
+      trace(r,c,s1r,s1c,ci,seen);
+      trace(r,c,s2r,s2c,ci,seen);
+      break;
+    }
+  }
+  beams.push({path,color:COLS[ci],ci});
+}
+
+function celebrate(){
+  ob.innerHTML=`<h2 style="color:#aaf">\u2728 Constellation Lit! \u2728</h2>
+    <p>You routed all 3 light beams to their targets in <b>${steps}</b> steps.</p>
+    <p style="font-size:1.8rem;margin:6px 0;letter-spacing:8px">\u2605 \u2605 \u2605</p>
+    <p style="color:#888;font-size:.85rem">The lanterns shine through the loom.</p>
+    <button onclick="rst()">Play Again</button>`;
+  ol.classList.add('show');
+}
+function rst(){ol.classList.remove('show');init();}
+
+function doHint(){
+  if(won)return;
+  for(let i=0;i<3;i++){let tc=DC[i];let lit=beams.some(b=>b.ci===i&&b.path.some(p=>p.rt&&p.rr===5&&p.cc===tc));if(lit)continue;
+    for(let r=1;r<R-1;r++)for(let c=0;c<C;c++){if(gr[r][c]===E&&!pl[r][c]){hint={rr:r,cc:c};draw();return;}}}
+  for(let r=1;r<R-1;r++)for(let c=0;c<C;c++){if(gr[r][c]===E&&!pl[r][c]){hint={rr:r,cc:c};draw();return;}}
+  hint=null;draw();
+}
+
+function showTut(){
+  tut=true;tutIdx=0;
+  renderTut(['Place a Mirror','Click <b>Mirror</b> in the palette, then click an empty cell. Mirrors reflect light beams 90\u00b0.',1]);
+}
+
+function renderTut(s){
+  ob.innerHTML=`<h2 style="color:#aaf">How to Play</h2>
+    <div class="tut-step"><b>${s[0]}</b><p>${s[1]}</p></div>
+    <p style="color:#666;font-size:.8rem">Step ${s[2]} of 4</p>
+    <button onclick="nxtTut()">${s[2]<4?'Next \u2192':'Start!'}</button>`;
+  ol.classList.add('show');
+}
+
+function nxtTut(){
+  tutIdx++;
+  let stepsData=[
+    ['Place a Mirror','Click <b>Mirror</b> in the palette, then click an empty cell. Mirrors reflect light.',1],
+    ['Rotate a Mirror','Click a placed mirror to <b>rotate</b> it. Rotating changes the reflection direction.',2],
+    ['Use a Prism','Select <b>Prism</b> from the palette. A prism <b>splits</b> a beam into two paths.',3],
+    ['Light All Targets','Route all 3 colored beams to their matching \u2605 targets to <b>win!</b>',4]
+  ];
+  if(tutIdx<stepsData.length)renderTut(stepsData[tutIdx]);
+  else{ol.classList.remove('show');tut=false;}
+}
+
+function ui(){scEl.textContent=steps;sdEl.textContent=score+'/3';}
+
+function draw(){
+  cx.clearRect(0,0,cv.width,cv.height);
+  for(let r=0;r<R;r++)for(let c=0;c<C;c++){
+    let x=c*SZ,y=r*SZ,g=gr[r][c],tdv=td[r][c];
+    cx.fillStyle=g===B?'#111118':'#1a1a24';cx.fillRect(x,y,SZ,SZ);
+    if(g===B){cx.fillStyle='#222';cx.font='22px sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText('\u2593',x+SZ/2,y+SZ/2);}
+    else if(g===L){
+      cx.fillStyle=COLS[tdv]+'20';cx.fillRect(x,y,SZ,SZ);
+      cx.shadowColor=COLS[tdv];cx.shadowBlur=16;
+      cx.fillStyle='#ffe';cx.beginPath();cx.arc(x+SZ/2,y+SZ/2,12,0,Math.PI*2);cx.fill();
+      cx.shadowBlur=0;cx.fillStyle=COLS[tdv];cx.beginPath();cx.arc(x+SZ/2,y+SZ/2,10,0,Math.PI*2);cx.fill();
+      cx.fillStyle='#fff';cx.font='14px sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText('\uD83C\uDFEE',x+SZ/2,y+SZ/2+1);
+    }else if(g===T){
+      let lit=beams.some(b=>b.ci===tdv&&b.path.some(p=>p.rt&&p.rr===r&&p.cc===c));
+      cx.fillStyle=lit?COLS[tdv]+'20':'#15151e';cx.fillRect(x,y,SZ,SZ);
+      if(lit){cx.shadowColor=COLS[tdv];cx.shadowBlur=8;}
+      cx.fillStyle=lit?'#fff':'#555';cx.font='26px sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(lit?'\u2605':'\u2606',x+SZ/2,y+SZ/2);
+      cx.shadowBlur=0;
+      let bw=SZ*.6,bh=6,bx=x+(SZ-bw)/2,by=y+SZ-12;
+      cx.fillStyle='#2a2a2a';cx.fillRect(bx,by,bw,bh);
+      if(lit){cx.fillStyle=COLS[tdv];cx.fillRect(bx,by,bw,bh);}
+    }
+    if(pl[r][c])drawTile(x,y,gr[r][c],rot[r][c]);
+    cx.strokeStyle='#252535';cx.lineWidth=1;cx.strokeRect(x,y,SZ,SZ);
+  }
+  for(let b of beams){
+    let p=b.path;
+    for(let i=0;i<p.length-1;i++){
+      let a=p[i],n=p[i+1];
+      if(a.m||a.p)continue;
+      cx.shadowColor=b.color;cx.shadowBlur=8;
+      cx.strokeStyle=b.color;cx.lineWidth=3;cx.globalAlpha=.8;
+      cx.beginPath();cx.moveTo(a.cc*SZ+SZ/2,a.rr*SZ+SZ/2);cx.lineTo(n.cc*SZ+SZ/2,n.rr*SZ+SZ/2);cx.stroke();
+      cx.globalAlpha=1;cx.shadowBlur=0;
+    }
+  }
+  if(hint){
+    cx.strokeStyle='#ffe066';cx.lineWidth=3;cx.setLineDash([5,4]);
+    cx.strokeRect(hint.cc*SZ+3,hint.rr*SZ+3,SZ-6,SZ-6);
+    cx.setLineDash([]);
+  }
+}
+
+function drawTile(x,y,t,r){
+  cx.save();cx.translate(x+SZ/2,y+SZ/2);cx.rotate(r*Math.PI/2);
+  if(t===M){
+    cx.fillStyle='rgba(190,190,210,.85)';cx.strokeStyle='rgba(170,170,190,.7)';cx.lineWidth=1;
+    cx.beginPath();cx.moveTo(0,-SZ*.38);cx.lineTo(SZ*.38,0);cx.lineTo(0,SZ*.38);cx.lineTo(-SZ*.38,0);cx.closePath();cx.fill();cx.stroke();
+    cx.fillStyle='rgba(255,255,255,.2)';cx.beginPath();cx.moveTo(0,-SZ*.38);cx.lineTo(SZ*.38,0);cx.lineTo(0,0);cx.closePath();cx.fill();
+  }else if(t===M45){
+    cx.fillStyle='rgba(200,200,220,.85)';cx.strokeStyle='rgba(180,180,200,.7)';cx.lineWidth=1;
+    cx.beginPath();cx.moveTo(-SZ*.35,0);cx.lineTo(0,-SZ*.38);cx.lineTo(SZ*.35,0);cx.lineTo(0,SZ*.38);cx.closePath();cx.fill();cx.stroke();
+    cx.fillStyle='rgba(255,255,255,.18)';cx.beginPath();cx.moveTo(-SZ*.35,0);cx.lineTo(0,-SZ*.38);cx.lineTo(0,0);cx.closePath();cx.fill();
+  }else if(t===P){
+    cx.fillStyle='rgba(255,255,255,.18)';cx.strokeStyle='rgba(200,200,230,.35)';cx.lineWidth=1;
+    cx.beginPath();cx.moveTo(-SZ*.18,0);cx.lineTo(0,-SZ*.38);cx.lineTo(SZ*.18,0);cx.lineTo(0,SZ*.38);cx.closePath();cx.fill();cx.stroke();
+    cx.fillStyle='rgba(255,255,255,.06)';cx.beginPath();cx.moveTo(-SZ*.18,0);cx.lineTo(0,-SZ*.38);cx.lineTo(0,0);cx.closePath();cx.fill();
+  }
+  cx.restore();
+}
+
+cv.addEventListener('click',e=>{
+  let r=cv.getBoundingClientRect(),sx=cv.width/r.width,sy=cv.height/r.height;
+  clickCell(Math.floor((e.clientY-r.top)*sy/SZ),Math.floor((e.clientX-r.left)*sx/SZ));
+});
+cv.addEventListener('mousemove',e=>{
+  let r=cv.getBoundingClientRect(),sx=cv.width/r.width,sy=cv.height/r.height;
+  let cc=Math.floor((e.clientX-r.left)*sx/SZ),rr=Math.floor((e.clientY-r.top)*sy/SZ);
+  cv.style.cursor=(rr>=0&&rr<R&&cc>=0&&cc<C&&(gr[rr][cc]===E||pl[rr][cc]))?'pointer':'default';
+});
+document.getElementById('hintBtn').addEventListener('click',doHint);
+document.getElementById('resetBtn').addEventListener('click',init);
+
+buildPalette();init();
+if(!localStorage.getItem('lanternTut')){showTut();localStorage.setItem('lanternTut','1');}
+</script>
+</body>
+</html>
