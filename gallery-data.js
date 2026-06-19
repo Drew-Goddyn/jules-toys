@@ -230,6 +230,16 @@ window.galleryItems = [
     oneLine: "Plays a grid-based salvage run with hull, energy, shields, scanning, moving hazards, and extraction objective."
   },
   {
+    tier: 8,
+    title: "Signal Path Lab",
+    slug: "signal-path-lab",
+    path: "tier8/signal-path-lab/index.html",
+    screenshot: "tier8/signal-path-lab/screenshot.png",
+    kind: "Interactive signal router",
+    tags: ["puzzle", "signal", "grid", "logic"],
+    oneLine: "Routes signals from source to target by placing and rotating wire segments on a grid."
+  },
+  {
     tier: 9,
     title: "Signal Drift Rally",
     slug: "signal-drift-rally",
